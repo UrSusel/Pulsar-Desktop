@@ -17,6 +17,12 @@ A free, portable music player for **Windows 10/11** with a pulsar-nebula soul: s
 - 🪟 **Windows integration** — tray icon with playback menu, optional close-to-tray, always-on-top, compact mini mode, now-playing in the window/taskbar title, track-change notifications
 - ⏯️ **Resume where you left off** — last track and position are restored on start
 - 📡 **OBS / streaming** — Pulsar's audio (with EQ & effects) goes straight into an OBS *Browser* source, plus an optional now-playing overlay. No virtual audio cables needed
+- 🎨 **Overlay themes** — card, full-width bar, big cover or minimal text; five positions; accent from the cover or your own colour, with a live preview
+- 🔁 **Gapless playback** — live albums and DJ mixes flow on without a gap (when crossfade is off); crossfade now preloads the next track too
+- ✏️ **Tag editor** — fix title, artist and cover from the track list; MP3 (ID3v2) and M4A tags are written into the file itself, optionally also the original on disk
+- 📂 **Watched folder** — pick a music folder and new files (including subfolders) show up in the library automatically
+- 💾 **Library backup** — one `.pulsarlib` file with tracks, covers, albums, favourites, play counts and (optionally) settings; restore merges, never deletes
+- ⬆️ **yt-dlp auto-update** — one-click update in Settings, a daily check against the latest release, and an automatic retry after an update if a download fails
 
 ## 📸 Screenshots
 
@@ -56,6 +62,8 @@ app/
 └─ resources/
    ├─ index.html             # the whole player (HTML + CSS + JS, single file)
    ├─ desktop.js             # desktop layer: runs yt-dlp.exe, file system, window
+   ├─ tags.js                # ID3v2 / MP4 tag writer (used by the tag editor and downloads)
+   ├─ obs/overlay.html       # OBS overlay + themes
    ├─ neutralino.js          # Neutralino client library 6.9.0
    └─ icons/appIcon.png
 ```

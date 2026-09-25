@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="pl">
 <head>
+  <script src="tags.js"></script>
   <script src="neutralino.js"></script>
   <script src="desktop.js"></script>
 <meta charset="UTF-8">
@@ -535,6 +536,9 @@
   .mini-act { position:absolute; right:8px; top:50%; transform:translateY(-50%); width:26px; height:26px; border:0; border-radius:50%; background:transparent; color:var(--text-muted); font-size:16px; line-height:1; cursor:pointer; opacity:0; transition:opacity .15s; }
   .mini-act.mid { right:38px; }
   .mini-act.danger { right:68px; }
+  .mini-act.tag-act { right:68px; font-size:0; }
+  .mini-act.tag-act ~ .mini-act.danger { right:98px; }
+  .track-list li:has(.tag-act) { padding-right: 134px; }
   .track-list li:hover .mini-act { opacity:1; }
   .mini-act:hover { color:#fff; background:rgba(255,255,255,.14); }
   .mini-act.danger:hover { color:#fff; background:rgba(215,60,60,.65); }
@@ -819,6 +823,12 @@
   @keyframes viewIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
   .view-anim { animation: viewIn .34s cubic-bezier(.22,.8,.3,1) both; }
   .sm-btn { width: 100%; margin: 4px 0 2px; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); color: #fff; font-size: 12.5px; cursor: pointer; font-family: inherit; transition: .14s; }
+  .sm-btn:disabled { opacity: .55; cursor: progress; }
+  .sm-path { font-size: 11.5px; color: rgba(255,255,255,.7); font-family: Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+  .sm-mini { flex: none; padding: 4px 9px; border-radius: 8px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); color: #fff; font: inherit; font-size: 11.5px; cursor: pointer; }
+  .sm-mini:hover { background: rgba(215,60,60,.55); }
+  .sm-btn-row { display: flex; gap: 6px; }
+  .sm-btn-row .sm-btn { flex: 1; }
   .sm-btn:hover { background: rgba(var(--accent-rgb), .14); border-color: var(--accent); }
   /* --- Zapisz całą playlistę YT --- */
   .net-save-all { display: flex; justify-content: center; padding: 2px 0 12px; }
@@ -982,6 +992,34 @@
   .mv-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .mv-btn.big svg { width: 20px; height: 20px; }
   .mv-btn svg .fill { fill: currentColor; stroke: none; }
+  .backup-sum { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+  .backup-sum > div { display: flex; justify-content: space-between; gap: 12px; color: rgba(255,255,255,.6); }
+  .backup-sum > div b { color: #fff; font-weight: 600; text-align: right; word-break: break-all; }
+  .backup-note { margin: 6px 0 2px; font-size: 12px; color: rgba(255,255,255,.55); line-height: 1.45; }
+  .tag-ed { display: grid; grid-template-columns: 150px 1fr; gap: 16px; align-items: start; }
+  .tag-ed-cover { display: flex; flex-direction: column; gap: 6px; }
+  .tag-ed-cover img { width: 150px; height: 150px; object-fit: cover; border-radius: 10px; background: #151515; box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+  .tag-ed-btn { padding: 6px 8px; border-radius: 8px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.07); color: #fff; font: inherit; font-size: 12px; cursor: pointer; }
+  .tag-ed-btn:hover { background: rgba(255,255,255,.14); }
+  .tag-ed-fields { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+  .tag-ed-field { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: rgba(255,255,255,.6); }
+  .tag-ed-input { width: 100%; box-sizing: border-box; margin: 0; }
+  .tag-ed-note { font-size: 11.5px; color: rgba(255,255,255,.5); line-height: 1.45; }
+  .tag-ed-disk { display: flex; align-items: center; gap: 8px; font-size: 12.5px; color: rgba(255,255,255,.8); cursor: pointer; }
+  .tag-ed-fields code { font-family: Consolas, monospace; font-size: 11px; color: rgba(255,255,255,.55); word-break: break-all; }
+  .mini-act.tag-act svg { display: block; margin: auto; }
+  @media (max-width: 560px){ .tag-ed { grid-template-columns: 1fr; } }
+  .obs-help > * { flex-shrink: 0; }
+  .obs-theme { display: flex; flex-direction: column; gap: 8px; }
+  .obs-theme-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  .obs-theme-field { display: flex; flex-direction: column; gap: 3px; font-size: 12px; color: rgba(255,255,255,.6); }
+  .obs-theme-field .sm-select { width: 100%; }
+  .obs-theme-acc { display: flex; gap: 6px; align-items: center; }
+  .obs-theme-acc input[type=color] { width: 34px; height: 28px; padding: 0; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; background: none; cursor: pointer; flex: none; }
+  .obs-theme-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; align-self: end; padding-bottom: 5px; cursor: pointer; }
+  .obs-preview { position: relative; width: 100%; aspect-ratio: 800 / 360; overflow: hidden; border-radius: 10px; flex: none;
+    background: repeating-conic-gradient(#2a2a30 0 25%, #1e1e24 0 50%) 0 0 / 20px 20px; border: 1px solid rgba(255,255,255,.1); }
+  .obs-preview iframe { color-scheme: normal; background: transparent; position: absolute; left: 0; top: 0; width: 800px; height: 360px; border: 0; transform-origin: 0 0; transform: scale(var(--k, .5)); pointer-events: none; }
   .obs-help { font-size: 13px; line-height: 1.5; color: rgba(255,255,255,.82); display: flex; flex-direction: column; gap: 10px; max-height: min(64vh, 560px); overflow-y: auto; }
   .obs-help h4 { margin: 6px 0 0; font-size: 12px; letter-spacing: .8px; text-transform: uppercase; color: rgba(255,255,255,.5); }
   .obs-help p { margin: 0; }
@@ -1302,6 +1340,7 @@
     <div class="sm-row"><span class="sm-lab">Sleep timer</span><select id="smSleep" class="sm-select" aria-label="Sleep timer"><option value="0">Wyłączony</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="end">Koniec utworu</option></select><span class="sm-val" id="smSleepVal"></span></div>
     <div class="sm-row"><span class="sm-lab">Balans L·P</span><input type="range" id="smPan" min="-100" max="100" step="5" value="0" aria-label="Balans kanałów"><span class="sm-val" id="smPanVal">środek</span></div>
     <div class="sm-row"><span class="sm-lab">Mono</span><label class="switch"><input type="checkbox" id="smMono"><span class="slider"></span></label></div>
+    <div class="sm-row"><span class="sm-lab" title="Następny utwór startuje bez przerwy (gdy crossfade jest wyłączony)">Gapless (bez przerw między utworami)</span><label class="switch"><input type="checkbox" id="smGapless" checked><span class="slider"></span></label></div>
     <div class="sm-row"><span class="sm-lab">Wznawiaj od miejsca, w którym skończyłeś</span><label class="switch"><input type="checkbox" id="smResume" checked><span class="slider"></span></label></div>
     <div class="sm-cap sm-desktop-only">Windows</div>
     <button type="button" class="sm-btn sm-desktop-only" id="smMiniBtn" title="Małe okno z okładką i przyciskami — zawsze na wierzchu">Tryb mini (kompaktowe okno)</button>
@@ -1316,8 +1355,15 @@
     <button type="button" class="sm-btn" id="smNetMoveBtn" title="Zmienia folder już pobranych utworów na wybrany powyżej">Przenieś pobrane</button>
     <div class="sm-row"><span class="sm-lab">Zapisuj MP3 na dysku (mostek)</span><label class="switch"><input type="checkbox" id="smNetDiskToggle"><span class="slider"></span></label></div>
     <button type="button" class="sm-btn" id="smNetDiskBtn" title="Prawdziwy folder na dysku, do którego mostek zapisuje pobrane MP3">Folder na dysku</button>
-    <div class="sm-cap">Eksport</div>
+    <button type="button" class="sm-btn sm-desktop-only" id="smYtdlpBtn" title="Pobiera najnowszą wersję yt-dlp — naprawia pobieranie, gdy YouTube coś zmieni">Aktualizuj yt-dlp</button>
+    <div class="sm-row sm-desktop-only"><span class="sm-lab" title="Raz na dobę sprawdza nowe wydanie; przy błędzie pobierania próbuje aktualizacji">Automatyczne aktualizacje yt-dlp</span><label class="switch"><input type="checkbox" id="smYtdlpAuto" checked><span class="slider"></span></label></div>
+    <div class="sm-cap sm-desktop-only">Obserwowany folder</div>
+    <div class="sm-row sm-desktop-only"><span class="sm-lab sm-path" id="smWatchPath">nie wybrano</span><button type="button" class="sm-mini" id="smWatchOff" hidden>Wyłącz</button></div>
+    <button type="button" class="sm-btn sm-desktop-only" id="smWatchBtn" title="Nowe pliki audio z tego folderu (i podfolderów) same trafią do biblioteki">Wybierz folder…</button>
+    <div class="sm-cap">Eksport i kopia zapasowa</div>
     <button type="button" class="sm-btn" id="smM3uBtn">Eksportuj kolejkę (M3U)</button>
+    <div class="sm-btn-row"><button type="button" class="sm-btn" id="smBackupBtn" title="Jeden plik .pulsarlib: utwory, okładki, albumy, ulubione, statystyki i ustawienia">Kopia biblioteki…</button><button type="button" class="sm-btn" id="smRestoreBtn" title="Wczytuje plik .pulsarlib — dokłada brakujące utwory i albumy">Przywróć z kopii…</button></div>
+    <input type="file" id="backupFileInput" accept=".pulsarlib" hidden>
   </div>
   <div class="queue-panel" id="queuePanel" hidden>
     <div class="qp-head"><span>Na następce</span><button type="button" class="qp-close" id="queueCloseBtn" aria-label="Zamknij kolejkę">✕</button></div>
@@ -1345,6 +1391,100 @@
     if (!_savedLang){ try { localStorage.setItem('playerLang', CUR_LANG); } catch(e){} }
   } catch(e){ CUR_LANG = 'pl'; }
   var I18N_DICT = {
+    'Edytuj tagi': { en: 'Edit tags', es: 'Editar etiquetas' },
+    'Zmień okładkę…': { en: 'Change cover…', es: 'Cambiar portada…' },
+    'Usuń okładkę': { en: 'Remove cover', es: 'Quitar portada' },
+    'Nie udało się wczytać obrazu': { en: 'Could not load the image', es: 'No se pudo cargar la imagen' },
+    'Tytuł': { en: 'Title', es: 'Título' },
+    'Wykonawca': { en: 'Artist', es: 'Artista' },
+    'Tagi zostaną zapisane w pliku (': { en: 'Tags will be written into the file (', es: 'Las etiquetas se guardarán en el archivo (' },
+    ') — zobaczysz je też w Eksploratorze i na telefonie.': { en: ') — you will also see them in Explorer and on your phone.', es: ') — también las verás en el Explorador y en el móvil.' },
+    'Ten format (FLAC/OGG/WAV) — zmiany zapiszą się tylko w bibliotece Pulsara.': { en: 'This format (FLAC/OGG/WAV) — changes are saved only in the Pulsar library.', es: 'Este formato (FLAC/OGG/WAV) — los cambios solo se guardan en la biblioteca de Pulsar.' },
+    'Zapisz też w oryginalnym pliku na dysku': { en: 'Also update the original file on disk', es: 'Actualizar también el archivo original en el disco' },
+    'Zapisano w bibliotece, ale nie udało się nadpisać pliku na dysku': { en: 'Saved in the library, but the file on disk could not be overwritten', es: 'Guardado en la biblioteca, pero no se pudo sobrescribir el archivo en el disco' },
+    'Tagi zapisane (biblioteka + plik na dysku)': { en: 'Tags saved (library + file on disk)', es: 'Etiquetas guardadas (biblioteca + archivo en disco)' },
+    'Tagi zapisane w pliku i bibliotece': { en: 'Tags saved in the file and the library', es: 'Etiquetas guardadas en el archivo y la biblioteca' },
+    'Zapisano w bibliotece': { en: 'Saved in the library', es: 'Guardado en la biblioteca' },
+    'Nie udało się zapisać tagów': { en: 'Could not save tags', es: 'No se pudieron guardar las etiquetas' },
+    'Biblioteka jest pusta — nie ma czego zapisać': { en: 'The library is empty — nothing to back up', es: 'La biblioteca está vacía — no hay nada que guardar' },
+    'Zapisz kopię biblioteki': { en: 'Save library backup', es: 'Guardar copia de la biblioteca' },
+    'Kopia biblioteki Pulsar': { en: 'Pulsar library backup', es: 'Copia de la biblioteca de Pulsar' },
+    'Zapisuję kopię… ': { en: 'Saving backup… ', es: 'Guardando copia… ' },
+    'Kopia zapisana: ': { en: 'Backup saved: ', es: 'Copia guardada: ' },
+    ' utw., ': { en: ' tracks, ', es: ' canciones, ' },
+    ' alb. · ': { en: ' albums · ', es: ' álbumes · ' },
+    'Kopia gotowa: ': { en: 'Backup ready: ', es: 'Copia lista: ' },
+    'Nie udało się zapisać kopii: ': { en: 'Could not save the backup: ', es: 'No se pudo guardar la copia: ' },
+    'to nie jest plik kopii Pulsara': { en: 'this is not a Pulsar backup file', es: 'no es un archivo de copia de Pulsar' },
+    'nieobsługiwana wersja kopii': { en: 'unsupported backup version', es: 'versión de copia no compatible' },
+    'uszkodzony manifest': { en: 'damaged manifest', es: 'manifiesto dañado' },
+    'Przywracam… ': { en: 'Restoring… ', es: 'Restaurando… ' },
+    'Przywróć z kopii': { en: 'Restore from backup', es: 'Restaurar desde copia' },
+    'Przywróć': { en: 'Restore', es: 'Restaurar' },
+    'Plik': { en: 'File', es: 'Archivo' },
+    'Utworzono': { en: 'Created', es: 'Creado' },
+    'nowych: ': { en: 'new: ', es: 'nuevas: ' },
+    'Brakujące utwory i albumy zostaną dołożone. Niczego nie usuwam; ulubione i liczniki odtworzeń łączą się.': { en: 'Missing tracks and albums will be added. Nothing is deleted; favourites and play counts are merged.', es: 'Se añadirán las canciones y álbumes que falten. No se borra nada; los favoritos y contadores se combinan.' },
+    'Przywróć też ustawienia (działają po ponownym uruchomieniu)': { en: 'Also restore settings (take effect after restart)', es: 'Restaurar también los ajustes (tras reiniciar)' },
+    'Przywrócono: ': { en: 'Restored: ', es: 'Restaurado: ' },
+    ' alb.': { en: ' albums', es: ' álbumes' },
+    ' · scalono: ': { en: ' · merged: ', es: ' · combinados: ' },
+    ' · ustawienia po restarcie': { en: ' · settings after restart', es: ' · ajustes tras reiniciar' },
+    'Nie udało się przywrócić kopii: ': { en: 'Could not restore the backup: ', es: 'No se pudo restaurar la copia: ' },
+    'Nie mogę odczytać kopii: ': { en: 'Cannot read the backup: ', es: 'No se puede leer la copia: ' },
+    'Eksport i kopia zapasowa': { en: 'Export & backup', es: 'Exportar y copia de seguridad' },
+    'Kopia biblioteki…': { en: 'Back up library…', es: 'Copia de la biblioteca…' },
+    'Przywróć z kopii…': { en: 'Restore from backup…', es: 'Restaurar desde copia…' },
+    'Jeden plik .pulsarlib: utwory, okładki, albumy, ulubione, statystyki i ustawienia': { en: 'One .pulsarlib file: tracks, covers, albums, favourites, stats and settings', es: 'Un archivo .pulsarlib: canciones, portadas, álbumes, favoritos, estadísticas y ajustes' },
+    'Wczytuje plik .pulsarlib — dokłada brakujące utwory i albumy': { en: 'Loads a .pulsarlib file — adds missing tracks and albums', es: 'Carga un archivo .pulsarlib — añade las canciones y álbumes que falten' },
+    'Gapless (bez przerw)': { en: 'Gapless playback', es: 'Reproducción sin pausas' },
+    'Utwory przechodzą jeden w drugi bez ciszy — albumy koncertowe, miksy. Działa, gdy crossfade jest wyłączony.': { en: 'Tracks flow into each other with no silence — live albums, mixes. Works when crossfade is off.', es: 'Las canciones enlazan sin silencio — álbumes en directo, mezclas. Funciona con el crossfade desactivado.' },
+    'Gapless: wł.': { en: 'Gapless: on', es: 'Sin pausas: sí' },
+    'Gapless: wył.': { en: 'Gapless: off', es: 'Sin pausas: no' },
+    'Gapless (bez przerw między utworami)': { en: 'Gapless (no gaps between tracks)', es: 'Sin pausas entre canciones' },
+    'Następny utwór startuje bez przerwy (gdy crossfade jest wyłączony)': { en: 'The next track starts with no gap (when crossfade is off)', es: 'La siguiente canción empieza sin pausa (con el crossfade desactivado)' },
+    'yt-dlp.exe nie znaleziony obok aplikacji': { en: 'yt-dlp.exe not found next to the app', es: 'yt-dlp.exe no encontrado junto a la aplicación' },
+    'nieznany błąd': { en: 'unknown error', es: 'error desconocido' },
+    'Sprawdzam aktualizację yt-dlp…': { en: 'Checking for a yt-dlp update…', es: 'Buscando actualización de yt-dlp…' },
+    'Aktualizacja yt-dlp nie powiodła się: ': { en: 'yt-dlp update failed: ', es: 'La actualización de yt-dlp falló: ' },
+    'yt-dlp zaktualizowany: ': { en: 'yt-dlp updated: ', es: 'yt-dlp actualizado: ' },
+    'yt-dlp jest aktualny (': { en: 'yt-dlp is up to date (', es: 'yt-dlp está al día (' },
+    'Aktualizuję yt-dlp…': { en: 'Updating yt-dlp…', es: 'Actualizando yt-dlp…' },
+    'Aktualizuj yt-dlp': { en: 'Update yt-dlp', es: 'Actualizar yt-dlp' },
+    'Automatyczne aktualizacje yt-dlp': { en: 'Automatic yt-dlp updates', es: 'Actualizaciones automáticas de yt-dlp' },
+    'Pobiera najnowszą wersję yt-dlp — naprawia pobieranie, gdy YouTube coś zmieni': { en: 'Downloads the latest yt-dlp — fixes downloads when YouTube changes something', es: 'Descarga la última versión de yt-dlp — arregla las descargas cuando YouTube cambia algo' },
+    'Raz na dobę sprawdza nowe wydanie; przy błędzie pobierania próbuje aktualizacji': { en: 'Checks for a new release once a day; tries an update when a download fails', es: 'Busca una nueva versión una vez al día; intenta actualizar si falla una descarga' },
+    'Folder niedostępny': { en: 'Folder unavailable', es: 'Carpeta no disponible' },
+    'Dodaję z folderu… ': { en: 'Adding from folder… ', es: 'Añadiendo desde la carpeta… ' },
+    'Obserwowany folder: dodano utworów: ': { en: 'Watched folder: tracks added: ', es: 'Carpeta vigilada: canciones añadidas: ' },
+    'Wybierz folder z muzyką do obserwowania': { en: 'Choose a music folder to watch', es: 'Elige una carpeta de música para vigilar' },
+    'Obserwuję folder: ': { en: 'Watching folder: ', es: 'Vigilando carpeta: ' },
+    'Obserwowanie folderu wyłączone': { en: 'Folder watching turned off', es: 'Vigilancia de carpeta desactivada' },
+    'nie wybrano': { en: 'not chosen', es: 'sin elegir' },
+    'Zmień folder…': { en: 'Change folder…', es: 'Cambiar carpeta…' },
+    'Wybierz folder…': { en: 'Choose folder…', es: 'Elegir carpeta…' },
+    'Obserwowany folder': { en: 'Watched folder', es: 'Carpeta vigilada' },
+    'Wyłącz': { en: 'Turn off', es: 'Desactivar' },
+    'Nowe pliki audio z tego folderu (i podfolderów) same trafią do biblioteki': { en: 'New audio files in this folder (and subfolders) are added to the library automatically', es: 'Los nuevos archivos de audio de esta carpeta (y subcarpetas) se añaden solos a la biblioteca' },
+    'Tytuł utworu': { en: 'Track title', es: 'Título de la canción' },
+    'Wygląd overlayu': { en: 'Overlay look', es: 'Aspecto del overlay' },
+    'Styl': { en: 'Style', es: 'Estilo' },
+    'Karta': { en: 'Card', es: 'Tarjeta' },
+    'Pasek (cała szerokość)': { en: 'Bar (full width)', es: 'Barra (ancho completo)' },
+    'Duża okładka': { en: 'Big cover', es: 'Portada grande' },
+    'Minimalny (sam tekst)': { en: 'Minimal (text only)', es: 'Mínimo (solo texto)' },
+    'Pozycja': { en: 'Position', es: 'Posición' },
+    'Lewy dół': { en: 'Bottom left', es: 'Abajo a la izquierda' },
+    'Środek dół': { en: 'Bottom centre', es: 'Abajo al centro' },
+    'Prawy dół': { en: 'Bottom right', es: 'Abajo a la derecha' },
+    'Lewa góra': { en: 'Top left', es: 'Arriba a la izquierda' },
+    'Prawa góra': { en: 'Top right', es: 'Arriba a la derecha' },
+    'Kolor akcentu': { en: 'Accent colour', es: 'Color de acento' },
+    'Z okładki (automatycznie)': { en: 'From cover (automatic)', es: 'De la portada (automático)' },
+    'Własny': { en: 'Custom', es: 'Personalizado' },
+    'Wizualizacja (słupki)': { en: 'Visualizer (bars)', es: 'Visualizador (barras)' },
+    'Podgląd': { en: 'Preview', es: 'Vista previa' },
+    'Podgląd przy rozmiarze źródła 800 × 360. Zmiany trafiają do OBS od razu.': { en: 'Preview at a source size of 800 × 360. Changes reach OBS instantly.', es: 'Vista previa con fuente de 800 × 360. Los cambios llegan a OBS al instante.' },
     'Wybierz utwór': { en: 'Pick a track', es: 'Elige una canción' },
     'Biblioteka': { en: 'Library', es: 'Biblioteca' },
     'Album': { en: 'Album', es: 'Álbum' },
@@ -2459,7 +2599,8 @@
       await dbPut('tracks', {
         id: track.id, name: track.file.name, type: track.file.type, folder: track.folder,
         title: track.title, artist: track.artist, blob: track.file, coverBlob: track.coverBlob || null,
-        fav: !!track.fav, plays: track.plays || 0, lastPlay: track.lastPlay || 0
+        fav: !!track.fav, plays: track.plays || 0, lastPlay: track.lastPlay || 0,
+        srcPath: track.srcPath || '' // ścieżka oryginału na dysku (obserwowany folder) — edytor tagów może go zaktualizować
       });
     } catch(e) { console.warn('Nie można zapisać utworu.', e); }
   }
@@ -2476,7 +2617,7 @@
         id: item.id, file: new File([item.blob], item.name, { type: item.type || 'audio/mpeg' }),
         folder: item.folder || '', title: item.title, artist: item.artist,
         matchedImg: null, coverBlob: item.coverBlob || null, coverUrl: null, resolved: true,
-        fav: !!item.fav, plays: item.plays || 0, lastPlay: item.lastPlay || 0
+        fav: !!item.fav, plays: item.plays || 0, lastPlay: item.lastPlay || 0, srcPath: item.srcPath || ''
       }));
       albums = storedAlbums.map(a => Object.assign({ createdAt: 0, customCover: false }, a));
       if (tracks.length) {
@@ -2858,7 +2999,7 @@
       const matchedImg = imgMap.get(baseKey) || null;
       const fallback = parseNameFallback(f.name);
       const folder = rel.includes('/') ? rel.slice(0, rel.lastIndexOf('/')) : 'Muzyka';
-      return { id: makeId(), file: f, folder: folder, title: fallback.title, artist: fallback.artist, matchedImg: matchedImg, coverBlob: matchedImg, coverUrl: null, resolved: false, lrcFile: lrcMap.get(baseKey) || null };
+      return { id: makeId(), file: f, folder: folder, title: fallback.title, artist: fallback.artist, matchedImg: matchedImg, coverBlob: matchedImg, coverUrl: null, resolved: false, lrcFile: lrcMap.get(baseKey) || null, srcPath: f.__srcPath || '' };
     });
 
     let accepted = made;
@@ -2875,6 +3016,13 @@
     } else {
       const existing = new Set(tracks.map(t => t.folder + '/' + t.file.name + ':' + (t.file.size || 0)));
       accepted = made.filter(t => !existing.has(t.folder + '/' + t.file.name + ':' + (t.file.size || 0)));
+      // duplikat z obserwowanego folderu → zapamiętaj ścieżkę na dysku przy istniejącym utworze
+      made.forEach(function(m){
+        if (!m.srcPath || accepted.indexOf(m) > -1) return;
+        const k = m.folder + '/' + m.file.name + ':' + (m.file.size || 0);
+        const ex = tracks.find(t => !t.srcPath && (t.folder + '/' + t.file.name + ':' + (t.file.size || 0)) === k);
+        if (ex){ ex.srcPath = m.srcPath; persistTrack(ex); }
+      });
       tracks = tracks.concat(accepted);
     }
     accepted.forEach(persistTrack);
@@ -3176,6 +3324,11 @@
         add.type = 'button'; add.className = 'mini-act mid'; add.textContent = '+'; add.title = __tr('Dodaj do albumu'); add.setAttribute('aria-label', __tr('Dodaj „') + t.title + __tr('” do albumu'));
         add.addEventListener('click', ev => { ev.stopPropagation(); openAddToAlbumModal([t.id]); });
         li.appendChild(add);
+        const ed = document.createElement('button');
+        ed.type = 'button'; ed.className = 'mini-act mid tag-act'; ed.innerHTML = IC.pencil; ed.title = __tr('Edytuj tagi'); ed.setAttribute('aria-label', __tr('Edytuj tagi') + ': ' + t.title);
+        ed.addEventListener('click', ev => { ev.stopPropagation(); openTagEditor(t.id); });
+        li.dataset.trackId = t.id;
+        li.appendChild(ed);
         const remove = document.createElement('button');
         remove.type = 'button'; remove.className = 'mini-act danger'; remove.textContent = '×'; remove.title = __tr('Usuń z biblioteki'); remove.setAttribute('aria-label', __tr('Usuń „') + t.title + __tr('” z biblioteki'));
         remove.addEventListener('click', ev => { ev.stopPropagation(); removeTracks([t.id], true); });
@@ -3471,6 +3624,334 @@
   modalCancel.addEventListener('click', closeModal);
   modalDim.addEventListener('click', e => { if (e.target === modalDim) closeModal(); });
   modalInput.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); modalOk.click(); } });
+
+  /* ================= Edytor tagów (tytuł, wykonawca, okładka) =================
+   * Zapis: biblioteka Pulsara zawsze; w samym pliku (MP3: ID3v2, M4A: ilst) przez tags.js;
+   * w wersji desktop dodatkowo w oryginale na dysku, jeśli znamy jego ścieżkę (obserwowany folder).
+   */
+  function imageToJpegBlob(file, maxSide){
+    return new Promise(function(resolve){
+      const url = URL.createObjectURL(file);
+      const img = new Image();
+      img.onload = function(){
+        try {
+          const k = Math.min(1, (maxSide || 1000) / Math.max(img.naturalWidth || 1, img.naturalHeight || 1));
+          const c = document.createElement('canvas');
+          c.width = Math.max(1, Math.round(img.naturalWidth * k)); c.height = Math.max(1, Math.round(img.naturalHeight * k));
+          c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+          c.toBlob(function(b){ URL.revokeObjectURL(url); resolve(b); }, 'image/jpeg', 0.9);
+        } catch(e){ URL.revokeObjectURL(url); resolve(null); }
+      };
+      img.onerror = function(){ URL.revokeObjectURL(url); resolve(null); };
+      img.src = url;
+    });
+  }
+  function tagFormatOf(track){
+    const n = (track.file && track.file.name || '').toLowerCase();
+    if (/\.mp3$/.test(n)) return 'mp3';
+    if (/\.(m4a|mp4|aac|m4b)$/.test(n)) return 'mp4';
+    return '';
+  }
+  async function saveTrackTags(track, o){
+    const res = { embedded: false, disk: null };
+    const title = String(o.title || '').trim() || track.title;
+    const artist = String(o.artist || '').trim();
+    const finalCover = o.coverChanged ? o.coverBlob : (track.coverBlob || track.matchedImg || null);
+    let out = null;
+    try {
+      if (window.PulsarTags && track.file && track.file.arrayBuffer){
+        const buf = new Uint8Array(await track.file.arrayBuffer());
+        const cb = finalCover ? new Uint8Array(await finalCover.arrayBuffer()) : null;
+        out = window.PulsarTags.embed(buf, { title: title, artist: artist, cover: cb, coverMime: (finalCover && finalCover.type) || 'image/jpeg' });
+      }
+    } catch(e){ out = null; }
+    if (out){
+      track.file = new File([out], track.file.name, { type: track.file.type || (tagFormatOf(track) === 'mp3' ? 'audio/mpeg' : 'audio/mp4') });
+      res.embedded = true;
+    }
+    track.title = title; track.artist = artist || track.artist;
+    if (o.coverChanged){
+      track.coverBlob = o.coverBlob || null; track.matchedImg = null;
+      track.coverUrl = o.coverBlob ? URL.createObjectURL(o.coverBlob) : DEFAULT_COVER;
+    }
+    track.resolved = true;
+    await persistTrack(track);
+    if (o.writeDisk && out && track.srcPath && window.__pulsarFs && window.__pulsarFs.writeBinary){
+      try { await window.__pulsarFs.writeBinary(track.srcPath, out); res.disk = true; } catch(e){ res.disk = false; }
+    }
+    if (tracks[currentIndex] === track){
+      updateTitleArtist(txArtist(track.artist), track.title);
+      setCover(coverUrlOf(track)); setMediaSessionMeta(track);
+      try { document.dispatchEvent(new CustomEvent('pulsar:state', { detail: { reason: 'tags' } })); } catch(e){}
+    }
+    renderLibrary();
+    return res;
+  }
+  /* ================= Kopia zapasowa biblioteki (.pulsarlib) =================
+   * Format: "PULSARLIB" + bajt wersji (1) + uint32 LE długość manifestu + manifest JSON (UTF-8) + dane.
+   * W manifeście każdy Blob (plik audio, okładka) zastąpiony jest { $blob: przesunięcie, len, type } — względem początku danych.
+   * Pomijamy cache analizy (odtworzy się sam).
+   */
+  const BACKUP_MAGIC = 'PULSARLIB';
+  const BACKUP_SKIP_KEYS = /^(pulsarWatch|pulsarYtdlpCheck|pulsarMiniGeo|pulsarNormalGeo|pulsarMini$|pulsarTrayHint)/;
+  function backupSettings(){
+    const out = {};
+    try {
+      for (let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if (/^(player|pulsar)/.test(k) && !BACKUP_SKIP_KEYS.test(k)) out[k] = localStorage.getItem(k);
+      }
+    } catch(e){}
+    return out;
+  }
+  async function buildBackup(){
+    const recs = await dbGetAll('tracks');
+    const albs = await dbGetAll('playlists');
+    const blobs = []; let off = 0;
+    const strip = function(rec){
+      const o = {};
+      Object.keys(rec).forEach(function(k){
+        const v = rec[k];
+        if (v instanceof Blob){ o[k] = { $blob: off, len: v.size, type: v.type || '', name: (v instanceof File) ? v.name : undefined }; blobs.push(v); off += v.size; }
+        else o[k] = v;
+      });
+      return o;
+    };
+    const manifest = { app: 'Pulsar', format: 1, created: new Date().toISOString(),
+      tracks: recs.map(strip), albums: albs.map(strip), settings: backupSettings(), dataSize: off };
+    const json = new TextEncoder().encode(JSON.stringify(manifest));
+    const head = new Uint8Array(BACKUP_MAGIC.length + 5 + json.length);
+    for (let i = 0; i < BACKUP_MAGIC.length; i++) head[i] = BACKUP_MAGIC.charCodeAt(i);
+    head[9] = 1;
+    new DataView(head.buffer).setUint32(10, json.length, true);
+    head.set(json, 14);
+    return { head: head, blobs: blobs, total: head.length + off, tracks: recs.length, albums: albs.length };
+  }
+  function fmtMB(n){ return (n / 1048576).toFixed(n > 104857600 ? 0 : 1).replace('.', ',') + ' MB'; }
+  let backupBusy = false;
+  async function exportBackup(){
+    if (backupBusy) return;
+    const menu = document.getElementById('settingsMenu'); if (menu) menu.hidden = true;
+    backupBusy = true;
+    try {
+      const b = await buildBackup();
+      if (!b.tracks && !b.albums){ showToast(t('Biblioteka jest pusta — nie ma czego zapisać')); return; }
+      const d = new Date(), pad = n => String(n).padStart(2, '0');
+      const name = 'Pulsar-biblioteka-' + d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + '.pulsarlib';
+      const fs = window.__pulsarFs;
+      if (fs && fs.saveDialog && fs.appendBinary){
+        const path = await fs.saveDialog(t('Zapisz kopię biblioteki'), name, 'pulsarlib', t('Kopia biblioteki Pulsar'));
+        if (!path) return;
+        await fs.writeBinary(path, b.head);
+        let done = b.head.length, lastPct = -1;
+        for (const blob of b.blobs){
+          // duże pliki w kawałkach po 8 MB (mniejsze wiadomości do Neutralino)
+          for (let o = 0; o < blob.size; o += 8388608){
+            await fs.appendBinary(path, new Uint8Array(await blob.slice(o, Math.min(blob.size, o + 8388608)).arrayBuffer()));
+          }
+          done += blob.size;
+          const pct = Math.floor(done * 100 / b.total);
+          if (pct !== lastPct && pct % 5 === 0){ lastPct = pct; showToast(t('Zapisuję kopię… ') + pct + '%'); }
+        }
+        showToast(t('Kopia zapisana: ') + b.tracks + t(' utw., ') + b.albums + t(' alb. · ') + fmtMB(b.total));
+      } else {
+        const url = URL.createObjectURL(new Blob([b.head].concat(b.blobs), { type: 'application/octet-stream' }));
+        const a = document.createElement('a'); a.href = url; a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        setTimeout(function(){ URL.revokeObjectURL(url); }, 60000);
+        showToast(t('Kopia gotowa: ') + b.tracks + t(' utw., ') + b.albums + t(' alb. · ') + fmtMB(b.total));
+      }
+    } catch(e){ console.warn(e); showToast(t('Nie udało się zapisać kopii: ') + ((e && e.message) || e)); }
+    finally { backupBusy = false; }
+  }
+  async function readBackupManifest(file){
+    const h = new Uint8Array(await file.slice(0, 14).arrayBuffer());
+    let magic = ''; for (let i = 0; i < 9; i++) magic += String.fromCharCode(h[i] || 0);
+    if (magic !== BACKUP_MAGIC) throw new Error(t('to nie jest plik kopii Pulsara'));
+    if (h[9] !== 1) throw new Error(t('nieobsługiwana wersja kopii'));
+    const len = new DataView(h.buffer).getUint32(10, true);
+    const m = JSON.parse(await file.slice(14, 14 + len).text());
+    m.__dataStart = 14 + len;
+    if (!Array.isArray(m.tracks) || !Array.isArray(m.albums)) throw new Error(t('uszkodzony manifest'));
+    return m;
+  }
+  function unstripRecord(file, m, rec){
+    const o = {};
+    Object.keys(rec).forEach(function(k){
+      const v = rec[k];
+      if (v && typeof v === 'object' && typeof v.$blob === 'number'){
+        const s0 = m.__dataStart + v.$blob;
+        const b = file.slice(s0, s0 + v.len, v.type || '');
+        o[k] = v.name ? new File([b], v.name, { type: v.type || '' }) : b;
+      } else o[k] = v;
+    });
+    return o;
+  }
+  async function importBackup(file, m, withSettings){
+    let addedT = 0, addedA = 0, merged = 0;
+    const byId = new Map(tracks.map(x => [x.id, x]));
+    const byKey = new Map(tracks.map(x => [x.folder + '/' + x.file.name + ':' + (x.file.size || 0), x]));
+    const remap = {};
+    for (let i = 0; i < m.tracks.length; i++){
+      const r = m.tracks[i];
+      const size = r.blob && r.blob.len || 0;
+      const ex = byId.get(r.id) || byKey.get((r.folder || '') + '/' + r.name + ':' + size);
+      if (ex){
+        remap[r.id] = ex.id;
+        const fav = ex.fav || !!r.fav, plays = Math.max(ex.plays || 0, r.plays || 0), lp = Math.max(ex.lastPlay || 0, r.lastPlay || 0);
+        if (fav !== !!ex.fav || plays !== (ex.plays || 0) || lp !== (ex.lastPlay || 0)){ ex.fav = fav; ex.plays = plays; ex.lastPlay = lp; merged++; await persistTrack(ex); }
+        continue;
+      }
+      const item = unstripRecord(file, m, r);
+      if (!item.blob) continue;
+      // Blob z pliku kopii → własna kopia w IndexedDB (plik kopii można potem usunąć)
+      const audioBlob = new Blob([await item.blob.arrayBuffer()], { type: item.type || 'audio/mpeg' });
+      const cover = item.coverBlob ? new Blob([await item.coverBlob.arrayBuffer()], { type: item.coverBlob.type || 'image/jpeg' }) : null;
+      const tr = { id: item.id || makeId(), file: new File([audioBlob], item.name || 'utwor', { type: item.type || 'audio/mpeg' }),
+        folder: item.folder || '', title: item.title || item.name, artist: item.artist || '', matchedImg: null, coverBlob: cover, coverUrl: null, resolved: true,
+        fav: !!item.fav, plays: item.plays || 0, lastPlay: item.lastPlay || 0, srcPath: '' };
+      Object.keys(item).forEach(function(k){ if (/^(net|yt)/.test(k) && !(k in tr)) tr[k] = item[k]; }); // pola źródeł sieciowych
+      tracks.push(tr); byId.set(tr.id, tr); remap[r.id] = tr.id;
+      await persistTrack(tr);
+      addedT++;
+      if (i % 10 === 0) showToast(t('Przywracam… ') + Math.round((i + 1) * 100 / m.tracks.length) + '%');
+    }
+    for (const r of m.albums){
+      const a = unstripRecord(file, m, r);
+      Object.keys(a).forEach(function(k){ if (a[k] instanceof Blob) a[k] = new Blob([a[k]], { type: a[k].type }); });
+      const ids = (a.trackIds || []).map(id => remap[id] || id).filter(id => byId.has(id));
+      const ex = albums.find(x => x.id === a.id);
+      if (ex){
+        const add = ids.filter(id => ex.trackIds.indexOf(id) < 0);
+        if (add.length){ ex.trackIds = ex.trackIds.concat(add); await persistAlbum(ex); merged++; }
+        continue;
+      }
+      a.trackIds = ids;
+      // Blob w albumie (okładka) → materializacja przed zapisem
+      for (const k of Object.keys(a)) if (a[k] instanceof Blob) a[k] = new Blob([await a[k].arrayBuffer()], { type: a[k].type });
+      const alb = Object.assign({ createdAt: 0, customCover: false }, a);
+      albums.push(alb); await persistAlbum(alb); addedA++;
+    }
+    let settingsN = 0;
+    if (withSettings && m.settings){
+      Object.keys(m.settings).forEach(function(k){
+        if (/^(player|pulsar)/.test(k) && !BACKUP_SKIP_KEYS.test(k)){ try { localStorage.setItem(k, m.settings[k]); settingsN++; } catch(e){} }
+      });
+    }
+    rebuildQueue(); renderLibrary();
+    if (currentIndex < 0 && tracks.length) loadTrack(0, { autoplay: false });
+    return { tracks: addedT, albums: addedA, merged: merged, settings: settingsN };
+  }
+  function openRestoreDialog(file){
+    readBackupManifest(file).then(function(m){
+      let chk;
+      const nT = m.tracks.length, nA = m.albums.length;
+      const have = new Set(tracks.map(x => x.id));
+      const newT = m.tracks.filter(r => !have.has(r.id)).length;
+      openModal({
+        title: t('Przywróć z kopii'),
+        okText: t('Przywróć'),
+        buildBody(body){
+          const box = document.createElement('div'); box.className = 'backup-sum';
+          const line = (a, b) => { const r = document.createElement('div'); const s1 = document.createElement('span'); s1.textContent = a; const s2 = document.createElement('b'); s2.textContent = b; r.appendChild(s1); r.appendChild(s2); box.appendChild(r); };
+          let when = ''; try { when = new Date(m.created).toLocaleString(CUR_LANG === 'en' ? 'en-GB' : CUR_LANG); } catch(e){}
+          line(t('Plik'), file.name + ' (' + fmtMB(file.size) + ')');
+          if (when) line(t('Utworzono'), when);
+          line(t('Utwory'), nT + (newT < nT ? ' (' + t('nowych: ') + newT + ')' : ''));
+          line(t('Albumy'), String(nA));
+          const note = document.createElement('p'); note.className = 'backup-note';
+          note.textContent = t('Brakujące utwory i albumy zostaną dołożone. Niczego nie usuwam; ulubione i liczniki odtworzeń łączą się.');
+          box.appendChild(note);
+          const l = document.createElement('label'); l.className = 'tag-ed-disk';
+          chk = document.createElement('input'); chk.type = 'checkbox'; chk.checked = false;
+          const sp = document.createElement('span'); sp.textContent = t('Przywróć też ustawienia (działają po ponownym uruchomieniu)');
+          l.appendChild(chk); l.appendChild(sp); box.appendChild(l);
+          body.appendChild(box);
+        },
+        onOk(){
+          modalOk.disabled = true;
+          const withS = !!(chk && chk.checked);
+          closeModal();
+          importBackup(file, m, withS).then(function(r){
+            showToast(t('Przywrócono: ') + r.tracks + t(' utw., ') + r.albums + t(' alb.') + (r.merged ? t(' · scalono: ') + r.merged : '') + (r.settings ? t(' · ustawienia po restarcie') : ''));
+          }).catch(function(e){ console.warn(e); showToast(t('Nie udało się przywrócić kopii: ') + ((e && e.message) || e)); })
+            .then(function(){ modalOk.disabled = false; });
+          return false;
+        }
+      });
+    }).catch(function(e){ showToast(t('Nie mogę odczytać kopii: ') + ((e && e.message) || e)); });
+  }
+  (function(){
+    const bb = document.getElementById('smBackupBtn'), rb = document.getElementById('smRestoreBtn'), fi = document.getElementById('backupFileInput');
+    if (bb) bb.addEventListener('click', exportBackup);
+    if (rb && fi){
+      rb.addEventListener('click', function(){ const menu = document.getElementById('settingsMenu'); if (menu) menu.hidden = true; fi.click(); });
+      fi.addEventListener('change', function(){ const f = fi.files && fi.files[0]; fi.value = ''; if (f) openRestoreDialog(f); });
+    }
+  })();
+
+  function openTagEditor(id){
+    const track = tracks.find(x => x.id === id);
+    if (!track) return;
+    let coverBlob = null, coverChanged = false;
+    const fmt = tagFormatOf(track);
+    const canDisk = !!(track.srcPath && window.__pulsarFs);
+    let tIn, aIn, diskChk;
+    openModal({
+      title: t('Edytuj tagi'),
+      okText: t('Zapisz'),
+      buildBody(body){
+        const wrap = document.createElement('div'); wrap.className = 'tag-ed';
+        const left = document.createElement('div'); left.className = 'tag-ed-cover';
+        const img = document.createElement('img'); img.alt = ''; img.src = coverUrlOf(track);
+        const pick = document.createElement('input'); pick.type = 'file'; pick.accept = 'image/png,image/jpeg,image/webp'; pick.hidden = true;
+        const bChange = document.createElement('button'); bChange.type = 'button'; bChange.className = 'tag-ed-btn'; bChange.textContent = t('Zmień okładkę…');
+        const bRemove = document.createElement('button'); bRemove.type = 'button'; bRemove.className = 'tag-ed-btn'; bRemove.textContent = t('Usuń okładkę');
+        bChange.addEventListener('click', () => pick.click());
+        pick.addEventListener('change', async () => {
+          const f = pick.files && pick.files[0]; if (!f) return;
+          const jpg = await imageToJpegBlob(f, 1000);
+          if (!jpg){ showToast(t('Nie udało się wczytać obrazu')); return; }
+          coverBlob = jpg; coverChanged = true; img.src = URL.createObjectURL(jpg);
+        });
+        bRemove.addEventListener('click', () => { coverBlob = null; coverChanged = true; img.src = DEFAULT_COVER; });
+        left.appendChild(img); left.appendChild(bChange); left.appendChild(bRemove); left.appendChild(pick);
+        const right = document.createElement('div'); right.className = 'tag-ed-fields';
+        const mk = (label, val) => {
+          const l = document.createElement('label'); l.className = 'tag-ed-field';
+          const sp = document.createElement('span'); sp.textContent = label;
+          const inp = document.createElement('input'); inp.type = 'text'; inp.value = val || ''; inp.className = "modal-text tag-ed-input";
+          inp.addEventListener('keydown', e => { if (e.key === 'Enter'){ e.preventDefault(); modalOk.click(); } });
+          l.appendChild(sp); l.appendChild(inp); right.appendChild(l); return inp;
+        };
+        tIn = mk(t('Tytuł'), track.title);
+        aIn = mk(t('Wykonawca'), track.artist === 'Nieznany wykonawca' ? '' : track.artist);
+        const note = document.createElement('div'); note.className = 'tag-ed-note';
+        note.textContent = fmt ? t('Tagi zostaną zapisane w pliku (') + fmt.toUpperCase().replace('MP4', 'M4A') + t(') — zobaczysz je też w Eksploratorze i na telefonie.')
+                               : t('Ten format (FLAC/OGG/WAV) — zmiany zapiszą się tylko w bibliotece Pulsara.');
+        right.appendChild(note);
+        if (canDisk && fmt){
+          const l = document.createElement('label'); l.className = 'tag-ed-disk';
+          diskChk = document.createElement('input'); diskChk.type = 'checkbox'; diskChk.checked = true;
+          const sp = document.createElement('span'); sp.textContent = t('Zapisz też w oryginalnym pliku na dysku');
+          const code = document.createElement('code'); code.textContent = String(track.srcPath).replace(/\//g, '\\');
+          l.appendChild(diskChk); l.appendChild(sp); right.appendChild(l); right.appendChild(code);
+        }
+        wrap.appendChild(left); wrap.appendChild(right); body.appendChild(wrap);
+        setTimeout(() => { try { tIn.focus(); tIn.select(); } catch(e){} }, 90);
+      },
+      onOk(){
+        modalOk.disabled = true;
+        saveTrackTags(track, { title: tIn.value, artist: aIn.value, coverBlob: coverBlob, coverChanged: coverChanged, writeDisk: !!(diskChk && diskChk.checked) })
+          .then(res => {
+            showToast(res.disk === false ? t('Zapisano w bibliotece, ale nie udało się nadpisać pliku na dysku')
+              : res.embedded ? (res.disk ? t('Tagi zapisane (biblioteka + plik na dysku)') : t('Tagi zapisane w pliku i bibliotece')) : t('Zapisano w bibliotece'));
+          })
+          .catch(() => showToast(t('Nie udało się zapisać tagów')))
+          .then(() => { modalOk.disabled = false; closeModal(); });
+        return false;
+      }
+    });
+  }
 
   function openCreateAlbumModal(seedIds){
     if (!tracks.length){ alert(t('Najpierw dodaj utwory do biblioteki.')); return; }
@@ -5025,6 +5506,17 @@
           showToast(xfadeSec ? t('Crossfade: ') + xfadeSec + t(' s') : t('Crossfade wyłączony'));
         });
         xr.appendChild(xd); xr.appendChild(xsel); sec2.appendChild(xr);
+        const gr = document.createElement('div'); gr.className = 'snd-row2';
+        const gd = document.createElement('div');
+        const gc = document.createElement('div'); gc.className = 'snd-cap'; gc.textContent = t('Gapless (bez przerw)');
+        const gs = document.createElement('div'); gs.className = 'snd-sub'; gs.textContent = t('Utwory przechodzą jeden w drugi bez ciszy — albumy koncertowe, miksy. Działa, gdy crossfade jest wyłączony.');
+        gd.appendChild(gc); gd.appendChild(gs);
+        const gl2 = document.createElement('label'); gl2.className = 'switch';
+        const gi = document.createElement('input'); gi.type = 'checkbox'; gi.id = 'sndGapless'; gi.checked = gaplessOn;
+        const gsp = document.createElement('span'); gsp.className = 'slider';
+        gl2.appendChild(gi); gl2.appendChild(gsp);
+        gi.addEventListener('change', function(){ setGapless(gi.checked); showToast(gaplessOn ? t('Gapless: wł.') : t('Gapless: wył.')); });
+        gr.appendChild(gd); gr.appendChild(gl2); sec2.appendChild(gr);
         if (!(window.AudioContext || window.webkitAudioContext)){
           const w = document.createElement('div'); w.className = 'snd-warn';
           w.textContent = t('Ta przeglądarka nie udostępnia WebAudio — ustawienia zostaną zapamiętane, ale zadziałają w obsługiwanej przeglądarce.');
@@ -5316,7 +5808,7 @@
       const all = await dbGetAll('analysis');
       (all || []).forEach(a => {
         if (a && a.trackId && Array.isArray(a.peaks) && !analysisCache.has(a.trackId)){
-          const rec = { peaks: new Float32Array(a.peaks), rms: a.rms, peak: a.peak, norm: a.norm, bpm: a.bpm || 0, bpmConf: a.bpmConf || 0, beatStart: a.beatStart || 0, dur: a.dur || 0, silences: Array.isArray(a.silences) ? a.silences : [] };
+          const rec = { peaks: new Float32Array(a.peaks), rms: a.rms, peak: a.peak, norm: a.norm, bpm: a.bpm || 0, bpmConf: a.bpmConf || 0, beatStart: a.beatStart || 0, dur: a.dur || 0, silences: Array.isArray(a.silences) ? a.silences : [], headPad: +a.headPad || 0, tailPad: +a.tailPad || 0 };
           analysisCache.set(a.trackId, rec);
         }
       });
@@ -5427,10 +5919,21 @@
           }
         }
       } catch(e){}
-      const rec = { peaks: peaks, rms: rms, peak: mx, norm: computeNorm(rms, mx), bpm: bpm, bpmConf: Math.round(bpmConf * 100) / 100, beatStart: Math.round(beatStart * 1e3) / 1e3, dur: durS, silences: silences };
+      // ---- Gapless: cyfrowa cisza na początku/końcu pliku (padding enkodera, wybrzmienie w zerach) ----
+      let headPad = 0, tailPad = 0;
+      try {
+        const chs = []; for (let c = 0; c < Math.min(2, decoded.numberOfChannels || 1); c++) chs.push(decoded.getChannelData(c));
+        const L = chs[0].length, srr = decoded.sampleRate || 44100, cap = Math.floor(srr * 1.5), TH = 0.0005;
+        const loud = function(i){ for (let c = 0; c < chs.length; c++){ const v = chs[c][i]; if (v > TH || v < -TH) return true; } return false; };
+        let a0 = 0; while (a0 < L && a0 < cap && !loud(a0)) a0++;
+        let b0 = L - 1; while (b0 > 0 && L - 1 - b0 < cap && !loud(b0)) b0--;
+        if (a0 < L) headPad = Math.round(a0 / srr * 1000) / 1000;
+        if (b0 > a0) tailPad = Math.round((L - 1 - b0) / srr * 1000) / 1000;
+      } catch(e){}
+      const rec = { peaks: peaks, rms: rms, peak: mx, norm: computeNorm(rms, mx), bpm: bpm, bpmConf: Math.round(bpmConf * 100) / 100, beatStart: Math.round(beatStart * 1e3) / 1e3, dur: durS, silences: silences, headPad: headPad, tailPad: tailPad };
       analysisCache.set(track.id, rec);
       try {
-        dbPut('analysis', { trackId: track.id, peaks: Array.from(peaks, v => Math.round(v * 1000) / 1000), rms: Math.round(rms * 1e5) / 1e5, peak: Math.round(mx * 1e5) / 1e5, norm: rec.norm, bpm: bpm, bpmConf: rec.bpmConf, beatStart: rec.beatStart, dur: rec.dur, silences: silences });
+        dbPut('analysis', { trackId: track.id, peaks: Array.from(peaks, v => Math.round(v * 1000) / 1000), rms: Math.round(rms * 1e5) / 1e5, peak: Math.round(mx * 1e5) / 1e5, norm: rec.norm, bpm: bpm, bpmConf: rec.bpmConf, beatStart: rec.beatStart, dur: rec.dur, silences: silences, headPad: headPad, tailPad: tailPad });
       } catch(e){}
       if (tracks[currentIndex] === track) applyNorm();
       drawWaves(); updateBpmChip();
@@ -5495,6 +5998,10 @@
   // ---- Crossfade ----
   const audioXF = document.getElementById('audioXF');
   const xf = { active: false, pendingIdx: -1, raf: 0 };
+  let xfPromoteToken = 0;
+  let gaplessOn = true;
+  try { gaplessOn = localStorage.getItem('playerGapless') !== '0'; } catch(e){}
+  const gl = { idx: -1, primed: false, timer: 0 };
   let xfSourceBuilt = false;
   function buildXFSource(){
     if (!audioCtx || xfSourceBuilt) return;
@@ -5519,17 +6026,14 @@
     if (!track || !track.file) return;
     xf.active = true; xf.pendingIdx = idx;
     const outRec = analysisCache.get((tracks[currentIndex] || { id: -1 }).id) || null;
-    if (autoDjOn && repeatMode !== 2){ djNotePlayed(); djHistory.push(currentIndex); }
-    currentIndex = idx;
-    if (!queue.length || queue.indexOf(currentIndex) === -1) rebuildQueue();
-    updateTitleArtist(txArtist(track.artist), track.title);
-    setCover(coverUrlOf(track));
-    highlightActiveInList();
-    setMediaSessionMeta(track);
-    if (!track.resolved) ensureTrackMeta(track);
+    xfAdoptIndex(idx);
     buildXFSource();
-    let url = '';
-    try { url = URL.createObjectURL(track.file); audioXF.src = url; } catch(e){ cancelCrossfade(); return; }
+    const preloaded = gl.primed && gl.idx === idx && !!audioXF.getAttribute('src');
+    gl.primed = false; gl.idx = -1; clearTimeout(gl.timer); gl.timer = 0;
+    if (!preloaded){
+      let url = '';
+      try { url = URL.createObjectURL(track.file); audioXF.src = url; } catch(e){ cancelCrossfade(); return; }
+    }
     if (xfGain && audioCtx) { try { xfGain.gain.setValueAtTime(0.0001, audioCtx.currentTime); } catch(err){} }
     // W trybie Auto-DJ: wyrównaj beatgrid i zaokrąglaj fade do pełnych taktów
     let fadeSecEff = Math.max(0.6, xfadeSec);
@@ -5565,7 +6069,21 @@
     xf.raf = requestAnimationFrame(tick);
     scheduleAnalysis(track, true); applyNorm(); drawWaves();
   }
+  // Przełącza „aktualny utwór” na idx, gdy nowy gra jeszcze w audioXF (crossfade / gapless)
+  function xfAdoptIndex(idx){
+    const track = tracks[idx];
+    if (autoDjOn && repeatMode !== 2){ djNotePlayed(); djHistory.push(currentIndex); }
+    currentIndex = idx;
+    if (!queue.length || queue.indexOf(currentIndex) === -1) rebuildQueue();
+    updateTitleArtist(txArtist(track.artist), track.title);
+    setCover(coverUrlOf(track));
+    highlightActiveInList();
+    setMediaSessionMeta(track);
+    if (!track.resolved) ensureTrackMeta(track);
+    try { track.plays = (track.plays || 0) + 1; track.lastPlay = Date.now(); persistTrack(track); } catch(e){}
+  }
   function cancelCrossfade(){
+    gl.primed = false; gl.idx = -1; clearTimeout(gl.timer); gl.timer = 0;
     if (!xf.active) return;
     xf.active = false; xf.pendingIdx = -1;
     if (xf.raf) cancelAnimationFrame(xf.raf);
@@ -5582,24 +6100,157 @@
     xf.active = false; xf.pendingIdx = -1;
     if (xf.raf) cancelAnimationFrame(xf.raf);
     xf.raf = 0;
-    let handed = false;
-    const handoff = () => {
-      if (handed) return; handed = true;
+    gl.primed = false; gl.idx = -1; clearTimeout(gl.timer); gl.timer = 0;
+    const token = ++xfPromoteToken;
+    let done = false, fallbackT = 0;
+    const releaseXF = () => {
       try { audioXF.pause(); } catch(e){}
       audioXF.removeAttribute('src');
       try { audioXF.load(); } catch(e){}
       const now = audioCtx && audioCtx.currentTime;
-      try { if (xfGain && now != null) xfGain.gain.setValueAtTime(0.0001, now); } catch(e){}
+      try { if (xfGain && now != null){ xfGain.gain.cancelScheduledValues(now); xfGain.gain.setValueAtTime(0.0001, now); } } catch(e){}
     };
-    const t = audioXF.currentTime || 0;
-    try { audio.src = audioXF.src; } catch(e){}
-    try { audio.currentTime = t; } catch(e){}
-    audio.addEventListener('playing', handoff, { once: true });
-    setTimeout(handoff, 1500);
-    try { if (mainGain && audioCtx) mainGain.gain.setValueAtTime(1, audioCtx.currentTime); } catch(e){}
-    const p2 = audio.play(); if (p2 && p2.catch) p2.catch(() => {});
+    // smooth: audio gra już w tym samym miejscu co audioXF → 30 ms przenikania między identycznym materiałem (niesłyszalne)
+    const finish = (smooth) => {
+      if (done || token !== xfPromoteToken) return; done = true; clearTimeout(fallbackT);
+      const now = audioCtx && audioCtx.currentTime;
+      try {
+        if (mainGain && now != null){ mainGain.gain.cancelScheduledValues(now); mainGain.gain.setValueAtTime(smooth ? 0.0001 : 1, now); if (smooth) mainGain.gain.linearRampToValueAtTime(1, now + 0.03); }
+        if (smooth && xfGain && now != null){ xfGain.gain.cancelScheduledValues(now); xfGain.gain.setValueAtTime(xfGain.gain.value || 1, now); xfGain.gain.linearRampToValueAtTime(0.0001, now + 0.03); }
+      } catch(e){}
+      if (smooth) setTimeout(releaseXF, 90); else releaseXF();
+    };
+    const src = audioXF.currentSrc || audioXF.src;
+    if (!src || !audioCtx || !mainGain){
+      const t0 = audioXF.currentTime || 0;
+      try { audio.src = src; audio.currentTime = t0; } catch(e){}
+      releaseXF(); try { if (mainGain && audioCtx) mainGain.gain.setValueAtTime(1, audioCtx.currentTime); } catch(e){}
+      const p0 = audio.play(); if (p0 && p0.catch) p0.catch(() => {});
+      applyNorm(); return;
+    }
+    // audio wyciszony, dopóki nie dogoni audioXF (który cały czas gra i niesie dźwięk)
+    try { mainGain.gain.cancelScheduledValues(audioCtx.currentTime); mainGain.gain.setValueAtTime(0.0001, audioCtx.currentTime); } catch(e){}
+    try { audio.src = src; } catch(e){}
+    const LEAD = 0.35;
+    const onMeta = () => {
+      if (done || token !== xfPromoteToken) return;
+      const target = (audioXF.currentTime || 0) + LEAD;
+      audio.addEventListener('seeked', () => {
+        const wait = () => {
+          if (done || token !== xfPromoteToken) return;
+          const d = target - (audioXF.currentTime || 0);
+          if (d <= 0.025 || audioXF.paused || audioXF.ended){
+            audio.addEventListener('playing', () => finish(true), { once: true });
+            const p = audio.play(); if (p && p.catch) p.catch(() => finish(false));
+          } else setTimeout(wait, Math.max(4, Math.min(60, (d - 0.025) * 1000)));
+        };
+        wait();
+      }, { once: true });
+      try { audio.currentTime = target; } catch(e){ finish(false); }
+    };
+    if (audio.readyState >= 1) onMeta(); else audio.addEventListener('loadedmetadata', onMeta, { once: true });
+    // awaryjnie: twarde przełączenie (np. zablokowane odtwarzanie)
+    fallbackT = setTimeout(() => {
+      if (done || token !== xfPromoteToken) return;
+      try { if (Math.abs(audio.currentTime - audioXF.currentTime) > 0.3) audio.currentTime = audioXF.currentTime; } catch(e){}
+      const p = audio.play(); if (p && p.catch) p.catch(() => {});
+      finish(false);
+    }, 2500);
     applyNorm();
   }
+
+  /* ---- Gapless: następny utwór startuje dokładnie w chwili końca poprzedniego (gdy crossfade = 0) ---- */
+  function setGapless(v){
+    gaplessOn = !!v;
+    try { localStorage.setItem('playerGapless', gaplessOn ? '1' : '0'); } catch(e){}
+    if (!gaplessOn) gaplessReset();
+    const sw = document.getElementById('smGapless'); if (sw) sw.checked = gaplessOn;
+    const sw2 = document.getElementById('sndGapless'); if (sw2) sw2.checked = gaplessOn;
+  }
+  function gaplessActive(){ return gaplessOn && !(xfadeSec > 0) && !sleepEndTrack && repeatMode !== 2 && !!audioCtx && !!mainGain; }
+  function padsOf(tr){ const a = tr && analysisCache.get(tr.id); return { head: Math.min(1.5, (a && a.headPad) || 0), tail: Math.min(1.5, (a && a.tailPad) || 0) }; }
+  function gaplessReset(){
+    clearTimeout(gl.timer); gl.timer = 0;
+    if (gl.primed && !xf.active){
+      try { audioXF.pause(); } catch(e){}
+      audioXF.removeAttribute('src');
+      try { audioXF.load(); } catch(e){}
+    }
+    gl.primed = false; gl.idx = -1;
+  }
+  function gaplessRemaining(){
+    const tail = padsOf(tracks[currentIndex]).tail;
+    return (audio.duration - tail - audio.currentTime) / (audio.playbackRate || 1);
+  }
+  function gaplessPrime(nx){
+    buildXFSource();
+    const track = tracks[nx];
+    if (!xfGain || !track || !track.file) return;
+    let url = '';
+    try { url = URL.createObjectURL(track.file); } catch(e){ return; }
+    try { xfGain.gain.cancelScheduledValues(audioCtx.currentTime); xfGain.gain.setValueAtTime(0.0001, audioCtx.currentTime); } catch(e){}
+    try { audioXF.volume = audio.volume; audioXF.muted = audio.muted; } catch(e){}
+    audioXF.preload = 'auto';
+    audioXF.src = url;
+    const head = padsOf(track).head;
+    if (head > 0.005) audioXF.addEventListener('loadedmetadata', () => { try { if (audioXF.paused) audioXF.currentTime = head; } catch(e){} }, { once: true });
+    try { audioXF.load(); } catch(e){}
+    gl.primed = true; gl.idx = nx;
+  }
+  function gaplessCheck(){
+    if (xfadeSec > 0){ crossfadePrepare(); return; }
+    if (!gaplessActive() || xf.active || audio.paused || !audio.duration || seeking) return;
+    const rem = gaplessRemaining();
+    if (rem > 6){ if (gl.primed) gaplessReset(); return; }
+    if (rem < -0.1) return;
+    const nx = peekNextIndex();
+    if (nx < 0 || nx === currentIndex){ if (gl.primed) gaplessReset(); return; }
+    if (gl.primed && (gl.idx !== nx || !audioXF.getAttribute('src'))) gaplessReset();
+    if (!gl.primed) gaplessPrime(nx);
+    if (!gl.timer && rem < 1.5) gl.timer = setTimeout(gaplessFire, Math.max(0, (rem - 0.3) * 1000));
+  }
+  // Crossfade: następny utwór wczytany kilka sekund wcześniej + start także z timeupdate
+  // (rAF stoi, gdy okno jest schowane do zasobnika — wtedy przenikanie się nie odpalało)
+  function crossfadePrepare(){
+    if (xf.active || audio.paused || !audio.duration || seeking || !audioCtx || !mainGain || repeatMode === 2) return;
+    if (!(audio.duration > xfadeSec * 2.2)) return;
+    const toStart = audio.duration - xfadeSec - audio.currentTime;
+    if (toStart > 6){ if (gl.primed) gaplessReset(); return; }
+    const nx = peekNextIndex();
+    if (nx < 0 || nx === currentIndex){ if (gl.primed) gaplessReset(); return; }
+    if (gl.primed && (gl.idx !== nx || !audioXF.getAttribute('src'))) gaplessReset();
+    if (!gl.primed && toStart > 0.5) gaplessPrime(nx);
+    if (toStart <= 0 && audio.duration - audio.currentTime > 0.4) startCrossfade(nx);
+  }
+  function gaplessFire(){
+    gl.timer = 0;
+    if (!gaplessActive() || !gl.primed || xf.active || audio.paused || seeking) return;
+    const rem = gaplessRemaining();
+    if (rem > 1.6) return; // przewinięte wstecz — gaplessCheck zaplanuje od nowa
+    if (rem > 0.02){ gl.timer = setTimeout(gaplessFire, Math.max(1, (rem - (rem > 0.35 ? 0.3 : 0.012)) * 1000)); return; }
+    if (audioXF.readyState < 3){ gaplessReset(); return; } // nie zdążył się wczytać — zwykłe przejście po „ended”
+    const idx = gl.idx, track = tracks[idx];
+    if (!track){ gaplessReset(); return; }
+    xf.active = true; xf.pendingIdx = idx;
+    try { xfGain.gain.cancelScheduledValues(audioCtx.currentTime); xfGain.gain.setValueAtTime(1, audioCtx.currentTime); } catch(e){}
+    // stary utwór wyciszamy dopiero, gdy nowy faktycznie gra — bez dziury
+    audioXF.addEventListener('playing', () => {
+      if (!xf.active || xf.pendingIdx !== idx) return;
+      const now = audioCtx.currentTime;
+      try { mainGain.gain.cancelScheduledValues(now); mainGain.gain.setValueAtTime(mainGain.gain.value || 1, now); mainGain.gain.linearRampToValueAtTime(0.0001, now + 0.008); } catch(e){}
+      // nie czekamy na „ended” (cisza na końcu pliku może trwać do 1,5 s)
+      setTimeout(() => { if (xf.active && xf.pendingIdx === idx) promoteCrossfaded(); }, 60);
+    }, { once: true });
+    const p = audioXF.play();
+    if (p && p.catch) p.catch(() => { if (xf.active && xf.pendingIdx === idx){ cancelCrossfade(); } });
+    xfAdoptIndex(idx);
+    gl.primed = false;
+    scheduleAnalysis(track, true); applyNorm(); drawWaves();
+  }
+  audio.addEventListener('timeupdate', gaplessCheck);
+  (function(){ const sw = document.getElementById('smGapless'); if (sw){ sw.checked = gaplessOn; sw.addEventListener('change', function(){ setGapless(sw.checked); }); } })();
+  audio.addEventListener('seeking', () => { if (gl.timer){ clearTimeout(gl.timer); gl.timer = 0; } });
+
   // Głośność/wyciszenie gwiazdora musi obejmować też drugi element podczas crossfade'u
   audio.addEventListener('volumechange', () => {
     try { audioXF.volume = audio.volume; audioXF.muted = audio.muted; audioNet.volume = audio.volume; audioNet.muted = audio.muted; } catch(e){}
@@ -6582,6 +7233,7 @@
       curTimeEl.textContent = cTime; durTimeEl.textContent = dTime;
       centerCurTimeEl.textContent = cTime; centerDurTimeEl.textContent = dTime;
       updateWaveClip(ratio);
+      if (!xf.active && !audio.paused && (xfadeSec > 0 || gaplessOn) && audio.duration - audio.currentTime < xfadeSec + 6.5) gaplessCheck();
       if (xfadeSec > 0 && !xf.active && !audio.paused && audio.duration > xfadeSec * 2.2 && audio.duration - audio.currentTime <= xfadeSec && audio.duration - audio.currentTime > 0.4){
         const nx = peekNextIndex();
         if (nx >= 0 && nx !== currentIndex) startCrossfade(nx);
@@ -6817,7 +7469,21 @@
     lang: function(){ return CUR_LANG; },
     toast: function(s){ showToast(s); },
     saveState: saveResumePos,
-    miniSync: function(){ miniSync(true); }
+    miniSync: function(){ miniSync(true); },
+    // obserwowany folder (desktop.js)
+    importFiles: function(files){
+      const had = tracks.length;
+      const n = addFilesToLibrary(files, false);
+      if (n){ rebuildQueue(); renderLibrary(); if (!had && currentIndex < 0) loadTrack(0, { autoplay: false }); }
+      return n;
+    },
+    libraryPaths: function(){ const s = new Set(); tracks.forEach(function(x){ if (x.srcPath) s.add(String(x.srcPath).toLowerCase()); }); return s; },
+    adoptPath: function(rel, size, path){
+      const r = String(rel).toLowerCase();
+      const x = tracks.find(function(t){ return !t.srcPath && t.file && (t.folder + '/' + t.file.name).toLowerCase() === r && (t.file.size || 0) === size; });
+      if (!x) return false;
+      x.srcPath = path; persistTrack(x); return true;
+    }
   };
 
   // Haczyk diagnostyczny (przydatny w konsoli i w testach)

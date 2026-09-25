@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pl" data-mode="overlay">
+<html lang="pl" data-mode="overlay" data-style="card" data-pos="bl" data-viz="1">
 <head>
 <meta charset="utf-8">
 <title>Pulsar → OBS</title>
@@ -22,10 +22,11 @@
     background: linear-gradient(135deg, rgba(12, 12, 20, .82), rgba(12, 12, 20, .64));
     border: 1px solid rgba(var(--acc), .45);
     box-shadow: 0 18px 50px rgba(0, 0, 0, .45), 0 0 40px rgba(var(--acc), .18) inset;
-    opacity: 0; transform: translateY(14px); transition: opacity .6s ease, transform .6s ease, border-color .8s ease;
+    --tx: 0px; --ty: 14px;
+    opacity: 0; transform: translate(var(--tx), var(--ty)); transition: opacity .6s ease, transform .6s ease, border-color .8s ease;
   }
-  .card.show { opacity: 1; transform: none; }
-  .card.idle { opacity: .0; transform: translateY(14px); }
+  .card.show { opacity: 1; transform: translate(var(--tx), 0); }
+  .card.idle { opacity: .0; transform: translate(var(--tx), var(--ty)); }
   .cover { width: 112px; height: 112px; border-radius: 14px; object-fit: cover; background: #151520; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
   .cover:not([src]) { background: radial-gradient(circle at 30% 25%, rgba(var(--acc), .85), rgba(var(--acc), .15) 70%), #151520; }
   .meta { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -37,6 +38,56 @@
   .fill { height: 100%; width: 0; border-radius: 99px; background: linear-gradient(90deg, rgba(var(--acc), 1), rgba(var(--acc), .6)); box-shadow: 0 0 12px rgba(var(--acc), .8); }
   .time { font-size: 13px; color: rgba(255, 255, 255, .6); font-variant-numeric: tabular-nums; white-space: nowrap; }
   canvas.viz { position: absolute; left: 146px; right: 0; bottom: 0; width: calc(100% - 146px); height: 34px; opacity: .55; pointer-events: none; border-radius: 0 0 20px 0; }
+
+  /* ---------- pozycja (Pulsar → Ustawienia → OBS → Wygląd overlayu) ---------- */
+  html[data-pos="br"] .card { left: auto; right: 24px; }
+  html[data-pos="tl"] .card { bottom: auto; top: 24px; --ty: -14px; }
+  html[data-pos="tr"] .card { bottom: auto; top: 24px; left: auto; right: 24px; --ty: -14px; }
+  html[data-pos="bc"] .card { left: 50%; --tx: -50%; }
+  html[data-viz="0"] canvas.viz { display: none; }
+
+  /* ---------- motyw: pasek na całą szerokość ---------- */
+  html[data-style="bar"] .card {
+    left: 0; right: 0; bottom: 0; top: auto; width: 100%; --tx: 0px; --ty: 100%;
+    grid-template-columns: auto 1fr; gap: 14px; padding: 10px 150px 13px 12px; border-radius: 0;
+    border-width: 1px 0 0; background: linear-gradient(90deg, rgba(12, 12, 20, .9), rgba(12, 12, 20, .72));
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, .35);
+  }
+  html[data-style="bar"][data-pos^="t"] .card { top: 0; bottom: auto; border-width: 0 0 1px; --ty: -100%; }
+  html[data-style="bar"] .cover { width: 54px; height: 54px; border-radius: 8px; }
+  html[data-style="bar"] .meta { flex-direction: row; align-items: baseline; gap: 12px; }
+  html[data-style="bar"] .np { flex: none; font-size: 11px; }
+  html[data-style="bar"] .title { font-size: 21px; flex: 0 1 auto; max-width: 62%; }
+  html[data-style="bar"] .artist { font-size: 16px; flex: 0 1000 auto; }
+  html[data-style="bar"] .artist:not(:empty)::before { content: "— "; color: rgba(255, 255, 255, .4); }
+  html[data-style="bar"] .row { position: absolute; left: 0; right: 0; bottom: 0; margin: 0; }
+  html[data-style="bar"] .bar { height: 3px; border-radius: 0; background: rgba(255, 255, 255, .08); }
+  html[data-style="bar"] .fill { border-radius: 0; }
+  html[data-style="bar"] .time { position: absolute; right: 16px; bottom: 26px; font-size: 14px; }
+  html[data-style="bar"] canvas.viz { left: auto; right: 0; width: 42%; height: 100%; opacity: .28; border-radius: 0; }
+
+  /* ---------- motyw: duża okładka z napisem ---------- */
+  html[data-style="cover"] .card { display: block; width: 300px; padding: 0; border-radius: 18px; overflow: hidden; }
+  html[data-style="cover"] .cover { display: block; width: 100%; height: 300px; border-radius: 0; box-shadow: none; }
+  html[data-style="cover"] .meta {
+    position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; gap: 2px;
+    padding: 56px 16px 14px; background: linear-gradient(transparent, rgba(0, 0, 0, .55) 35%, rgba(0, 0, 0, .9));
+  }
+  html[data-style="cover"] .np { font-size: 10px; }
+  html[data-style="cover"] .title { font-size: 20px; }
+  html[data-style="cover"] .artist { font-size: 14px; }
+  html[data-style="cover"] .bar { height: 4px; }
+  html[data-style="cover"] .time { font-size: 12px; }
+  html[data-style="cover"] canvas.viz { left: 0; right: 0; top: 0; bottom: auto; width: 100%; height: 46px; z-index: 1; opacity: .5; transform: scaleY(-1); border-radius: 0; }
+
+  /* ---------- motyw: minimalny (sam tekst) ---------- */
+  html[data-style="minimal"] .card { width: auto; max-width: calc(100vw - 48px); background: none; border: 0; box-shadow: none; padding: 0; gap: 14px; }
+  html[data-style="minimal"] .cover { width: 64px; height: 64px; border-radius: 10px; }
+  html[data-style="minimal"] .np, html[data-style="minimal"] .time, html[data-style="minimal"] canvas.viz { display: none; }
+  html[data-style="minimal"] .title { font-size: 26px; text-shadow: 0 2px 8px rgba(0, 0, 0, .85), 0 0 2px rgba(0, 0, 0, .9); }
+  html[data-style="minimal"] .artist { font-size: 17px; color: rgba(255, 255, 255, .85); text-shadow: 0 2px 6px rgba(0, 0, 0, .85); }
+  html[data-style="minimal"] .row { margin-top: 4px; }
+  html[data-style="minimal"] .bar { height: 3px; background: rgba(255, 255, 255, .22); }
 </style>
 </head>
 <body>
@@ -54,6 +105,8 @@
 (function () {
   'use strict';
   var MODE = document.documentElement.getAttribute('data-mode') || 'overlay';
+  var PREVIEW = /[?&]preview\b/.test(location.search); // podgląd w ustawieniach Pulsara — dane przez postMessage, bez połączenia
+  var themeAccent = ''; // własny kolor akcentu z motywu ('' = z okładki)
   var TARGET = 0.12;   // docelowy bufor [s] — małe opóźnienie względem Pulsara
   var MAX_LEAD = 0.3;  // powyżej tego nadmiarowe paczki są odrzucane
   var ctx = null, outGain = null, analyser = null, nextTime = 0, lastSeq = -1, lastAudioAt = 0;
@@ -159,11 +212,22 @@
     if (m.lang && LABELS[m.lang]) $('np').textContent = LABELS[m.lang];
     if (m.title != null && $('title').textContent !== m.title) $('title').textContent = m.title;
     if (m.artist != null && $('artist').textContent !== m.artist) $('artist').textContent = m.artist;
-    if (m.accent) document.body.style.setProperty('--acc', m.accent);
+    if (m.theme) applyTheme(m.theme);
+    var acc = themeAccent || m.accent;
+    if (acc) document.body.style.setProperty('--acc', acc);
     if (!m.coverId) { $('cover').removeAttribute('src'); $('cover').dataset.id = ''; }
     var card = $('card');
     if (m.title) card.classList.add('show');
     card.classList.toggle('idle', !m.hasTrack || m.hidden === true);
+  }
+  function applyTheme(th) {
+    var root = document.documentElement;
+    var st = { card: 1, bar: 1, cover: 1, minimal: 1 }[th.style] ? th.style : 'card';
+    var ps = { bl: 1, br: 1, tl: 1, tr: 1, bc: 1 }[th.pos] ? th.pos : 'bl';
+    if (root.getAttribute('data-style') !== st) root.setAttribute('data-style', st);
+    if (root.getAttribute('data-pos') !== ps) root.setAttribute('data-pos', ps);
+    root.setAttribute('data-viz', th.viz === false ? '0' : '1');
+    themeAccent = /^\d{1,3}, ?\d{1,3}, ?\d{1,3}$/.test(String(th.accent || '')) ? th.accent : '';
   }
   function onCover(c) {
     if (!c) return;
@@ -206,7 +270,18 @@
   // OBS pozwala na autoodtwarzanie; w zwykłej przeglądarce kontekst audio ruszy po kliknięciu
   document.addEventListener('click', function () { if (ctx && ctx.state === 'suspended') ctx.resume(); });
   requestAnimationFrame(tick);
-  connect();
+  if (PREVIEW) {
+    // tło „przezroczystości” rysuje sam podgląd (ramka w oknie Pulsara nie zawsze jest przezroczysta)
+    document.documentElement.style.background = 'repeating-conic-gradient(#2a2a30 0 25%, #1e1e24 0 50%) 0 0 / 40px 40px';
+    // podgląd: dane z okna Pulsara; sztuczny analizator nie jest potrzebny — rysujemy „udawane” słupki
+    window.addEventListener('message', function (ev) {
+      var d = ev.data || {};
+      if (d.pulsarObsPreview) { onMeta(d.pulsarObsPreview); if (d.cover !== undefined) onCover({ id: 'p' + (d.cover || '').length + (d.cover || '').slice(-24), data: d.cover }); }
+    });
+    analyser = { frequencyBinCount: 128, getByteFrequencyData: function (a) { var t = performance.now() / 1000; for (var i = 0; i < a.length; i++) a[i] = 150 + 90 * Math.sin(t * 3 + i * 0.35) * Math.cos(t * 1.3 + i * 0.11); } };
+    setInterval(function () { lastAudioAt = Date.now(); }, 200);
+    try { parent.postMessage({ pulsarObsPreviewReady: true }, '*'); } catch (e) {}
+  } else connect();
 })();
 </script>
 </body>

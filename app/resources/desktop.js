@@ -87,166 +87,9 @@
     };
   }
 
-  /* ---- czyste-JS osadzanie tytułu/wykonawcy/okładki w MP4/M4A (bez ffmpeg) ---- */
-  function u8str(s){ const out = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i) & 0xff; return out; }
-  function u8cat(list){ let n = 0; for (const a of list) n += a.length; const out = new Uint8Array(n); let o = 0; for (const a of list){ out.set(a, o); o += a.length; } return out; }
-  function u8w32(a, o, v){ a[o] = (v >>> 24) & 255; a[o + 1] = (v >>> 16) & 255; a[o + 2] = (v >>> 8) & 255; a[o + 3] = v & 255; return a; }
-  function u8w64(a, o, v){ u8w32(a, o, Math.floor(v / 4294967296)); u8w32(a, o + 4, v >>> 0); return a; }
-  function u8r32(a, o){ return ((a[o] << 24) | (a[o + 1] << 16) | (a[o + 2] << 8) | a[o + 3]) >>> 0; }
-  function u8type(a, o){ return String.fromCharCode(a[o], a[o + 1], a[o + 2], a[o + 3]); }
-
-  // przejście po atomach: zwraca [{type, head, body, end}]; rzuca przy 64-bit size (rzadkie) → caller ma try/catch
-  function u8atoms(a, start, end){
-    const out = [];
-    let off = start;
-    while (off + 8 <= end){
-      let size = u8r32(a, off);
-      if (size === 1) throw new Error('64-bit box');
-      if (size === 0) size = end - off;
-      if (size < 8 || off + size > end) throw new Error('bad size');
-      out.push({ type: u8type(a, off + 4), head: off, body: off + 8, end: off + size });
-      off += size;
-    }
-    return out;
-  }
-  function findBox(list, type){ for (let i = 0; i < list.length; i++) if (list[i].type === type) return list[i]; return null; }
-
-  // zbuduj atom dziecka ilst: size + '©nam' + data(size + 'data' + typ + payload)
-  function ilstItem(tag, typeCode, payload){
-    // data atom: size + 'data' + klasa/flagi(4) + locale(4) + payload
-    return u8cat([u8w32(new Uint8Array(4), 0, 24 + payload.length), u8str(tag),
-      u8w32(new Uint8Array(4), 0, 16 + payload.length), u8str('data'),
-      new Uint8Array([typeCode, 0, 0, 0]), new Uint8Array(4), payload]);
-  }
-  function utf8(str){ try { return new TextEncoder().encode(String(str || '')); } catch (e){ return u8str(String(str || '')); } }
-
-  // iteruj po wszystkich atomach wskazanego typu w zadanym zakresie (moof/tfhd/stco…)
-  function scanBoxes(a, start, end, type, cb){
-    let off = start;
-    while (off + 8 <= end){
-      let size = u8r32(a, off);
-      if (size === 0) size = end - off;
-      if (size < 8 || off + size > end) return;
-      if (u8type(a, off + 4) === type) cb({ head: off, body: off + 8, end: off + size });
-      off += size;
-    }
-  }
-
-  // meta: { title, artist, cover: Uint8Array(jpeg)|null } → Uint8Array (oryginał, gdy nic nie wypali)
+  /* ---- osadzanie tytułu/wykonawcy/okładki w MP4/M4A: wspólny kod w tags.js (używa go też edytor tagów) ---- */
   function mp4EmbedBytes(src, meta){
-    try {
-      const top = u8atoms(src, 0, src.length);
-      const moov = findBox(top, 'moov');
-      if (!moov) return src;
-      const kids = u8atoms(src, moov.body, moov.end);
-      let udta = findBox(kids, 'udta');
-      // --- zbierz/zbuduj ilst ---
-      let ilstChildren = [];
-      let ilstHead = null;
-      if (udta){
-        const uk = u8atoms(src, udta.body, udta.end);
-        const metaB = findBox(uk, 'meta');
-        if (metaB){
-          const mk = u8atoms(src, metaB.body + 4, metaB.end); // meta = FullBox (+4 bajty version/flags)
-          let ilst = findBox(mk, 'ilst');
-          if (!ilst){ ilst = { type: 'ilst', head: metaB.end, body: metaB.end, end: metaB.end }; mk.push(ilst); } // doklej na końcu meta (nic nie ucinaj)
-          ilstHead = ilst;
-          ilstChildren = u8atoms(src, ilst.body, ilst.end);
-        }
-      }
-      const keep = ['\u00a9nam', '\u00a9ART', 'covr']; // tylko te trzy podmieniamy
-      const other = ilstChildren.filter(c => keep.indexOf(c.type) < 0);
-      const built = [];
-      const t = utf8(meta && meta.title);   if (t.length)  built.push(ilstItem('\u00a9nam', 1, t));
-      const ar = utf8(meta && meta.artist); if (ar.length) built.push(ilstItem('\u00a9ART', 1, ar));
-      if (meta && meta.cover && meta.cover.length) built.push(ilstItem('covr', 13, meta.cover));
-      if (!built.length) return src;
-      const newIlstBody = u8cat(other.map(c => src.subarray(c.head, c.end)).concat(built));
-      const newIlst = u8cat([u8w32(new Uint8Array(4), 0, 8 + newIlstBody.length), u8str('ilst'), newIlstBody]);
-      // --- przebuduj meta/udta/moov ---
-      function rebuild(parent, childHead, childEnd, newChild){
-        const before = src.subarray(parent.body, childHead);
-        const after = src.subarray(childEnd, parent.end);
-        const out = u8cat([src.subarray(parent.head, parent.body), before, newChild, after]);
-        u8w32(out, 0, out.length); // świeży rozmiar pudełka w nagłówku
-        return out;
-      }
-      let tail;
-      if (udta){
-        const uk = u8atoms(src, udta.body, udta.end);
-        const metaB = findBox(uk, 'meta');
-        if (metaB){
-          const newMeta = rebuild(metaB, ilstHead.head, ilstHead.end, newIlst); // meta.head..body zachowane (ver/flags)
-          const newUdta = rebuild(udta, metaB.head, metaB.end, newMeta);
-          tail = rebuild(moov, udta.head, udta.end, newUdta);
-        } else {
-          const newUdta = u8cat([src.subarray(udta.head, udta.end), newIlst]);
-          tail = rebuild(moov, udta.head, udta.end, newUdta);
-        }
-      } else {
-        // brak udta: meta = ver/flags + hdlr(mdir/appl) + ilst
-        const hdlrBody = new Uint8Array(25); // ver/flags + pre_defined + 'mdir' + 'appl' + 9×0
-        hdlrBody.set(u8str('mdir'), 8);
-        hdlrBody.set(u8str('appl'), 12);
-        const hdlr = u8cat([u8w32(new Uint8Array(4), 0, 8 + hdlrBody.length), u8str('hdlr'), hdlrBody]);
-        const newMeta = u8cat([u8w32(new Uint8Array(4), 0, 8 + 4 + hdlr.length + newIlst.length), u8str('meta'), new Uint8Array(4), hdlr, newIlst]);
-        const newUdta = u8cat([u8w32(new Uint8Array(4), 0, 8 + newMeta.length), u8str('udta'), newMeta]);
-        tail = rebuild(moov, moov.end, moov.end, newUdta); // doklej na końcu moov
-      }
-      const delta = tail.length - (moov.end - moov.head);
-      // --- popraw offsety absolutne, jeśli coś się przesunęło ---
-      if (delta !== 0){
-        const mStart = moov.head;
-        // stco/co64: schodź rekurencyjnie moov→trak→mdia→minf→stbl (tail = obraz moov, dzieci od (moov.body-moov.head))
-        function patchChunks(bytes, from, to){
-          let off = from;
-          while (off + 8 <= to){
-            let size = u8r32(bytes, off);
-            if (size === 0) size = to - off;
-            if (size < 8 || off + size > to) return;
-            const ty = u8type(bytes, off + 4);
-            if (ty === 'stco' || ty === 'co64'){
-              const wide = ty === 'co64' ? 8 : 4;
-              const n = u8r32(bytes, off + 12); // version/flags(4) → entry_count na off+12
-              for (let i = 0; i < n; i++){
-                const p = off + 16 + i * wide;
-                const v = wide === 4 ? u8r32(bytes, p) : u8r32(bytes, p) * 4294967296 + u8r32(bytes, p + 4);
-                if (v > 0 && v >= mStart){
-                  if (wide === 4) u8w32(bytes, p, v + delta); else u8w64(bytes, p, v + delta);
-                }
-              }
-            } else if (ty === 'trak' || ty === 'mdia' || ty === 'minf' || ty === 'stbl'){
-              patchChunks(bytes, off + 8, off + size);
-            }
-            off += size;
-          }
-        }
-        patchChunks(tail, moov.body - moov.head, tail.length);
-        // tfhd base_data_offset (flags&1) we fragmentach za moov — absolutne offsety też przesuwamy
-        const tailShift = tail.length - src.length; // region za moov kopiowany 1:1
-        function patchTfhd(bytes, from, to){
-          let off = from;
-          while (off + 8 <= to){
-            let size = u8r32(bytes, off);
-            if (size === 0) size = to - off;
-            if (size < 8 || off + size > to) return;
-            const ty = u8type(bytes, off + 4);
-            if (ty === 'traf') patchTfhd(bytes, off + 8, off + size);
-            else if (ty === 'tfhd'){
-              const flags = (bytes[off + 8 + 1] << 16) | (bytes[off + 8 + 2] << 8) | bytes[off + 8 + 3];
-              if (flags & 0x1){
-                const p = off + 16; // body(8)+ver/flags(4)+track_id(4) → base_data_offset
-                const v = u8r32(bytes, p) * 4294967296 + u8r32(bytes, p + 4);
-                if (v >= mStart) u8w64(tail, p + tailShift, v + delta);
-              }
-            }
-            off += size;
-          }
-        }
-        patchTfhd(src, moov.end, src.length);
-      }
-      return u8cat([src.subarray(0, moov.head), tail, src.subarray(moov.end)]);
-    } catch (e){ return src; }
+    try { return (window.PulsarTags && window.PulsarTags.mp4Embed) ? window.PulsarTags.mp4Embed(src, meta) : src; } catch (e){ return src; }
   }
 
   // okładka z YT: maxresdefault (1280×720, bez pasów) → mqdefault (320×180, bez pasów); hqdefault ma paski — unikamy
@@ -286,6 +129,14 @@
   // mode: 'play' — najszybciej (bez osadzania), 'mp3' — konwersja gdy ffmpeg,
   //       'save' — zapis na dysk: bez ffmpeg preferuj m4a (da się osadzić okładkę czystym JS)
   async function downloadAudio(id, mode){
+    try { return await downloadAudioOnce(id, mode); }
+    catch (e){
+      // YouTube często psuje starsze yt-dlp → raz na sesję spróbuj aktualizacji i powtórz
+      if (await ytdlpUpdater.autoFix()) return await downloadAudioOnce(id, mode);
+      throw e;
+    }
+  }
+  async function downloadAudioOnce(id, mode){
     const tmp = await getTmp();
     const base = joinPath(tmp, uuid());
     const ff = await hasFfmpeg();
@@ -455,6 +306,283 @@
     }
     await Neutralino.filesystem.writeFile(dest, btoa(bin));
   }
+
+
+  /* ---- dostęp do plików dla index.html (edytor tagów: zapis oryginału na dysku) ---- */
+  window.__pulsarFs = {
+    writeBinary: function (path, u8){ return writeBinary(path, u8); },
+    readBinary: function (path){ return Neutralino.filesystem.readBinaryFile(path); },
+    appendBinary: function (path, u8){
+      const buf = ArrayBuffer.isView(u8) ? u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) : u8;
+      return Neutralino.filesystem.appendBinaryFile(path, buf);
+    },
+    saveDialog: function (title, name, ext, label){
+      return Neutralino.os.showSaveDialog(title, { defaultPath: name, filters: [{ name: label || ext, extensions: [ext] }, { name: 'All files', extensions: ['*'] }] })
+        .then(function (p){ if (!p) return ''; p = String(p); return /\.[a-z0-9]+$/i.test(p) ? p : p + '.' + ext; });
+    }
+  };
+
+  function dHost(){ return window.__pulsarHost || null; }
+  function dTr(s){ const h = dHost(); try { return h && h.t ? h.t(s) : s; } catch (e){ return s; } }
+  function dToast(s){ const h = dHost(); try { if (h && h.toast) h.toast(s); } catch (e){} }
+  function onReadyDom(fn){
+    let done = false;
+    const go = function (){ if (done) return; done = true; if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true }); else fn(); };
+    try { Neutralino.events.on('ready', go); } catch (e){}
+  }
+
+  /* ================= Aktualizacja yt-dlp =================
+   * Ręcznie: przycisk w ustawieniach (yt-dlp.exe -U). Automatycznie: raz na dobę porównanie
+   * z najnowszym wydaniem na GitHubie; do tego jedna próba aktualizacji, gdy pobieranie się sypie.
+   */
+  const ytdlpUpdater = (function (){
+    const K_CHECK = 'pulsarYtdlpCheck', K_AUTO = 'pulsarYtdlpAuto';
+    let busy = null, triedFix = false, curVer = '';
+    function autoOn(){ try { return localStorage.getItem(K_AUTO) !== '0'; } catch (e){ return true; } }
+    async function version(){
+      try {
+        if (!(await hasYtDlp())) return '';
+        const r = execOut(await run(q(YTDLP) + ' --version', 20000));
+        curVer = (r.raw.trim().split(/\s+/)[0] || '');
+      } catch (e){ curVer = ''; }
+      updateUi();
+      return curVer;
+    }
+    async function latest(){
+      try {
+        const r = await fetch('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest', { cache: 'no-store' });
+        if (!r.ok) return '';
+        const j = await r.json();
+        return String(j.tag_name || '').trim();
+      } catch (e){ return ''; }
+    }
+    function newer(a, b){ // a > b dla wersji w formacie 2025.09.26(.123456)
+      const pa = String(a).split('.').map(Number), pb = String(b).split('.').map(Number);
+      for (let i = 0; i < Math.max(pa.length, pb.length); i++){
+        const x = pa[i] || 0, y = pb[i] || 0;
+        if (x !== y) return x > y;
+      }
+      return false;
+    }
+    function update(){
+      if (busy) return busy;
+      busy = (async function (){
+        const before = await version();
+        if (!before) return { ok: false, error: dTr('yt-dlp.exe nie znaleziony obok aplikacji') };
+        updateUi();
+        let r;
+        try { r = execOut(await run(q(YTDLP) + ' -U', 240000)); }
+        catch (e){ return { ok: false, before: before, error: String((e && e.message) || e) }; }
+        pingCache = null;
+        try { localStorage.setItem(K_CHECK, String(Date.now())); } catch (e){}
+        const after = await version();
+        const txt = r.raw + '\n' + r.stderr;
+        const upToDate = /up to date|up-to-date/i.test(txt);
+        const ok = !!after && (after !== before || upToDate);
+        const last = (r.stderr || r.raw).split('\n').map(function (l){ return l.trim(); }).filter(Boolean).pop() || '';
+        return { ok: ok, before: before, after: after, changed: !!after && after !== before, error: ok ? '' : (last.slice(0, 240) || dTr('nieznany błąd')) };
+      })();
+      const p = busy;
+      p.then(function (){ busy = null; updateUi(); }, function (){ busy = null; updateUi(); });
+      return p;
+    }
+    async function manual(){
+      dToast(dTr('Sprawdzam aktualizację yt-dlp…'));
+      const r = await update();
+      if (!r.ok) dToast(dTr('Aktualizacja yt-dlp nie powiodła się: ') + r.error);
+      else if (r.changed) dToast(dTr('yt-dlp zaktualizowany: ') + r.before + ' → ' + r.after);
+      else dToast(dTr('yt-dlp jest aktualny (') + r.after + ')');
+    }
+    async function autoCheck(){
+      if (!autoOn()) { version(); return; }
+      let last = 0; try { last = +localStorage.getItem(K_CHECK) || 0; } catch (e){}
+      const cur = await version();
+      if (!cur || Date.now() - last < 24 * 3600 * 1000) return;
+      try { localStorage.setItem(K_CHECK, String(Date.now())); } catch (e){}
+      const lat = await latest();
+      if (!lat || !newer(lat, cur)) return;
+      const r = await update();
+      if (r.ok && r.changed) dToast(dTr('yt-dlp zaktualizowany: ') + r.before + ' → ' + r.after);
+    }
+    async function autoFix(){
+      if (triedFix || !autoOn()) return false;
+      triedFix = true;
+      const r = await update();
+      if (r.ok && r.changed){ dToast(dTr('yt-dlp zaktualizowany: ') + r.before + ' → ' + r.after); return true; }
+      return false;
+    }
+    function updateUi(){
+      const b = document.getElementById('smYtdlpBtn');
+      if (b){
+        b.disabled = !!busy;
+        b.textContent = busy ? dTr('Aktualizuję yt-dlp…') : dTr('Aktualizuj yt-dlp') + (curVer ? ' (' + curVer + ')' : '');
+      }
+      const a = document.getElementById('smYtdlpAuto'); if (a) a.checked = autoOn();
+    }
+    onReadyDom(function (){
+      const b = document.getElementById('smYtdlpBtn'); if (b) b.addEventListener('click', manual);
+      const a = document.getElementById('smYtdlpAuto');
+      if (a) a.addEventListener('change', function (){ try { localStorage.setItem(K_AUTO, a.checked ? '1' : '0'); } catch (e){} if (a.checked) autoCheck(); });
+      document.addEventListener('pulsar:lang', updateUi);
+      updateUi();
+      setTimeout(autoCheck, 6000); // po starcie, żeby nie spowalniać otwierania okna
+    });
+    return { update: update, manual: manual, autoFix: autoFix, version: version, autoCheck: autoCheck, newer: newer };
+  })();
+
+  /* ================= Obserwowany folder =================
+   * Nowe pliki audio z wybranego folderu (z podfolderami) same trafiają do biblioteki.
+   * Nic nie jest usuwane; plik raz zauważony nie wraca, jeśli usuniesz go z biblioteki.
+   */
+  const watchFolder = (function (){
+    const K_DIR = 'pulsarWatchDir', K_SEEN = 'pulsarWatchSeen';
+    const AUDIO = /\.(mp3|wav|ogg|oga|m4a|aac|flac|opus|weba|webm)$/i;
+    const SIDE = ['.png', '.jpg', '.jpeg', '.lrc'];
+    const MIME = { mp3: 'audio/mpeg', wav: 'audio/wav', ogg: 'audio/ogg', oga: 'audio/ogg', opus: 'audio/ogg', m4a: 'audio/mp4', aac: 'audio/aac', flac: 'audio/flac', weba: 'audio/webm', webm: 'audio/webm',
+      png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', lrc: 'text/plain' };
+    const BATCH = 20;
+    let dir = '', seen = {}, watcherId = null, scanning = false, again = false, timer = 0, lastAdded = 0;
+
+    function norm(p){ return String(p || '').replace(/\\/g, '/').replace(/\/+$/, ''); }
+    function key(p){ return norm(p).toLowerCase(); }
+    function loadPrefs(){
+      try { dir = norm(localStorage.getItem(K_DIR) || ''); } catch (e){ dir = ''; }
+      try { const s = JSON.parse(localStorage.getItem(K_SEEN) || 'null'); seen = (s && s.dir === key(dir) && s.map) ? s.map : {}; } catch (e){ seen = {}; }
+    }
+    function saveSeen(){ try { localStorage.setItem(K_SEEN, JSON.stringify({ dir: key(dir), map: seen })); } catch (e){} }
+    function relOf(p){ const base = dir.split('/').pop() || 'Folder'; return base + '/' + norm(p).slice(dir.length + 1); }
+    function extOf(p){ const m = /\.([a-z0-9]+)$/i.exec(String(p)); return m ? m[1].toLowerCase() : ''; }
+    function sleep(ms){ return new Promise(function (r){ setTimeout(r, ms); }); }
+
+    async function makeFile(p){
+      const buf = await Neutralino.filesystem.readBinaryFile(p);
+      const name = norm(p).split('/').pop();
+      let mt = Date.now(); try { const st = await Neutralino.filesystem.getStats(p); if (st && st.modifiedAt) mt = st.modifiedAt; } catch (e){}
+      const f = new File([buf], name, { type: MIME[extOf(p)] || '', lastModified: mt });
+      try { Object.defineProperty(f, 'webkitRelativePath', { value: relOf(p) }); } catch (e){}
+      f.__srcPath = norm(p);
+      return f;
+    }
+
+    async function scan(){
+      if (!dir) return;
+      if (scanning){ again = true; return; }
+      const h = dHost();
+      if (!h || !h.importFiles){ setTimeout(scan, 1500); return; }
+      scanning = true; again = false;
+      let added = 0, fresh = 0;
+      try {
+        let entries;
+        try { entries = await Neutralino.filesystem.readDirectory(dir, { recursive: true }); }
+        catch (e){ updateUi(dTr('Folder niedostępny')); return; }
+        const all = new Set();
+        const files = (entries || []).filter(function (e){ return e && e.type === 'FILE'; }).map(function (e){
+          const p = norm(e.path || joinPath(dir, e.entry)); all.add(p.toLowerCase()); return p;
+        });
+        const libPaths = h.libraryPaths ? h.libraryPaths() : new Set();
+        const todo = [];
+        for (const p of files){
+          if (!AUDIO.test(p)) continue;
+          const k = p.toLowerCase();
+          if (seen[k]) continue;
+          if (libPaths.has(k)){ seen[k] = 1; continue; }
+          todo.push(p);
+        }
+        if (!todo.length) return;
+        todo.sort(function (a, b){ return a.localeCompare(b, 'pl'); });
+        for (let i = 0; i < todo.length; i += BATCH){
+          const part = todo.slice(i, i + BATCH);
+          const batch = [];
+          for (const p of part){
+            try {
+              const st = await Neutralino.filesystem.getStats(p);
+              // plik jeszcze się kopiuje/pobiera → wróć do niego za chwilę
+              const age = st && st.modifiedAt ? Date.now() - st.modifiedAt : 1e9;
+              if (age >= 0 && age < 2500){ again = true; continue; }
+              // utwór dodany kiedyś ręcznie z tego samego folderu → tylko zapamiętaj ścieżkę (bez czytania pliku)
+              if (h.adoptPath && st && h.adoptPath(relOf(p), st.size, p)){ seen[p.toLowerCase()] = 1; continue; }
+              batch.push(await makeFile(p));
+              const stem = p.slice(0, p.lastIndexOf('.'));
+              for (const ext of SIDE){
+                const hit = [stem + ext, stem + ext.toUpperCase()].find(function (c){ return all.has(c.toLowerCase()); });
+                if (hit){ try { batch.push(await makeFile(files.find(function (f){ return f.toLowerCase() === hit.toLowerCase(); }))); } catch (e){} }
+              }
+              seen[p.toLowerCase()] = 1; fresh++;
+            } catch (e){ /* plik zablokowany lub zniknął — spróbujemy przy następnym skanie */ }
+          }
+          if (batch.length){ try { added += h.importFiles(batch) || 0; } catch (e){} }
+          saveSeen();
+          updateUi(dTr('Dodaję z folderu… ') + Math.min(i + BATCH, todo.length) + ' / ' + todo.length);
+          await sleep(30);
+        }
+      } finally {
+        saveSeen();
+        scanning = false;
+        if (added){ lastAdded = added; dToast(dTr('Obserwowany folder: dodano utworów: ') + added); }
+        updateUi();
+        if (again) schedule(3000);
+      }
+      return { added: added, read: fresh };
+    }
+    function schedule(ms){ clearTimeout(timer); timer = setTimeout(scan, ms || 2000); }
+
+    async function startWatcher(){
+      await stopWatcher();
+      if (!dir) return;
+      try { watcherId = await Neutralino.filesystem.createWatcher(dir); } catch (e){ watcherId = null; }
+    }
+    async function stopWatcher(){
+      if (watcherId == null) return;
+      try { await Neutralino.filesystem.removeWatcher(watcherId); } catch (e){}
+      watcherId = null;
+    }
+    function onWatch(e){
+      const d = (e && e.detail) || {};
+      if (watcherId == null || (d.id != null && d.id !== watcherId)) return;
+      if (d.action === 'delete') return;
+      if (d.filename && !AUDIO.test(d.filename) && !/\.(png|jpe?g|lrc)$/i.test(d.filename) && d.filename.indexOf('.') > -1) return;
+      schedule(2500);
+    }
+
+    async function choose(){
+      let picked = '';
+      try { picked = await Neutralino.os.showFolderDialog(dTr('Wybierz folder z muzyką do obserwowania'), dir ? { defaultPath: dir.replace(/\//g, '\\') } : {}); } catch (e){}
+      if (!picked) return;
+      dir = norm(picked); seen = {};
+      try { localStorage.setItem(K_DIR, dir); } catch (e){}
+      saveSeen();
+      await startWatcher();
+      updateUi();
+      dToast(dTr('Obserwuję folder: ') + dir.replace(/\//g, '\\'));
+      scan();
+    }
+    async function disable(){
+      await stopWatcher();
+      dir = ''; seen = {};
+      try { localStorage.removeItem(K_DIR); localStorage.removeItem(K_SEEN); } catch (e){}
+      updateUi();
+      dToast(dTr('Obserwowanie folderu wyłączone'));
+    }
+    function updateUi(status){
+      const lab = document.getElementById('smWatchPath');
+      if (lab){
+        lab.textContent = '\u200E' + (status || (dir ? dir.replace(/\//g, '\\') : dTr('nie wybrano'))) + '\u200E'; // LRM: kierunek rtl tylko do ucinania początku
+        lab.title = dir ? dir.replace(/\//g, '\\') : '';
+      }
+      const b = document.getElementById('smWatchBtn'); if (b) b.textContent = dTr(dir ? 'Zmień folder…' : 'Wybierz folder…');
+      const x = document.getElementById('smWatchOff'); if (x) x.hidden = !dir;
+    }
+    onReadyDom(function (){
+      loadPrefs();
+      const b = document.getElementById('smWatchBtn'); if (b) b.addEventListener('click', choose);
+      const x = document.getElementById('smWatchOff'); if (x) x.addEventListener('click', disable);
+      try { Neutralino.events.on('watchFile', onWatch); } catch (e){}
+      document.addEventListener('pulsar:lang', function (){ updateUi(); });
+      updateUi();
+      if (dir){ startWatcher(); setTimeout(scan, 2500); } // po wczytaniu biblioteki z IndexedDB
+    });
+    return { choose: choose, disable: disable, scan: scan, dir: function (){ return dir; }, seen: function (){ return seen; } };
+  })();
 
   /* ---- patch fetch: adresy mostka → desktop ---- */
   const origFetch = window.fetch ? window.fetch.bind(window) : null;
@@ -903,6 +1031,19 @@
     const FRAMES = 2048; // ~43 ms przy 48 kHz
 
     function getOn(){ try { return localStorage.getItem(PREF) === '1'; } catch (e){ return false; } }
+    /* motyw overlayu: style card|bar|cover|minimal, pos bl|br|tl|tr|bc, accent 'auto' | '#rrggbb', viz */
+    const THEME_KEY = 'pulsarObsTheme';
+    const THEME_DEF = { style: 'card', pos: 'bl', accent: 'auto', viz: true };
+    function getTheme(){
+      let t = null; try { t = JSON.parse(localStorage.getItem(THEME_KEY) || 'null'); } catch (e){}
+      return Object.assign({}, THEME_DEF, (t && typeof t === 'object') ? t : {});
+    }
+    function setTheme(t){ try { localStorage.setItem(THEME_KEY, JSON.stringify(t)); } catch (e){} }
+    function hexToRgb(h){
+      const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '')); if (!m) return '';
+      const n = parseInt(m[1], 16); return ((n >> 16) & 255) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255);
+    }
+    function themeWire(t){ return { style: t.style, pos: t.pos, viz: t.viz !== false, accent: t.accent === 'auto' ? '' : hexToRgb(t.accent) }; }
     function setOn(v){ try { localStorage.setItem(PREF, v ? '1' : '0'); } catch (e){} }
     function host(){ return window.__pulsarHost || null; }
     function tr(s){ const h = host(); try { return h && h.t ? h.t(s) : s; } catch (e){ return s; } }
@@ -929,7 +1070,9 @@
         if (on){
           const r = await fetch('/obs/overlay.html', { cache: 'no-store' });
           if (!r.ok) throw new Error('overlay ' + r.status);
-          const html = await r.text();
+          const th = getTheme();
+          const html = (await r.text()).replace(/data-style="[a-z]+" data-pos="[a-z]+" data-viz="[01]"/,
+            'data-style="' + th.style + '" data-pos="' + th.pos + '" data-viz="' + (th.viz !== false ? '1' : '0') + '"');
           await Neutralino.filesystem.writeFile(joinPath(OBS_DIR, FILES.overlay), html);
           await Neutralino.filesystem.writeFile(joinPath(OBS_DIR, FILES.audio), html.replace('data-mode="overlay"', 'data-mode="audio"'));
         }
@@ -1059,7 +1202,7 @@
       broadcast('pulsarObsMeta', {
         title: np.title, artist: np.artist, playing: np.playing, hasTrack: np.hasTrack,
         pos: Math.round(np.pos * 100) / 100, dur: Math.round(np.dur * 100) / 100,
-        accent: np.accent || '', lang: lang, coverId: lastCoverId
+        accent: np.accent || '', lang: lang, coverId: lastCoverId, theme: themeWire(getTheme())
       });
       // okładkę wysyłamy przy zmianie i co 10 s (gdy źródło w OBS zostanie przeładowane)
       if (lastCoverId && Date.now() - lastCoverSent > 10000){
@@ -1145,6 +1288,7 @@
           box.appendChild(el('p', null, tr('3. Zaznacz „Steruj dźwiękiem przez OBS” (Control audio via OBS) — bez tego OBS nie złapie dźwięku.')));
           box.appendChild(el('p', null, tr('4. Dla overlayu ustaw rozmiar np. 800 × 200. Źródło samo połączy się ponownie po restarcie Pulsara.')));
 
+          box.appendChild(buildThemeUi());
           box.appendChild(el('h4', null, tr('Obraz okna Pulsara')));
           box.appendChild(el('p', null, tr('Dodaj „Przechwytywanie okna”, wybierz Pulsar i ustaw metodę przechwytywania „Windows 10 (1903 i nowsze)” — inaczej obraz może być czarny.')));
           box.appendChild(el('p', 'obs-note', tr('Dźwięk w OBS jest ok. 0,15 s za obrazem okna. Dla idealnej synchronizacji dodaj do przechwytywania okna filtr „Opóźnienie renderowania” 150 ms.')));
@@ -1154,6 +1298,69 @@
         }
       });
     }
+    /* ---- wygląd overlayu: wybór + podgląd na żywo (ten sam overlay.html w ramce) ---- */
+    let previewFrame = null;
+    function sendPreview(){
+      if (!previewFrame || !previewFrame.contentWindow) return;
+      const h = host(); const np = (h && h.nowPlaying) ? h.nowPlaying() : null;
+      let lang = 'pl'; try { lang = h.lang(); } catch (e){}
+      const title = (np && np.title) || tr('Tytuł utworu');
+      const artist = (np && np.hasTrack) ? np.artist : tr('Wykonawca');
+      const dur = (np && np.dur) || 215, pos = (np && np.hasTrack) ? np.pos : 83;
+      const cover = (np && np.cover) || null;
+      const send = function (data){
+        try {
+          previewFrame.contentWindow.postMessage({ pulsarObsPreview: { title: title, artist: artist, playing: !!(np && np.playing), hasTrack: true,
+            pos: pos, dur: dur, accent: (np && np.accent) || '', lang: lang, coverId: data ? 'p' : '', theme: themeWire(getTheme()) }, cover: data }, '*');
+        } catch (e){}
+      };
+      if (cover && cover.indexOf('blob:') === 0) coverToJpeg(cover).then(send, function (){ send(null); }); else send(cover);
+    }
+    function buildThemeUi(){
+      const wrap = el('div', 'obs-theme');
+      wrap.appendChild(el('h4', null, tr('Wygląd overlayu')));
+      const th = getTheme();
+      const grid = el('div', 'obs-theme-grid');
+      const sel = function (label, key, opts){
+        const l = el('label', 'obs-theme-field'); l.appendChild(el('span', null, tr(label)));
+        const s = el('select', 'sm-select');
+        opts.forEach(function (o){ const op = el('option', null, tr(o[1])); op.value = o[0]; s.appendChild(op); });
+        s.value = th[key];
+        s.addEventListener('change', function (){ const t = getTheme(); t[key] = s.value; setTheme(t); applyThemeNow(); });
+        l.appendChild(s); grid.appendChild(l); return s;
+      };
+      sel('Styl', 'style', [['card', 'Karta'], ['bar', 'Pasek (cała szerokość)'], ['cover', 'Duża okładka'], ['minimal', 'Minimalny (sam tekst)']]);
+      sel('Pozycja', 'pos', [['bl', 'Lewy dół'], ['bc', 'Środek dół'], ['br', 'Prawy dół'], ['tl', 'Lewa góra'], ['tr', 'Prawa góra']]);
+      const al = el('label', 'obs-theme-field'); al.appendChild(el('span', null, tr('Kolor akcentu')));
+      const arow = el('span', 'obs-theme-acc');
+      const as = el('select', 'sm-select');
+      [['auto', 'Z okładki (automatycznie)'], ['custom', 'Własny']].forEach(function (o){ const op = el('option', null, tr(o[1])); op.value = o[0]; as.appendChild(op); });
+      const col = el('input'); col.type = 'color'; col.value = th.accent !== 'auto' ? th.accent : '#a06bff';
+      as.value = th.accent === 'auto' ? 'auto' : 'custom'; col.hidden = as.value === 'auto';
+      const saveAcc = function (){ const t = getTheme(); t.accent = as.value === 'auto' ? 'auto' : col.value; setTheme(t); col.hidden = as.value === 'auto'; applyThemeNow(); };
+      as.addEventListener('change', saveAcc); col.addEventListener('input', saveAcc);
+      arow.appendChild(as); arow.appendChild(col); al.appendChild(arow); grid.appendChild(al);
+      const vl = el('label', 'obs-theme-check');
+      const vc = el('input'); vc.type = 'checkbox'; vc.checked = th.viz !== false;
+      vc.addEventListener('change', function (){ const t = getTheme(); t.viz = vc.checked; setTheme(t); applyThemeNow(); });
+      vl.appendChild(vc); vl.appendChild(el('span', null, tr('Wizualizacja (słupki)'))); grid.appendChild(vl);
+      wrap.appendChild(grid);
+      const pv = el('div', 'obs-preview');
+      const fr = el('iframe'); fr.src = '/obs/overlay.html?preview=1'; fr.setAttribute('tabindex', '-1'); fr.title = tr('Podgląd');
+      fr.addEventListener('load', function (){ previewFrame = fr; sendPreview(); });
+      pv.appendChild(fr); wrap.appendChild(pv);
+      const fit = function (){ const w = pv.clientWidth; if (w) pv.style.setProperty('--k', String(w / 800)); };
+      try { new ResizeObserver(fit).observe(pv); } catch (e){ setTimeout(fit, 50); }
+      wrap.appendChild(el('p', 'obs-note', tr('Podgląd przy rozmiarze źródła 800 × 360. Zmiany trafiają do OBS od razu.')));
+      return wrap;
+    }
+    let themeWriteTimer = 0;
+    function applyThemeNow(){
+      sendPreview(); if (on) sendMeta();
+      clearTimeout(themeWriteTimer); themeWriteTimer = setTimeout(writeFiles, 700); // plik dla OBS też z nowym motywem (na wypadek przeładowania źródła)
+    }
+    window.addEventListener('message', function (ev){ if (ev.data && ev.data.pulsarObsPreviewReady && previewFrame) sendPreview(); });
+
     function wireUi(){
       const sw = document.getElementById('smObs');
       if (sw) sw.addEventListener('change', function (){ setEnabled(sw.checked); });
@@ -1188,5 +1395,5 @@
   } catch (e){}
 
   // pomocnik do testów poza webviewem (node): mapowanie wpisów yt-dlp
-  window.__desktopBridge = { mapEntry: mapEntry, isBridgeUrl: isBridgeUrl, mp4Embed: mp4EmbedBytes };
+  window.__desktopBridge = { mapEntry: mapEntry, isBridgeUrl: isBridgeUrl, mp4Embed: mp4EmbedBytes, ytdlp: ytdlpUpdater, watch: watchFolder };
 })();
