@@ -808,7 +808,14 @@ function netSearchMock(){
 async function testNet(browser){
   const page = await openApp(browser, { netMock: netSearchMock(), ls: { playerLibView: 'net' } });
   await page.addStyleTag({ content: '*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}' });
-  await loadFiles(page, [path.join(MEDIA, 'gA.wav')]);
+  await loadFiles(page, ['gA.wav', 'gB.wav', 'gC.wav'].map(f => path.join(MEDIA, f)));
+  await page.evaluate(() => { const lp = document.getElementById('libraryPanel'); if (!lp.classList.contains('open')) document.getElementById('libraryBtn') && document.getElementById('libraryBtn').click(); });
+  await page.evaluate(() => { const b = document.querySelector('.lib-tab[data-view="tracks"]'); b && b.click(); });
+  await sleep(600);
+  await page.screenshot({ path: path.join(OUT, 'net-ref-tracks.png') });
+  await page.evaluate(() => { const b = document.querySelector('.lib-tab[data-view="albums"]'); b && b.click(); });
+  await sleep(400);
+  await page.screenshot({ path: path.join(OUT, 'net-ref-albums.png') });
   await page.evaluate(() => { const b = document.querySelector('.lib-tab[data-view="net"]'); b && b.click(); });
   await page.evaluate(() => { const lp = document.getElementById('libraryPanel'); if (!lp.classList.contains('open')) document.getElementById('libraryBtn') && document.getElementById('libraryBtn').click(); });
   await sleep(800);
