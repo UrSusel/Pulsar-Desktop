@@ -4,7 +4,7 @@ A free, portable music player for **Windows 10/11** with a pulsar-nebula soul: s
 
 **⬇ [Download the latest ZIP](https://ursusel.github.io/Pulsar-Desktop/)** *(or grab [`Pulsar-Desktop.zip`](../../raw/main/Pulsar-Desktop.zip) straight from this repo)*
 
-![version](https://img.shields.io/badge/version-0.09.22-4de3ff) ![platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-a06bff) ![size](https://img.shields.io/badge/size-%7E20%20MB-ff5fd0)
+![version](https://img.shields.io/badge/version-0.09.25-4de3ff) ![platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-a06bff) ![size](https://img.shields.io/badge/size-%7E20%20MB-ff5fd0)
 
 ## ✨ Features
 
