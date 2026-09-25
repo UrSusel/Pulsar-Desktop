@@ -56,6 +56,28 @@
     return job;
   }
 
+  /* ---- Pobieranie przez curl.exe (Windows 10/11) — omija CORS; używane do okładek/metadanych ----
+     Poza kolejką yt-dlp (run), żeby szukanie okładek nie czekało na pobieranie utworów. */
+  let httpBusy = Promise.resolve();
+  function httpGet(url, timeoutMs){
+    url = String(url || '');
+    if (!/^https:\/\/[^\s"<>|^]+$/i.test(url)) return Promise.reject(new Error('bad url'));
+    const job = httpBusy.then(async function(){
+      const tmp = await getTmp();
+      const f = joinPath(tmp, uuid() + '.http');
+      const to = Math.round((timeoutMs || 20000) / 1000);
+      const cmd = 'curl.exe -sSL --fail --max-time ' + to + ' -A "Pulsar/1.0 (+https://github.com/UrSusel/Pulsar-Desktop)" -o ' + q(f) + ' ' + q(url);
+      try {
+        const r = await Promise.race([Neutralino.os.execCommand(cmd), new Promise(function(_, rej){ setTimeout(function(){ rej(new Error('timeout')); }, (to + 5) * 1000); })]);
+        const o = execOut(r);
+        if (o.exitCode) throw new Error('curl ' + o.exitCode + ' ' + o.stderr.slice(0, 120));
+        return new Uint8Array(await Neutralino.filesystem.readBinaryFile(f));
+      } finally { try { await Neutralino.filesystem.remove(f); } catch (e){} }
+    });
+    httpBusy = job.catch(function(){});
+    return job;
+  }
+
   function parseJsonLoose(s){
     const t = String(s || '').trim();
     if (!t) return null;
@@ -1395,5 +1417,5 @@
   } catch (e){}
 
   // pomocnik do testów poza webviewem (node): mapowanie wpisów yt-dlp
-  window.__desktopBridge = { mapEntry: mapEntry, isBridgeUrl: isBridgeUrl, mp4Embed: mp4EmbedBytes, ytdlp: ytdlpUpdater, watch: watchFolder };
+  window.__desktopBridge = { http: httpGet, mapEntry: mapEntry, isBridgeUrl: isBridgeUrl, mp4Embed: mp4EmbedBytes, ytdlp: ytdlpUpdater, watch: watchFolder };
 })();

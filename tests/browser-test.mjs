@@ -1,5 +1,5 @@
 // Testy przeglądarkowe Pulsara (headless Chromium).
-//   NODE_PATH=<katalog z puppeteer-core i @sparticuz/chromium> node tests/browser-test.mjs <media-dir> [gapless|tags|backup|desktop|obs|settings|all]
+//   NODE_PATH=<katalog z puppeteer-core i @sparticuz/chromium> node tests/browser-test.mjs <media-dir> [gapless|tags|backup|desktop|obs|settings|library|covers|all]
 // Tryb „przeglądarka”: neutralino.js podmieniony na pusty plik (desktop.js się nie włącza).
 // Tryb „desktop”: neutralino.js podmieniony na stub, którego system plików i execCommand obsługuje Node
 //   (yt-dlp jest symulowany — sprawdzamy logikę aktualizacji, nie sieć).
@@ -103,6 +103,12 @@ function makeNodeFs(state){
         case 'removeWatcher': { const w = state.watchers.get(a[0]); if (w) w.close(); state.watchers.delete(a[0]); return 'true'; }
         case 'execCommand': {
           const c = String(a[0]); state.exec.push(c);
+          if (/^curl\.exe /.test(c)){ // pobieranie okładek/metadanych przez curl (omija CORS)
+            const m = c.match(/-o "([^"]+)" "([^"]+)"$/);
+            const body = m && state.curl ? state.curl(new URL(m[2])) : null;
+            if (!body) return JSON.stringify({ stdOut: '', stdErr: 'curl: (22) The requested URL returned error: 404', exitCode: 22 });
+            fs.writeFileSync(toNative(m[1]), body); return JSON.stringify({ stdOut: '', stdErr: '', exitCode: 0 });
+          }
           if (/ --version/.test(c)) return JSON.stringify({ stdOut: state.ytVer + '\n', stdErr: '', exitCode: 0 });
           if (/ -U\b/.test(c)){ const old = state.ytVer; state.ytVer = state.ytLatest; return JSON.stringify({ stdOut: old === state.ytLatest ? 'yt-dlp is up to date (stable@' + old + ')' : 'Updated yt-dlp to stable@' + state.ytLatest, stdErr: '', exitCode: 0 }); }
           return JSON.stringify({ stdOut: '', stdErr: '', exitCode: 0 });
@@ -134,6 +140,7 @@ async function openApp(browser, opts = {}){
       return req.respond({ status: 404, body: 'nf' });
     }
     if (u.hostname === 'api.github.com' && opts.state) return req.respond({ status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: JSON.stringify({ tag_name: opts.state.ytLatest }) });
+    if (opts.netMock){ const r = opts.netMock(u, req); if (r) return req.respond(r); }
     return req.respond({ status: 503, body: 'offline in tests' }); // brak sieci: wzbogacanie metadanych itp.
   });
   if (opts.desktop){
@@ -191,7 +198,7 @@ async function editTags(page, id, fields){
   await poll(() => page.evaluate(() => !document.getElementById('modalDim').hidden && !!document.querySelector('.tag-ed')));
   await page.evaluate(f => {
     const ins = document.querySelectorAll('.tag-ed-input');
-    ins[0].value = f.title; ins[1].value = f.artist;
+    if (f.title !== undefined) ins[0].value = f.title; if (f.artist !== undefined) ins[1].value = f.artist;
   }, fields);
   if (fields.cover){
     const fi = await page.$('.tag-ed-cover input[type=file]');
@@ -609,12 +616,155 @@ async function testSettings(browser){
   await page.close();
 }
 
+/* ---------------- dodawanie folderu nie kasuje biblioteki ---------------- */
+async function testLibraryAdd(browser){
+  const page = await openApp(browser, {});
+  const first = ['gA.wav', 'gB.wav', 't_v23.mp3'].map(f => path.join(MEDIA, f));
+  await loadFiles(page, first);
+  await sleep(1000);
+  const before = await idbTracks(page);
+  const idB = before.find(x => x.name === 'gB.wav').id, idV = before.find(x => x.name === 't_v23.mp3').id;
+  // ulubiony + album + licznik odtworzeń + własny tytuł
+  await page.evaluate((idB, idV) => new Promise(res => {
+    const r = indexedDB.open('ambient-player-library', 2);
+    r.onsuccess = () => { const tx = r.result.transaction('playlists', 'readwrite'); tx.objectStore('playlists').put({ id: 'albX', name: 'Mój album', trackIds: [idB, idV], createdAt: 1, customCover: false }); tx.oncomplete = res; };
+  }), idB, idV);
+  await page.reload({ waitUntil: 'load' }); await sleep(1200);
+  const iV = await page.evaluate(id => window.__pulsarTest.indexOf(id), idV);
+  await page.evaluate(i => window.__player.__stats.setFav(i, true), iV);
+  await editTags(page, idB, { title: 'Mój tytuł B' });
+  await page.evaluate(() => window.__pulsarTest.openAlbum('albX')); await sleep(300);
+  await page.evaluate(() => document.querySelectorAll('#albumTrackList li')[0].click()); await sleep(1500);
+  await page.evaluate(() => document.getElementById('audio').pause());
+  const playing = await page.evaluate(() => window.__player.state().currentIndex);
+  const snap = await idbTracks(page);
+  // „Dodaj muzykę” z TYM SAMYM folderem + jeden nowy plik
+  await loadFiles(page, first.concat([path.join(MEDIA, 'gC.wav')]));
+  await sleep(1500);
+  const toast = await page.evaluate(() => document.getElementById('styleToast').textContent);
+  const after = await idbTracks(page);
+  const st = await page.evaluate(() => ({ st: window.__player.state(), active: localStorage.getItem('playerActiveAlbum') }));
+  check('dodanie tego samego folderu: nic nie znika, dochodzi tylko nowy plik', after.length === 4 && snap.every(o => after.some(n => n.id === o.id)), { before: snap.length, after: after.map(x => x.name) });
+  const nb = after.find(x => x.id === idB), nv = after.find(x => x.id === idV);
+  const same = snap.every(o => { const n = after.find(x => x.id === o.id); return n && ['title', 'artist', 'fav', 'plays', 'cover', 'size'].every(k => n[k] === o[k]); });
+  check('istniejące utwory nietknięte (tytuł, ulubione, okładka, licznik)', same && nb.title === 'Mój tytuł B' && nv.fav === true && nb.plays >= 1, { nb, nv });
+  check('album zachowany', st.st.albums.length === 1 && st.st.albums[0].tracks === 2, st.st.albums);
+  check('odtwarzany utwór i kolejka z albumu bez zmian', st.st.currentIndex === playing && st.active === 'albX' && st.st.queue.length === 2, { cur: st.st.currentIndex, playing, active: st.active, queue: st.st.queue });
+  check('komunikat: dodano 1, pominięto 3', /1/.test(toast) && /3/.test(toast), toast);
+  // drugi raz — nic nowego
+  await loadFiles(page, first); await sleep(800);
+  const toast2 = await page.evaluate(() => document.getElementById('styleToast').textContent);
+  const after2 = await idbTracks(page);
+  check('ponowne dodanie: bez duplikatów, komunikat „już są”', after2.length === 4 && /już/.test(toast2), { n: after2.length, toast2 });
+  // po restarcie wszystko nadal jest
+  await page.reload({ waitUntil: 'load' }); await sleep(1200);
+  const st3 = await page.evaluate(() => window.__player.state());
+  check('po restarcie: 4 utwory, album z 2 utworami', st3.tracks === 4 && st3.albums[0].tracks === 2, { tracks: st3.tracks, albums: st3.albums });
+  await page.close();
+}
+
+/* ---------------- okładki z sieci (symulowane Deezer / iTunes / MusicBrainz) ---------------- */
+async function testCovers(browser){
+  const jpg = fs.readFileSync(path.join(MEDIA, 'cover.jpg'));
+  const wrong = Buffer.concat([jpg, Buffer.alloc(777)]); // inna okładka (inny rozmiar) — nie może trafić do Bones
+  const log = { deezer: [], itunes: [], mb: [], img: [] };
+  const CORS = { 'Access-Control-Allow-Origin': '*' };
+  const json = (o, cors) => ({ status: 200, contentType: 'application/json', headers: cors ? CORS : {}, body: JSON.stringify(o) });
+  const netMock = (u) => {
+    const q = (u.searchParams.get('q') || u.searchParams.get('term') || u.searchParams.get('query') || '').toLowerCase();
+    if (u.hostname === 'api.deezer.com'){
+      const cb = u.searchParams.get('callback');
+      log.deezer.push({ q, jsonp: !!cb });
+      let data = [];
+      if (q.includes('bones')) data = [
+        { title: 'Bones', title_short: 'Bones', artist: { name: 'Equinox' }, album: { title: 'Bones', cover_xl: 'https://cdn.test/wrong.jpg' } },
+        { title: 'Bones', title_short: 'Bones', artist: { name: 'Imagine Dragons' }, album: { title: 'Mercury - Act 2', cover_xl: 'https://cdn.test/bones.jpg' } }];
+      const body = JSON.stringify({ data });
+      // prawdziwy Deezer nie wysyła nagłówków CORS → fetch z aplikacji się nie uda, działa JSONP
+      // (przechwytywanie w puppeteerze omija CORS, więc blokadę symulujemy błędem)
+      return cb ? { status: 200, contentType: 'text/javascript', body: cb + '(' + body + ')' } : { status: 403, contentType: 'text/plain', body: 'CORS' };
+    }
+    if (u.hostname === 'itunes.apple.com'){
+      log.itunes.push({ q, t: Date.now() });
+      let results = [];
+      if (q.includes('believer')) results = [{ trackId: 1, trackName: 'Believer', artistName: 'Imagine Dragons', collectionName: 'Evolve', artworkUrl100: 'https://cdn.test/believer/100x100bb.jpg' }];
+      if (q.includes('nieznany')) results = [{ trackId: 2, trackName: 'Całkiem Inny Utwór', artistName: 'Ktoś Inny', artworkUrl100: 'https://cdn.test/wrong/100x100bb.jpg' }];
+      return json({ resultCount: results.length, results }, true);
+    }
+    if (u.hostname === 'musicbrainz.org'){
+      log.mb.push(q);
+      const recordings = q.includes('bohemian') ? [{ title: 'Bohemian Rhapsody', 'artist-credit': [{ name: 'Queen' }], releases: [{ id: 'rel-b', title: 'Bootleg', status: 'Bootleg' }, { id: 'rel-q', title: 'A Night at the Opera', status: 'Official' }] }] : [];
+      return json({ recordings }, true);
+    }
+    if (u.hostname === 'coverartarchive.org'){ log.img.push(u.pathname); return u.pathname.includes('rel-q') ? { status: 200, contentType: 'image/jpeg', headers: CORS, body: jpg } : { status: 404, headers: CORS, body: '' }; }
+    if (u.hostname === 'cdn.test'){ log.img.push(u.pathname); return { status: 200, contentType: 'image/jpeg', headers: CORS, body: u.pathname.includes('wrong') ? wrong : jpg }; }
+    return null;
+  };
+  const page = await openApp(browser, { netMock, ls: { playerNetEnrich: '1' } });
+  const dir = path.join(MEDIA, 'cov');
+  await loadFiles(page, fs.readdirSync(dir).map(f => path.join(dir, f)));
+  // auto-uzupełnianie startuje ~3,5 s po dodaniu; iTunes jest ograniczany do 1 zapytania / 3,2 s
+  const t0 = Date.now();
+  await poll(() => page.evaluate(() => !!document.getElementById('styleToast') && /Uzupełniono/.test(document.getElementById('styleToast').textContent)), 90000, 300);
+  await sleep(500);
+  const tr = await idbTracks(page);
+  const by = n => tr.find(x => x.name === n) || {};
+  const bones = by('Imagine Dragons - Bones (Official Audio).mp3'), bel = by('Believer.mp3'), unk = by('Nieznany.mp3'), q = by('Queen.mp3');
+  check('okładki: Bones (tytuł z YouTube + kanał „ImagineDragons”) → Deezer, właściwy wykonawca', bones.cover === jpg.length && bones.title === 'Bones' && bones.artist === 'Imagine Dragons', bones);
+  check('okładki: Deezer przez JSONP (bez CORS), zapytanie artist:"Imagine Dragons" track:"Bones"', log.deezer.some(d => d.jsonp && d.q === 'artist:"imagine dragons" track:"bones"'), log.deezer.slice(0, 3));
+  check('okładki: Believer (kanał „- Topic”) → iTunes 600×600', bel.cover === jpg.length && bel.artist === 'Imagine Dragons' && log.img.includes('/believer/600x600bb.jpg'), { bel, img: log.img });
+  check('okładki: Queen („QueenVEVO”, „(Remastered 2011)”) → MusicBrainz, oficjalne wydanie', q.cover === jpg.length && q.title === 'Bohemian Rhapsody' && q.artist === 'Queen' && log.img.includes('/release/rel-q/front-500') && !log.img.includes('/release/rel-b/front-500'), { q, img: log.img });
+  check('okładki: niepasujący wynik NIE jest przypisywany', unk.cover === 0 && unk.title === 'Zupełnie Nieznany Kawałek [HD]', unk);
+  const gaps = log.itunes.slice(1).map((x, i) => x.t - log.itunes[i].t);
+  check('okładki: iTunes w limicie (≥ 3 s między zapytaniami)', log.itunes.length >= 2 && gaps.every(g => g >= 3000), { n: log.itunes.length, gaps });
+  const toast = await page.evaluate(() => document.getElementById('styleToast').textContent);
+  check('okładki: komunikat 3 / 4', /3\s*\/\s*4/.test(toast), { toast, s: Math.round((Date.now() - t0) / 1000) });
+  // ręczne „Uzupełnij online” ponawia tylko brakujące
+  const nDeezer = log.deezer.length;
+  await page.evaluate(() => { const b = document.getElementById('enrichBtn'); b && b.click(); });
+  await poll(() => page.evaluate(() => !document.getElementById('enrichBtn').disabled), 30000, 300);
+  await sleep(300);
+  check('okładki: ręczne ponowienie szuka tylko utworu bez okładki', log.deezer.slice(nDeezer).every(d => d.q.includes('nieznany') || d.q.includes('kawałek') || d.q.includes('ktoś')), log.deezer.slice(nDeezer));
+  await page.close();
+}
+
+/* ---------------- okładki w wersji desktopowej: wszystko przez curl.exe ---------------- */
+async function testCoversDesktop(browser){
+  const base = path.join(OUT, 'deskcov'); fs.rmSync(base, { recursive: true, force: true }); fs.mkdirSync(path.join(base, 'app'), { recursive: true });
+  const jpg = fs.readFileSync(path.join(MEDIA, 'cover.jpg'));
+  const curlLog = [];
+  const state = { writes: [], exec: [], watchers: new Map(), watchSeq: 0, ytVer: '2026.09.20', ytLatest: '2026.09.20',
+    curl: (u) => {
+      curlLog.push(u.hostname + u.pathname);
+      if (u.hostname === 'api.deezer.com'){
+        const q = (u.searchParams.get('q') || '').toLowerCase();
+        return Buffer.from(JSON.stringify({ data: q.includes('bones') ? [{ title: 'Bones', title_short: 'Bones', artist: { name: 'Imagine Dragons' }, album: { title: 'Mercury - Act 2', cover_xl: 'https://cdn.test/bones.jpg' } }] : [] }));
+      }
+      if (u.hostname === 'cdn.test') return jpg;
+      return null;
+    } };
+  // w przeglądarce Deezer i CDN są niedostępne (CORS) — JSONP też nie działa
+  const netMock = (u) => (u.hostname === 'api.deezer.com' || u.hostname === 'cdn.test') ? { status: 403, body: 'CORS' } :
+    (u.hostname === 'itunes.apple.com' || u.hostname === 'musicbrainz.org') ? { status: 200, contentType: 'application/json', headers: { 'Access-Control-Allow-Origin': '*' }, body: '{"results":[],"recordings":[]}' } : null;
+  const page = await openApp(browser, { desktop: true, state, netMock, nlPath: path.join(base, 'app'), ls: { playerNetEnrich: '1', pulsarYtdlpAuto: '0' } });
+  await poll(() => page.evaluate(() => document.documentElement.classList.contains('nl-desktop')));
+  await loadFiles(page, [path.join(MEDIA, 'cov', 'Imagine Dragons - Bones (Official Audio).mp3')]);
+  await poll(async () => { const t = await idbTracks(page); return t[0] && t[0].cover > 0; }, 40000, 300);
+  const tr = (await idbTracks(page))[0];
+  const tmpLeft = fs.existsSync(path.join(OUT, 'tmp')) ? fs.readdirSync(path.join(OUT, 'tmp')).filter(f => f.endsWith('.http')) : [];
+  check('desktop: okładka Bones przez curl.exe (Deezer + CDN bez CORS)', tr.cover === jpg.length && tr.artist === 'Imagine Dragons' && curlLog.includes('api.deezer.com/search') && curlLog.includes('cdn.test/bones.jpg'), { tr, curlLog });
+  check('desktop: pliki tymczasowe curl usunięte', tmpLeft.length === 0, tmpLeft);
+  await page.close();
+}
+
 const browser = await launch();
 try {
   if (WHICH === 'all' || WHICH === 'obs') await testObs(browser);
   if (WHICH === 'all' || WHICH === 'tags') await testTags(browser);
   if (WHICH === 'all' || WHICH === 'backup') await testBackup(browser);
   if (WHICH === 'all' || WHICH === 'desktop') await testDesktop(browser);
+  if (WHICH === 'all' || WHICH === 'library') await testLibraryAdd(browser);
+  if (WHICH === 'all' || WHICH === 'covers'){ await testCovers(browser); await testCoversDesktop(browser); }
   if (WHICH === 'all' || WHICH === 'settings') await testSettings(browser);
   if (WHICH === 'all' || WHICH === 'gapless') await testGapless(browser);
 } catch (e){ console.log('FAIL wyjątek:', e && e.stack || e); failures++; }

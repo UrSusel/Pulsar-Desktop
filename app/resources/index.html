@@ -1234,7 +1234,7 @@
       <button class="lib-tool primary" id="addMusicBtn" type="button" title="Dodaj utwory z folderu lub pliki audio">+ Dodaj muzykę</button>
       <button class="lib-tool" id="selectToggleBtn" type="button">Zaznacz utwory</button>
       <button class="lib-tool" id="newAlbumBtn" type="button">+ Nowy album</button>
-      <button class="lib-tool" id="enrichBtn" type="button" title="Uzupełnij okładki i metadane brakujących utworów (iTunes / MusicBrainz)">Uzupełnij online</button>
+      <button class="lib-tool" id="enrichBtn" type="button" title="Uzupełnij okładki i metadane brakujących utworów (Deezer / iTunes / MusicBrainz)">Uzupełnij online</button>
       <button class="lib-tool" id="dedupeBtn" type="button" title="Usuń powtórzone kopie utworów z biblioteki" disabled>Brak duplikatów</button>
       <button class="lib-tool" id="autoAlbumsBtn" type="button" title="Utwórz albumy automatycznie na podstawie struktury folderów"><svg viewBox="0 0 24 24"><path d="M4 6h6l1.5 2H20v10H4z"/><path d="M14 6l.8 1.9L17 8.6l-2.2.7L14 11l-.8-1.7L11 8.6l2.2-.7z"/></svg>Sklej z folderów</button>
     </div>
@@ -1454,6 +1454,9 @@
     if (!_savedLang){ try { localStorage.setItem('playerLang', CUR_LANG); } catch(e){} }
   } catch(e){ CUR_LANG = 'pl'; }
   var I18N_DICT = {
+    'Dodano nowe utwory: ': { en: 'New tracks added: ', es: 'Canciones nuevas añadidas: ' },
+    ' (pominięto już obecne: ': { en: ' (already in library, skipped: ', es: ' (ya en la biblioteca, omitidas: ' },
+    'Te utwory są już w bibliotece': { en: 'These tracks are already in your library', es: 'Estas canciones ya están en tu biblioteca' },
     'Brak wyników': { en: 'No results', es: 'Sin resultados' },
     'Do otwarcia w innych odtwarzaczach': { en: 'Open it in other players', es: 'Para abrir en otros reproductores' },
     'Dobiera następne utwory po tempie i energii': { en: 'Picks the next tracks by tempo and energy', es: 'Elige las siguientes canciones por tempo y energía' },
@@ -1829,7 +1832,7 @@
     'Zaznacz utwory': { en: 'Select tracks', es: 'Seleccionar canciones' },
     '+ Nowy album': { en: '+ New album', es: '+ Nuevo álbum' },
     'Uzupełnij online': { en: 'Fetch online', es: 'Completar online' },
-    'Uzupełnij okładki i metadane brakujących utworów (iTunes / MusicBrainz)': { en: 'Fetch covers and metadata for tracks that miss them (iTunes / MusicBrainz)', es: 'Completar portadas y metadatos que falten (iTunes / MusicBrainz)' },
+    'Uzupełnij okładki i metadane brakujących utworów (Deezer / iTunes / MusicBrainz)': { en: 'Fetch covers and metadata for tracks that miss them (Deezer / iTunes / MusicBrainz)', es: 'Completar portadas y metadatos que falten (Deezer / iTunes / MusicBrainz)' },
     'Brak duplikatów': { en: 'No duplicates', es: 'Sin duplicados' },
     'Usuń powtórzone kopie utworów z biblioteki': { en: 'Remove duplicate copies of tracks from the library', es: 'Elimina copias duplicadas de la biblioteca' },
     'Sklej z folderów': { en: 'Group by folders', es: 'Agrupar por carpetas' },
@@ -3079,7 +3082,8 @@
     return map;
   }
 
-  function addFilesToLibrary(files, replace){
+  let lastAddDupes = 0; // ile plików z ostatniego dodawania już było w bibliotece (do komunikatu)
+  function addFilesToLibrary(files){
     const imgMap = buildPngMap(files);
     const lrcMap = new Map();
     files.forEach(function(f){
@@ -3103,29 +3107,29 @@
       return { id: makeId(), file: f, folder: folder, title: fallback.title, artist: fallback.artist, matchedImg: matchedImg, coverBlob: matchedImg, coverUrl: null, resolved: false, lrcFile: lrcMap.get(baseKey) || null, srcPath: f.__srcPath || '' };
     });
 
-    let accepted = made;
-    if (replace){
-      // Podmiana folderu NIE może usuwać pobranych z sieci (netId / folder Sieć/…)
-      const isNet = t => !!t.netId || /^Sieć\//.test(t.folder || '');
-      const keptNet = tracks.filter(isNet);
-      const keptKeys = new Set(keptNet.map(t => t.id));
-      // stare lokalne wersje znikają z widoku i z bazy (po restarcie nie odradzają się jako duplikaty)
-      tracks.forEach(function(t){
-        if (!keptKeys.has(t.id) && !isNet(t)){ Promise.resolve(dbDelete('tracks', t.id)).catch(function(){}); }
-      });
-      tracks = keptNet.concat(made);
-    } else {
-      const existing = new Set(tracks.map(t => t.folder + '/' + t.file.name + ':' + (t.file.size || 0)));
-      accepted = made.filter(t => !existing.has(t.folder + '/' + t.file.name + ':' + (t.file.size || 0)));
-      // duplikat z obserwowanego folderu → zapamiętaj ścieżkę na dysku przy istniejącym utworze
-      made.forEach(function(m){
-        if (!m.srcPath || accepted.indexOf(m) > -1) return;
-        const k = m.folder + '/' + m.file.name + ':' + (m.file.size || 0);
-        const ex = tracks.find(t => !t.srcPath && (t.folder + '/' + t.file.name + ':' + (t.file.size || 0)) === k);
-        if (ex){ ex.srcPath = m.srcPath; persistTrack(ex); }
-      });
-      tracks = tracks.concat(accepted);
-    }
+    // Zawsze DOKŁADAMY do biblioteki — nigdy jej nie podmieniamy. Utwór, który już jest (ta sama nazwa pliku i rozmiar,
+    // niezależnie od folderu), zostaje nietknięty: id, okładka, statystyki, ulubione, miejsce w albumach.
+    // (Wcześniej „Dodaj muzykę” kasował bibliotekę i wczytywał pliki od nowa — albumy traciły utwory, znikały okładki.)
+    const keyOf = tr => String(tr.file && tr.file.name || '').toLowerCase() + ':' + ((tr.file && tr.file.size) || 0);
+    const byKey = new Map();
+    tracks.forEach(function(tr){ if (!byKey.has(keyOf(tr))) byKey.set(keyOf(tr), tr); });
+    const accepted = [];
+    let dupes = 0;
+    made.forEach(function(m){
+      const k = keyOf(m);
+      const ex = byKey.get(k);
+      if (!ex){ byKey.set(k, m); accepted.push(m); return; }
+      if (ex === m) return;
+      dupes++;
+      // istniejący utwór może skorzystać z tego, co przyszło z folderem: okładka .jpg obok, tekst .lrc, ścieżka na dysku
+      let touched = false;
+      if (!ex.coverBlob && m.matchedImg){ ex.coverBlob = m.matchedImg; ex.matchedImg = m.matchedImg; try { ex.coverUrl = URL.createObjectURL(m.matchedImg); } catch(e){} touched = true; }
+      if (!ex.lrcFile && m.lrcFile) ex.lrcFile = m.lrcFile;
+      if (!ex.srcPath && m.srcPath){ ex.srcPath = m.srcPath; touched = true; }
+      if (touched) persistTrack(ex);
+    });
+    lastAddDupes = dupes;
+    tracks = tracks.concat(accepted);
     accepted.forEach(persistTrack);
     queueLibraryAnalysis();
     if (netEnrichAuto && netEnabled) setTimeout(function(){ if (navigator.onLine !== false && !enrichBusy) enrichAll(false); }, 3500);
@@ -3135,17 +3139,26 @@
   folderInput.addEventListener('change', function(e){
     const files = Array.from(e.target.files || []);
     if (!files.length) return;
-    const added = addFilesToLibrary(files, true);
+    const hadAudio = files.some(f => AUDIO_EXT_RE.test(f.name));
+    const added = addFilesToLibrary(files);
     folderInput.value = '';
-    if (!added){ alert(t('Nie znaleziono plików audio w wybranym folderze.')); return; }
-    activeAlbumId = null;
-    selectionMode = false; addingToAlbumId = null; selectedIds.clear();
+    if (!hadAudio){ alert(t('Nie znaleziono plików audio w wybranym folderze.')); return; }
     if (folderBtn) folderBtn.classList.remove('attention');
-    rebuildQueue();
-    renderLibrary();
-    loadTrack(0, { autoplay: false });
-    openLibrary();
+    afterFilesAdded(added);
   });
+  // wspólne dla „Dodaj muzykę” i przeciągania: nie ruszamy tego, co gra, ani albumu; nowe utwory trafiają do kolejki biblioteki
+  function afterFilesAdded(added){
+    const dupes = lastAddDupes;
+    if (added){
+      rebuildQueue();
+      if (currentIndex < 0) loadTrack(tracks.length - added, { autoplay: false });
+    }
+    renderLibrary();
+    openLibrary();
+    if (added && dupes) showToast(t('Dodano nowe utwory: ') + added + t(' (pominięto już obecne: ') + dupes + ')');
+    else if (added) showToast(t('Dodano nowe utwory: ') + added);
+    else if (dupes) showToast(t('Te utwory są już w bibliotece'));
+  }
 
   // Drag & drop plików/folderów do okna
   let dragDepth = 0;
@@ -3181,11 +3194,8 @@
       for (const f of (dt.files || [])) files.push(f);
     }
     if (!files.length) return;
-    const added = addFilesToLibrary(files, tracks.length === 0);
-    if (!added) return;
-    if (currentIndex < 0) { rebuildQueue(); loadTrack(0, { autoplay: false }); }
-    renderLibrary();
-    openLibrary();
+    if (!files.some(f => AUDIO_EXT_RE.test(f.name))) return;
+    afterFilesAdded(addFilesToLibrary(files));
   });
 
   async function collectDroppedEntry(entry, prefix, out){
@@ -5173,57 +5183,191 @@
     }
   }
 
-  /* ---- Uzupełnianie okładek/metadanych lokalnej biblioteki ---- */
-  function enrichTargets(){ const out = []; for (let i = 0; i < tracks.length; i++){ const t = tracks[i]; if (!t.coverBlob && t.title) out.push({ t: t, i: i }); } return out; }
-  async function enrichOne(track){
-    if (!netEnabled || !track || !track.title) return null;
-    const knownArtist = track.artist && !/^(nieznany|unknown|wykonawca|artist)$/i.test(track.artist.trim());
-    const rawTitle = String(track.title || '').trim();
-    // zapytanie bez śmieci z YouTube: "(Official Video)", "[HD]" itd. — inaczej iTunes/Deezer trafiają rzadko
-    const cleanTitle = rawTitle.replace(/\([^)]*\)|\[[^\]]*\]|\{[^}]*\}/g, ' ').replace(/\s{2,}/g, ' ').trim();
-    const q = ((knownArtist ? track.artist + ' ' : '') + (cleanTitle || rawTitle)).trim();
-    let hit = null;
-    const its = await netItunes(q, 5);
-    if (its.length){
-      const want = normTitle(track.title);
-      hit = its.find(r => normTitle(r.title) === want) || (want.length > 3 ? its.find(r => normTitle(r.title).includes(want)) : null) || null;
+  /* ---- Uzupełnianie okładek/metadanych lokalnej biblioteki ----
+     Źródła po kolei: Deezer → iTunes → MusicBrainz/Cover Art Archive.
+     • tytuły z YouTube są czyszczone: „Imagine Dragons - Bones (Official Audio)” → wykonawca „Imagine Dragons”, tytuł „Bones”
+     • nazwy kanałów: „ImagineDragonsVEVO”, „Imagine Dragons - Topic” → „Imagine Dragons”
+     • limity: iTunes ~20 zapytań/min (wcześniej po kilkunastu utworach blokował resztę), MusicBrainz 1/s
+     • w wersji desktopowej zapytania/obrazy, których nie da się pobrać z przeglądarki (CORS), idą przez curl.exe */
+  const coverTried = new Map(); // id utworu → czas próby (auto-uzupełnianie nie męczy w kółko tych samych)
+  const coverRate = { itunes: { gap: 3200, last: 0 }, mb: { gap: 1100, last: 0 }, deezer: { gap: 150, last: 0 } };
+  async function coverWait(k){
+    const r = coverRate[k]; const w = r.last + r.gap - Date.now();
+    if (w > 0) await new Promise(res => setTimeout(res, w));
+    r.last = Date.now();
+  }
+  function coverHttp(){ const b = window.__desktopBridge; return b && typeof b.http === 'function' ? b.http : null; }
+  async function coverJson(url, jsonp){
+    const d = await netJson(url, 9000);
+    if (d) return d;
+    const http = coverHttp();
+    if (http){
+      try { const u8 = await http(url, 15000); return JSON.parse(new TextDecoder().decode(u8)); } catch(e){}
     }
-    if (hit){
-      if (hit.album) track.album = hit.album;
-      if (hit.year) track.year = hit.year;
-      if (normTitle(hit.title) === normTitle(track.title) && hit.title) track.title = hit.title;
-      if (hit.artist) track.artist = hit.artist;
-      if (hit.art){ const cb = await netBlob(hit.art, 'image/jpeg'); if (cb && cb.size){ track.coverBlob = cb; track.coverUrl = URL.createObjectURL(cb); } }
-      track.resolved = true;
-      persistTrack(track);
-      if (tracks[currentIndex] === track){ setCover(track.coverUrl || coverUrlOf(track)); updateTitleArtist(txArtist(track.artist), track.title); }
-      return 'itunes';
+    if (jsonp) return await netJsonp(url + (url.indexOf('?') > -1 ? '&' : '?') + 'output=jsonp', 9000);
+    return null;
+  }
+  // JPEG / PNG / WEBP, nie maleńki placeholder
+  function coverIsImage(u8, size){ return !!u8 && (size || u8.length) > 1500 && ((u8[0] === 0xFF && u8[1] === 0xD8) || (u8[0] === 0x89 && u8[1] === 0x50) || (u8[8] === 0x57 && u8[9] === 0x45)); }
+  async function coverImage(url){
+    if (!url) return null;
+    const b = await netBlob(url, 'image/jpeg');
+    if (b && b.size > 1500){ const h = new Uint8Array(await b.slice(0, 12).arrayBuffer()); if (coverIsImage(h, b.size)) return b; }
+    const http = coverHttp();
+    if (http){
+      try { const u8 = await http(url, 20000); if (coverIsImage(u8)) return new Blob([u8], { type: u8[0] === 0x89 ? 'image/png' : 'image/jpeg' }); } catch(e){}
     }
-    let albumGuess = track.album || '';
-    if (!albumGuess && track.folder && track.folder !== 'Muzyka'){
-      const seg = String(track.folder).split('/').filter(Boolean);
-      if (seg.length > 1) albumGuess = seg[seg.length - 1];
+    return null;
+  }
+  const COVER_JUNK_WORDS = /\b(official|audio|video|music ?video|lyrics?|lyric video|visuali[sz]er|hd|hq|4k|1080p|720p|remaster(ed)?|explicit|clean|mv|m\/v|teledysk|tekst|napisy|oficjalny|clip|karaoke|full album|topic)\b/i;
+  function coverCleanTitle(s){
+    s = String(s || '').replace(/\.(mp3|m4a|flac|ogg|opus|wav|aac|webm)$/i, '').replace(/_/g, ' ');
+    s = s.replace(/[\(\[\{【][^\)\]\}】]*[\)\]\}】]/g, ' ');                 // (Official Audio), [HD], {…}
+    s = s.replace(/\s+[\|•·]\s+.*$/, '');                                   // „Tytuł | Kanał”
+    s = s.replace(/\s(ft\.?|feat\.?|featuring|prod\.?)\s.*$/i, '');         // feat. X
+    s = s.replace(/\s[-–—]\s*(official|lyrics?|audio|video)\b.*$/i, '');    // „… - Official Video”
+    s = s.replace(/["“”„«»]/g, ' ').replace(/\s{2,}/g, ' ').trim();
+    return s;
+  }
+  function coverCleanArtist(a){
+    a = String(a || '').trim();
+    if (!a || /^(nieznany wykonawca|unknown artist|nieznany|unknown|wykonawca|artist|various artists|youtube|va)$/i.test(a)) return '';
+    a = a.replace(/\s*-\s*topic$/i, '').replace(/vevo$/i, '').replace(/\s*(official|music|tv|channel|records)$/i, '').trim();
+    if (!/\s/.test(a) && /[a-z][A-Z]/.test(a)) a = a.replace(/([a-z])([A-Z])/g, '$1 $2'); // ImagineDragons → Imagine Dragons
+    return a.trim();
+  }
+  function coverCompact(s){ return normTitle(s).replace(/^the\s+/, '').replace(/\s+/g, ''); }
+  function coverCandidates(track){
+    const raw = String(track.title || '').trim();
+    const tagArtist = coverCleanArtist(track.artist);
+    const clean = coverCleanTitle(raw) || raw;
+    const out = [];
+    const add = (artist, title) => {
+      title = coverCleanTitle(title); artist = coverCleanArtist(artist);
+      if (!title || title.length < 2) return;
+      if (!out.some(c => c.artist.toLowerCase() === artist.toLowerCase() && c.title.toLowerCase() === title.toLowerCase())) out.push({ artist, title });
+    };
+    const parts = clean.split(/\s+[-–—~]\s+|\s[-–—]|[-–—]\s/).map(x => x.trim()).filter(Boolean);
+    if (parts.length >= 2){
+      const tA = parts[0], tT = parts.slice(1).join(' ');
+      // „Wykonawca - Tytuł” w tytule; jeśli tag wykonawcy to ten sam artysta (np. nazwa kanału) — ufamy tytułowi
+      add(tA, tT);
+      if (tagArtist && coverCompact(tagArtist) !== coverCompact(tA)) { add(tagArtist, tT); add(tagArtist, clean); }
+    } else if (tagArtist){
+      add(tagArtist, clean);
     }
-    if (albumGuess){
-      const mbq = 'release:"' + String(albumGuess).replace(/"/g, ' ') + '"' + (knownArtist ? ' AND artist:"' + String(track.artist).replace(/"/g, ' ') + '"' : '');
-      const d = await netJson('https://musicbrainz.org/ws/2/release/?limit=1&fmt=json&query=' + encodeURIComponent(mbq));
-      const rel = d && Array.isArray(d.releases) ? d.releases[0] : null;
-      if (rel && rel.id){
-        const cb = await netBlob('https://coverartarchive.org/release/' + rel.id + '/front-500', 'image/jpeg');
-        if (cb && cb.size){
-          track.coverBlob = cb; track.coverUrl = URL.createObjectURL(cb); track.resolved = true;
-          if (rel.title && !track.album) track.album = rel.title;
-          persistTrack(track);
-          if (tracks[currentIndex] === track) setCover(track.coverUrl);
-          return 'coverart';
-        }
+    // nazwa pliku często ma pełne „Wykonawca - Tytuł”, gdy tagi są ubogie
+    const fn = track.file && track.file.name ? coverCleanTitle(track.file.name) : '';
+    const fp = fn.split(/\s+[-–—]\s+/);
+    if (fp.length >= 2) add(fp[0], fp.slice(1).join(' '));
+    if (!out.length) add('', clean);
+    return out.slice(0, 3);
+  }
+  // ocena wyniku: tytuł musi się zgadzać, wykonawca też (jeśli go znamy); przy nieznanym — wykonawca wyniku musi występować w tytule/nazwie pliku
+  function coverScore(hit, cand, track){
+    const ht = normTitle(coverCleanTitle(hit.title)), ct = normTitle(cand.title);
+    if (!ht || !ct) return 0;
+    let ts = 0;
+    if (ht === ct) ts = 3;
+    else if (ct.length >= 4 && ht.length >= 4 && (ht.indexOf(ct) === 0 || ct.indexOf(ht) === 0)) ts = 2;
+    else if (ct.length >= 6 && (ht.indexOf(ct) > -1 || ct.indexOf(ht) > -1)) ts = 1;
+    if (!ts) return 0;
+    const ha = coverCompact(hit.artist);
+    if (!ha) return 0;
+    if (cand.artist){
+      const ca = coverCompact(cand.artist);
+      const first = coverCompact(String(cand.artist).split(/,|&| x | and | feat\.? | ft\.? /i)[0]);
+      if (ha === ca) return ts + 3;
+      if (ha.indexOf(first) > -1 || ca.indexOf(ha) > -1 || (first.length >= 4 && ha.indexOf(first) === 0)) return ts + 2;
+      return 0;
+    }
+    const hay = coverCompact(String(track.title || '') + ' ' + String(track.artist || '') + ' ' + (track.file && track.file.name || '') + ' ' + (track.folder || ''));
+    return hay.indexOf(ha) > -1 ? ts + 1 : 0;
+  }
+  async function coverFromDeezer(cand, track){
+    const qs = cand.artist ? ['artist:"' + cand.artist.replace(/"/g, '') + '" track:"' + cand.title.replace(/"/g, '') + '"', cand.artist + ' ' + cand.title] : [cand.title];
+    for (const q of qs){
+      await coverWait('deezer');
+      const d = await coverJson('https://api.deezer.com/search?limit=10&q=' + encodeURIComponent(q), true);
+      const list = d && Array.isArray(d.data) ? d.data : [];
+      let best = null, bs = 0;
+      for (const r of list){
+        const h = { title: r.title_short || r.title || '', artist: (r.artist && r.artist.name) || '', album: (r.album && r.album.title) || '', art: r.album && (r.album.cover_xl || r.album.cover_big || r.album.cover_medium) || '' };
+        const sc = coverScore(h, cand, track);
+        if (sc > bs && h.art){ bs = sc; best = h; }
+      }
+      if (best) return Object.assign(best, { provider: 'deezer' });
+    }
+    return null;
+  }
+  async function coverFromItunes(cand, track){
+    await coverWait('itunes');
+    const its = await netItunes((cand.artist ? cand.artist + ' ' : '') + cand.title, 10);
+    let best = null, bs = 0;
+    for (const r of its){ const sc = coverScore(r, cand, track); if (sc > bs && r.art){ bs = sc; best = r; } }
+    return best ? Object.assign({}, best, { provider: 'itunes' }) : null;
+  }
+  async function coverFromMusicBrainz(cand, track){
+    const esc = x => String(x).replace(/["\\]/g, ' ');
+    const q = 'recording:"' + esc(cand.title) + '"' + (cand.artist ? ' AND artist:"' + esc(cand.artist) + '"' : '');
+    await coverWait('mb');
+    const d = await coverJson('https://musicbrainz.org/ws/2/recording/?limit=10&fmt=json&query=' + encodeURIComponent(q), false);
+    const recs = d && Array.isArray(d.recordings) ? d.recordings : [];
+    for (const r of recs){
+      const h = { title: r.title || '', artist: (r['artist-credit'] || []).map(a => a.name || (a.artist && a.artist.name) || '').join(' ') };
+      if (!coverScore(h, cand, track)) continue;
+      // najpierw oficjalne albumy/single, potem reszta
+      const rels = (r.releases || []).slice().sort((x, y) => ((y.status === 'Official') - (x.status === 'Official')));
+      for (const rel of rels.slice(0, 3)){
+        const art = 'https://coverartarchive.org/release/' + rel.id + '/front-500';
+        const img = await coverImage(art);
+        if (img) return { provider: 'coverart', title: h.title, artist: h.artist, album: rel.title || '', img };
       }
     }
     return null;
   }
+  function enrichTargets(manual){
+    const out = [];
+    for (let i = 0; i < tracks.length; i++){
+      const tr = tracks[i];
+      if (tr.coverBlob || !tr.title) continue;
+      if (!manual && coverTried.has(tr.id)) continue;
+      out.push({ t: tr, i: i });
+    }
+    return out;
+  }
+  async function enrichOne(track){
+    if (!netEnabled || !track) return null;
+    coverTried.set(track.id, Date.now());
+    // najpierw tagi z pliku (tytuł/wykonawca/osadzona okładka) — czytane leniwie, więc mogły jeszcze nie być wczytane
+    try { await ensureTrackMeta(track); } catch(e){}
+    if (track.coverBlob || !track.title) return null;
+    const cands = coverCandidates(track);
+    let hit = null, used = null;
+    for (const src of [coverFromDeezer, coverFromItunes, coverFromMusicBrainz]){
+      for (const c of cands){
+        try { hit = await src(c, track); } catch(e){ hit = null; }
+        if (hit){ used = c; break; }
+      }
+      if (hit) break;
+    }
+    if (!hit) return null;
+    const img = hit.img || await coverImage(hit.art);
+    if (!img) return null;
+    track.coverBlob = img; track.coverUrl = URL.createObjectURL(img);
+    // porządki w opisie: tytuł bez „(Official Audio)”, prawdziwy wykonawca zamiast nazwy kanału
+    if (hit.title) track.title = hit.title;
+    if (hit.artist) track.artist = hit.artist;
+    if (hit.album && !track.album) track.album = hit.album;
+    if (hit.year && !track.year) track.year = hit.year;
+    track.resolved = true;
+    persistTrack(track);
+    if (tracks[currentIndex] === track){ setCover(track.coverUrl); updateTitleArtist(txArtist(track.artist), track.title); }
+    return hit.provider;
+  }
   async function enrichAll(manual){
     if (enrichBusy || !netEnabled) return 0;
-    const targets = enrichTargets();
+    const targets = enrichTargets(manual);
     if (!targets.length){ if (manual) showToast(t('Wszystkie utwory mają już okładki')); return 0; }
     enrichBusy = true;
     const btn = document.getElementById('enrichBtn');
@@ -5232,8 +5376,7 @@
     for (const item of targets){
       done++;
       if (btn) btn.textContent = 'Uzupełniam ' + done + '/' + targets.length + '…';
-      try { const prov = await enrichOne(item.t); if (prov) ok++; } catch(e){}
-      await new Promise(res => setTimeout(res, 460));
+      try { const prov = await enrichOne(item.t); if (prov){ ok++; if (ok % 5 === 0) renderLibrary(); } } catch(e){}
     }
     if (btn){ btn.disabled = false; btn.classList.remove('on'); btn.textContent = 'Uzupełnij online'; }
     enrichBusy = false;
@@ -7654,7 +7797,7 @@
     // obserwowany folder (desktop.js)
     importFiles: function(files){
       const had = tracks.length;
-      const n = addFilesToLibrary(files, false);
+      const n = addFilesToLibrary(files);
       if (n){ rebuildQueue(); renderLibrary(); if (!had && currentIndex < 0) loadTrack(0, { autoplay: false }); }
       return n;
     },
