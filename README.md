@@ -16,6 +16,7 @@ A free, portable music player for **Windows 10/11** with a pulsar-nebula soul: s
 - 🔌 **Truly portable** — keep it on any drive, even a USB stick
 - 🪟 **Windows integration** — tray icon with playback menu, optional close-to-tray, always-on-top, compact mini mode, now-playing in the window/taskbar title, track-change notifications
 - ⏯️ **Resume where you left off** — last track and position are restored on start
+- 📡 **OBS / streaming** — Pulsar's audio (with EQ & effects) goes straight into an OBS *Browser* source, plus an optional now-playing overlay. No virtual audio cables needed
 
 ## 📸 Screenshots
 
@@ -28,6 +29,18 @@ A free, portable music player for **Windows 10/11** with a pulsar-nebula soul: s
 1. **Download & unpack** — extract the whole `Pulsar` folder anywhere (e.g. `C:\Pulsar`).
 2. **Double-click `pulsar.exe`** — if SmartScreen appears: *More info → Run anyway* (only once).
 3. **Play & save** — drop local files in, or open the *Net* tab and paste a YouTube link. Songs arrive with cover art, ready to keep or save to any folder on disk.
+
+## 📡 Streaming with OBS
+
+OBS's *Application Audio Capture* can't hear Pulsar: WebView2 plays sound from a separate `msedgewebview2.exe` process ([obs-studio#9838](https://github.com/obsproject/obs-studio/issues/9838)). Pulsar gets around this:
+
+1. In Pulsar: **Settings → OBS / streaming → Audio and overlay for OBS** (on). Then click **How to connect OBS…** for the exact file path.
+2. In OBS: add a **Browser** source, tick **Local file** and pick `obs\pulsar-obs.html` next to `pulsar.exe`. That file gives you the overlay with cover, title, progress and visualizer, plus the audio. For audio only, use `obs\pulsar-obs-audio.html`.
+3. Tick **Control audio via OBS**. The source now shows up in the OBS mixer and reconnects by itself whenever Pulsar restarts.
+
+For the window picture, use **Window Capture** with the method set to **Windows 10 (1903 and up)**. The relayed audio runs about 0.15 s behind the window picture. If you need perfect sync, add a 150 ms *Render Delay* filter to the window capture.
+
+How it works: an AudioWorklet taps the final mix and a Web Worker streams it as 16-bit PCM over Neutralino's local-only WebSocket server (`127.0.0.1`). The OBS page receives only the *connect* token, so it can listen to events but cannot call any native API.
 
 ## 🛠️ Tech
 

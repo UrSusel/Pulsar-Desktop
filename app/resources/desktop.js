@@ -826,6 +826,300 @@
     } catch (e){}
   })();
 
+  /* ================= OBS: dźwięk + overlay przez źródło „Przeglądarka” =================
+   * Dlaczego: WebView2 odtwarza dźwięk w osobnym procesie msedgewebview2.exe, poza drzewem procesu pulsar.exe,
+   * więc „Przechwytywanie dźwięku aplikacji” w OBS nic nie słyszy (obsproject/obs-studio#9838).
+   * Jak: AudioWorklet odczepia gotowy sygnał (po EQ/efektach) → Web Worker → app.broadcast przez lokalny
+   * serwer Neutralino (tylko 127.0.0.1) → strona obs/pulsar-obs.html w OBS odtwarza go, a OBS przechwytuje
+   * dźwięk swojego źródła przeglądarki natywnie. PCM 16-bit bez kompresji, bufor ~0,12 s.
+   * Strona OBS dostaje tylko „connect token” (odbiór zdarzeń) — bez tokenu dostępu nie wywoła API systemowego.
+   */
+  (function obsBridge(){
+    const PREF = 'pulsarObs';
+    const OBS_DIR = joinPath(APP_DIR, 'obs');
+    const FILES = { overlay: 'pulsar-obs.html', audio: 'pulsar-obs-audio.html', conn: 'connection.js' };
+    const FRAMES = 2048; // ~43 ms przy 48 kHz
+
+    function getOn(){ try { return localStorage.getItem(PREF) === '1'; } catch (e){ return false; } }
+    function setOn(v){ try { localStorage.setItem(PREF, v ? '1' : '0'); } catch (e){} }
+    function host(){ return window.__pulsarHost || null; }
+    function tr(s){ const h = host(); try { return h && h.t ? h.t(s) : s; } catch (e){ return s; } }
+    function toast(s){ const h = host(); try { if (h && h.toast) h.toast(s); } catch (e){} }
+    function token(){ try { return window.NL_TOKEN || sessionStorage.getItem('NL_TOKEN') || ''; } catch (e){ return window.NL_TOKEN || ''; } }
+    function port(){ return Number(window.NL_PORT || location.port || 0); }
+    function winPath(p){ return String(p).replace(/\//g, '\\'); }
+
+    let on = getOn(), started = false;
+    let tap = null;            // { ctx, node, worklet, sink, worker }
+    let workerOpen = false, clientCount = 0, obsClients = 0;
+    let metaTimer = 0, lastCoverUrl = null, lastCoverId = '', lastCoverData = null, lastCoverSent = 0;
+    let filesOk = null;
+
+    /* ---- pliki dla OBS (w folderze aplikacji; connection.js nadpisywany przy każdym starcie — nowy token) ---- */
+    async function writeFiles(){
+      filesOk = null;
+      try {
+        try { await Neutralino.filesystem.createDirectory(OBS_DIR); } catch (e){}
+        const conn = on
+          ? 'window.PULSAR_OBS = ' + JSON.stringify({ port: port(), connectToken: (token().split('.')[1] || ''), app: 'Pulsar', ts: Date.now() }) + ';\n'
+          : 'window.PULSAR_OBS = null; // połączenie z OBS wyłączone w Pulsarze\n';
+        await Neutralino.filesystem.writeFile(joinPath(OBS_DIR, FILES.conn), conn);
+        if (on){
+          const r = await fetch('/obs/overlay.html', { cache: 'no-store' });
+          if (!r.ok) throw new Error('overlay ' + r.status);
+          const html = await r.text();
+          await Neutralino.filesystem.writeFile(joinPath(OBS_DIR, FILES.overlay), html);
+          await Neutralino.filesystem.writeFile(joinPath(OBS_DIR, FILES.audio), html.replace('data-mode="overlay"', 'data-mode="audio"'));
+        }
+        filesOk = true;
+      } catch (e){
+        filesOk = false;
+        if (on) toast(tr('Nie udało się zapisać plików dla OBS'));
+      }
+    }
+
+    /* ---- odczep dźwięku: AudioWorklet → Worker → WebSocket (poza głównym wątkiem) ---- */
+    const WORKLET_SRC = [
+      "class PulsarObsTap extends AudioWorkletProcessor {",
+      "  constructor(){ super(); this.F = " + FRAMES + "; this.b = new Float32Array(this.F * 2); this.n = 0; this.out = null;",
+      "    this.port.onmessage = (e) => { if (e.data && e.data.port) this.out = e.data.port; }; }",
+      "  process(inputs){",
+      "    const i = inputs[0]; if (!i || !i.length || !this.out) return true;",
+      "    const L = i[0], R = i[1] || i[0];",
+      "    for (let k = 0; k < L.length; k++){",
+      "      this.b[this.n * 2] = L[k]; this.b[this.n * 2 + 1] = R[k];",
+      "      if (++this.n === this.F){ this.out.postMessage(this.b, [this.b.buffer]); this.b = new Float32Array(this.F * 2); this.n = 0; }",
+      "    }",
+      "    return true;",
+      "  }",
+      "}",
+      "registerProcessor('pulsar-obs-tap', PulsarObsTap);"
+    ].join('\n');
+    const WORKER_SRC = [
+      "var ws = null, tok = '', port = 0, sr = 48000, seq = 0, silent = 0, stopped = false;",
+      "onmessage = function (e){",
+      "  var d = e.data || {};",
+      "  if (d.type === 'init'){ tok = d.token; port = d.port; sr = d.sr || 48000; e.ports[0].onmessage = function (ev){ chunk(ev.data); }; connect(); }",
+      "  else if (d.type === 'stop'){ stopped = true; try { ws && ws.close(); } catch (x){} close(); }",
+      "};",
+      "function connect(){",
+      "  if (stopped) return;",
+      "  try { ws = new WebSocket('ws://127.0.0.1:' + port + '/?connectToken=' + (tok.split('.')[1] || '')); } catch (x){ setTimeout(connect, 2000); return; }",
+      "  ws.onopen = function (){ postMessage({ type: 'open' }); };",
+      "  ws.onclose = function (){ postMessage({ type: 'close' }); ws = null; setTimeout(connect, 2000); };",
+      "  ws.onmessage = function (){};",
+      "}",
+      "function b64(u8){ var s = '', C = 0x8000; for (var i = 0; i < u8.length; i += C) s += String.fromCharCode.apply(null, u8.subarray(i, i + C)); return btoa(s); }",
+      "function chunk(f){",
+      "  if (!ws || ws.readyState !== 1) return;",
+      "  var peak = 0, n = f.length, i;",
+      "  for (i = 0; i < n; i += 4){ var a = f[i] < 0 ? -f[i] : f[i]; if (a > peak) peak = a; }",
+      "  if (peak < 1e-5){ if (++silent > 12) return; } else silent = 0;", // ~0,5 s ciszy → przestań wysyłać (pauza)
+      "  if (ws.bufferedAmount > 1048576) return;",                          // zator — lepiej zgubić paczkę niż rosnąć
+      "  var pcm = new Int16Array(n);",
+      "  for (i = 0; i < n; i++){ var v = f[i]; v = v > 1 ? 1 : (v < -1 ? -1 : v); pcm[i] = v < 0 ? v * 32768 : v * 32767; }",
+      "  ws.send(JSON.stringify({ id: 'obs-' + seq, method: 'app.broadcast', accessToken: tok,",
+      "    data: { event: 'pulsarObsAudio', data: { sr: sr, ch: 2, seq: seq++, pcm: b64(new Uint8Array(pcm.buffer)) } } }));",
+      "}"
+    ].join('\n');
+
+    async function attach(){
+      if (!on || tap) return;
+      const h = host();
+      const t = h && h.audioTap ? h.audioTap() : null;
+      if (!t || !t.ctx || !t.node || !t.ctx.audioWorklet) return;
+      const ctx = t.ctx;
+      tap = { ctx: ctx, node: t.node, pending: true };
+      try {
+        const url = URL.createObjectURL(new Blob([WORKLET_SRC], { type: 'application/javascript' }));
+        await ctx.audioWorklet.addModule(url);
+        if (!on){ tap = null; return; }
+        const worklet = new AudioWorkletNode(ctx, 'pulsar-obs-tap', {
+          numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [2],
+          channelCount: 2, channelCountMode: 'explicit', channelCountInterpretation: 'speakers'
+        });
+        const sink = ctx.createGain(); sink.gain.value = 0; // węzeł musi być „ciągnięty” przez graf
+        t.node.connect(worklet); worklet.connect(sink); sink.connect(ctx.destination);
+        const worker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'application/javascript' })));
+        const mc = new MessageChannel();
+        worklet.port.postMessage({ port: mc.port1 }, [mc.port1]);
+        worker.postMessage({ type: 'init', token: token(), port: port(), sr: ctx.sampleRate }, [mc.port2]);
+        worker.onmessage = function (e){
+          const d = e.data || {};
+          if (d.type === 'open'){ workerOpen = true; recount(); }
+          else if (d.type === 'close'){ workerOpen = false; recount(); }
+        };
+        tap = { ctx: ctx, node: t.node, worklet: worklet, sink: sink, worker: worker };
+      } catch (e){
+        tap = null;
+        console.warn('OBS: nie udało się podłączyć odczepu dźwięku', e);
+      }
+    }
+    function detach(){
+      if (!tap) return;
+      try { tap.node.disconnect(tap.worklet); } catch (e){}
+      try { tap.worklet && tap.worklet.disconnect(); } catch (e){}
+      try { tap.sink && tap.sink.disconnect(); } catch (e){}
+      try { tap.worker && tap.worker.postMessage({ type: 'stop' }); } catch (e){}
+      tap = null; workerOpen = false; recount();
+    }
+
+    /* ---- metadane + okładka ---- */
+    function broadcast(ev, data){ try { return Neutralino.app.broadcast(ev, data).catch(function (){}); } catch (e){ return null; } }
+    function coverToJpeg(url){
+      return new Promise(function (resolve){
+        const img = new Image();
+        img.onload = function (){
+          try {
+            const S = 256, c = document.createElement('canvas'); c.width = S; c.height = S;
+            const g = c.getContext('2d');
+            const s = Math.min(img.naturalWidth, img.naturalHeight) || 1;
+            g.drawImage(img, (img.naturalWidth - s) / 2, (img.naturalHeight - s) / 2, s, s, 0, 0, S, S);
+            resolve(c.toDataURL('image/jpeg', 0.85));
+          } catch (e){ resolve(null); }
+        };
+        img.onerror = function (){ resolve(null); };
+        img.src = url;
+      });
+    }
+    async function sendMeta(){
+      if (!on) return;
+      const h = host();
+      const np = h && h.nowPlaying ? h.nowPlaying() : null;
+      if (!np) return;
+      let lang = 'pl'; try { lang = h.lang(); } catch (e){}
+      if (np.cover !== lastCoverUrl){
+        lastCoverUrl = np.cover;
+        lastCoverData = np.cover ? await coverToJpeg(np.cover) : null;
+        lastCoverId = lastCoverData ? ('c' + Date.now().toString(36)) : '';
+        lastCoverSent = 0;
+      }
+      broadcast('pulsarObsMeta', {
+        title: np.title, artist: np.artist, playing: np.playing, hasTrack: np.hasTrack,
+        pos: Math.round(np.pos * 100) / 100, dur: Math.round(np.dur * 100) / 100,
+        accent: np.accent || '', lang: lang, coverId: lastCoverId
+      });
+      // okładkę wysyłamy przy zmianie i co 10 s (gdy źródło w OBS zostanie przeładowane)
+      if (lastCoverId && Date.now() - lastCoverSent > 10000){
+        lastCoverSent = Date.now();
+        broadcast('pulsarObsCover', { id: lastCoverId, data: lastCoverData });
+      }
+    }
+    function startMeta(){ stopMeta(); metaTimer = setInterval(sendMeta, 1000); sendMeta(); }
+    function stopMeta(){ clearInterval(metaTimer); metaTimer = 0; }
+
+    /* ---- licznik podłączonych źródeł OBS (klienci aplikacji poza oknem Pulsara i workerem) ---- */
+    function recount(){
+      obsClients = Math.max(0, clientCount - 1 - (workerOpen ? 1 : 0));
+      updateUi();
+    }
+
+    /* ---- włącz / wyłącz ---- */
+    async function setEnabled(v, silent){
+      on = !!v; setOn(on);
+      await writeFiles();
+      if (on){ await attach(); startMeta(); }
+      else { detach(); stopMeta(); }
+      updateUi();
+      if (!silent) toast(tr(on ? 'Połączenie z OBS: wł.' : 'Połączenie z OBS: wył.'));
+    }
+
+    /* ---- UI: ustawienia + okno z instrukcją ---- */
+    function statusText(){
+      if (!on) return tr('Wyłączone');
+      if (obsClients > 0) return tr('Podłączone źródła OBS: ') + obsClients;
+      return tr('Czekam na OBS…');
+    }
+    function updateUi(){
+      const sw = document.getElementById('smObs'); if (sw) sw.checked = on;
+      const btn = document.getElementById('smObsHelp');
+      if (btn) btn.textContent = tr('Jak podłączyć OBS…') + (on ? ' (' + statusText() + ')' : '');
+      const st = document.getElementById('obsStatusTxt');
+      if (st) st.textContent = statusText();
+      const dot = document.getElementById('obsStatusDot');
+      if (dot) dot.className = 'obs-dot' + (on ? (obsClients > 0 ? ' on' : ' wait') : '');
+      const tg = document.getElementById('obsModalToggle');
+      if (tg) tg.textContent = tr(on ? 'Wyłącz nadawanie' : 'Włącz nadawanie');
+    }
+    function copy(text){
+      const done = function (){ toast(tr('Skopiowano ścieżkę')); };
+      try { navigator.clipboard.writeText(text).then(done, fallback); } catch (e){ fallback(); }
+      function fallback(){
+        try { const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); done(); } catch (e){}
+      }
+    }
+    function el(tag, cls, text){ const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+    function openHelp(){
+      const h = host(); if (!h || !h.modal) return;
+      const menu = document.getElementById('settingsMenu'); if (menu) menu.hidden = true;
+      h.modal({
+        title: tr('Pulsar w OBS'),
+        buildBody: function (body){
+          const box = el('div', 'obs-help');
+          const st = el('div', 'obs-status');
+          const dot = el('span', 'obs-dot'); dot.id = 'obsStatusDot';
+          const stt = el('span', null, ''); stt.id = 'obsStatusTxt';
+          st.appendChild(dot); st.appendChild(stt); box.appendChild(st);
+          const act0 = el('div', 'obs-actions');
+          const tg = el('button', null, ''); tg.type = 'button'; tg.id = 'obsModalToggle';
+          tg.addEventListener('click', function (){ setEnabled(!on); });
+          act0.appendChild(tg); box.appendChild(act0);
+
+          box.appendChild(el('h4', null, tr('Dźwięk (i overlay)')));
+          box.appendChild(el('p', null, tr('1. W OBS dodaj źródło „Przeglądarka” (Browser).')));
+          box.appendChild(el('p', null, tr('2. Zaznacz „Plik lokalny” i wybierz jeden z plików:')));
+          [[FILES.overlay, 'overlay z okładką, tytułem i wizualizacją + dźwięk'], [FILES.audio, 'sam dźwięk (bez obrazu)']].forEach(function (f){
+            const fb = el('div', 'obs-file');
+            fb.appendChild(el('code', null, winPath(joinPath(OBS_DIR, f[0]))));
+            fb.appendChild(el('span', null, tr(f[1])));
+            box.appendChild(fb);
+          });
+          const act = el('div', 'obs-actions');
+          const b1 = el('button', null, tr('Kopiuj ścieżkę')); b1.type = 'button';
+          b1.addEventListener('click', function (){ copy(winPath(joinPath(OBS_DIR, FILES.overlay))); });
+          const b2 = el('button', null, tr('Otwórz folder')); b2.type = 'button';
+          b2.addEventListener('click', function (){ try { Neutralino.os.execCommand('explorer "' + winPath(OBS_DIR) + '"', { background: true }); } catch (e){} });
+          act.appendChild(b1); act.appendChild(b2); box.appendChild(act);
+          box.appendChild(el('p', null, tr('3. Zaznacz „Steruj dźwiękiem przez OBS” (Control audio via OBS) — bez tego OBS nie złapie dźwięku.')));
+          box.appendChild(el('p', null, tr('4. Dla overlayu ustaw rozmiar np. 800 × 200. Źródło samo połączy się ponownie po restarcie Pulsara.')));
+
+          box.appendChild(el('h4', null, tr('Obraz okna Pulsara')));
+          box.appendChild(el('p', null, tr('Dodaj „Przechwytywanie okna”, wybierz Pulsar i ustaw metodę przechwytywania „Windows 10 (1903 i nowsze)” — inaczej obraz może być czarny.')));
+          box.appendChild(el('p', 'obs-note', tr('Dźwięk w OBS jest ok. 0,15 s za obrazem okna. Dla idealnej synchronizacji dodaj do przechwytywania okna filtr „Opóźnienie renderowania” 150 ms.')));
+          box.appendChild(el('p', 'obs-note', tr('„Przechwytywanie dźwięku aplikacji” nie zadziała z Pulsarem: dźwięk gra w procesie WebView2, którego OBS nie widzi. Dlatego jest to rozwiązanie.')));
+          body.appendChild(box);
+          updateUi();
+        }
+      });
+    }
+    function wireUi(){
+      const sw = document.getElementById('smObs');
+      if (sw) sw.addEventListener('change', function (){ setEnabled(sw.checked); });
+      const btn = document.getElementById('smObsHelp');
+      if (btn) btn.addEventListener('click', openHelp);
+      updateUi();
+    }
+
+    try {
+      Neutralino.events.on('appClientConnect', function (e){ clientCount = +(e && e.detail) || 0; recount(); });
+      Neutralino.events.on('appClientDisconnect', function (e){ clientCount = +(e && e.detail) || 0; recount(); });
+      Neutralino.events.on('ready', function (){
+        if (started) return;
+        started = true;
+        const init = async function (){
+          wireUi();
+          document.addEventListener('pulsar:audiograph', function (){ if (on) attach(); });
+          document.addEventListener('pulsar:state', function (){ if (on){ attach(); sendMeta(); } });
+          document.addEventListener('pulsar:lang', updateUi);
+          await writeFiles(); // także przy wyłączonym: unieważnia stary token w connection.js
+          if (on){ attach(); startMeta(); }
+          if (window.__pulsarDesktop) window.__pulsarDesktop.obs = { enabled: function (){ return on; }, set: setEnabled, clients: function (){ return obsClients; }, help: openHelp, files: function (){ return filesOk; } };
+        };
+        if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true }); else init();
+      });
+    } catch (e){}
+  })();
+
   /* ---- okno: domknięcie zamyka proces ---- */
   try {
     window.addEventListener('beforeunload', () => { try { Neutralino.app.exit(); } catch (e){} });

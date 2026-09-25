@@ -982,6 +982,20 @@
   .mv-btn svg { width: 18px; height: 18px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
   .mv-btn.big svg { width: 20px; height: 20px; }
   .mv-btn svg .fill { fill: currentColor; stroke: none; }
+  .obs-help { font-size: 13px; line-height: 1.5; color: rgba(255,255,255,.82); display: flex; flex-direction: column; gap: 10px; max-height: min(64vh, 560px); overflow-y: auto; }
+  .obs-help h4 { margin: 6px 0 0; font-size: 12px; letter-spacing: .8px; text-transform: uppercase; color: rgba(255,255,255,.5); }
+  .obs-help p { margin: 0; }
+  .obs-status { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-radius: 10px; background: rgba(255,255,255,.05); border: 1px solid rgba(255,255,255,.1); }
+  .obs-dot { width: 9px; height: 9px; border-radius: 50%; background: #777; flex-shrink: 0; }
+  .obs-dot.on { background: #3ddc84; box-shadow: 0 0 8px #3ddc84; }
+  .obs-dot.wait { background: #f5b942; }
+  .obs-file { display: flex; flex-direction: column; gap: 2px; padding: 8px 10px; border-radius: 10px; background: rgba(0,0,0,.35); border: 1px solid rgba(255,255,255,.1); }
+  .obs-file code { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; color: #fff; word-break: break-all; }
+  .obs-file span { font-size: 11.5px; color: rgba(255,255,255,.55); }
+  .obs-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+  .obs-actions button { flex: 1; min-width: 120px; padding: 8px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.08); color: #fff; cursor: pointer; font: inherit; font-size: 12.5px; }
+  .obs-actions button:hover { background: rgba(255,255,255,.14); }
+  .obs-note { font-size: 12px; color: rgba(255,255,255,.6); }
   @media (max-height: 120px){ .mv-time { display: none; } .mv-cover { width: 64px; height: 64px; } }
   @media (max-width: 300px){ html.nl-mini .mini-view { grid-template-columns: 1fr; } .mv-cover { display: none; } }
 </style>
@@ -1294,6 +1308,9 @@
     <div class="sm-row sm-desktop-only"><span class="sm-lab">Zawsze na wierzchu</span><label class="switch"><input type="checkbox" id="smOnTop"><span class="slider"></span></label></div>
     <div class="sm-row sm-desktop-only"><span class="sm-lab" title="Zamknięcie okna chowa je do zasobnika — muzyka gra dalej">Zamykanie chowa okno do zasobnika</span><label class="switch"><input type="checkbox" id="smCloseToTray"><span class="slider"></span></label></div>
     <div class="sm-row sm-desktop-only"><span class="sm-lab">Powiadomienie o nowym utworze</span><label class="switch"><input type="checkbox" id="smNotify"><span class="slider"></span></label></div>
+    <div class="sm-cap sm-desktop-only">OBS / streaming</div>
+    <div class="sm-row sm-desktop-only"><span class="sm-lab" title="Wysyła dźwięk Pulsara do źródła „Przeglądarka” w OBS (bez kabli wirtualnych)">Dźwięk i overlay dla OBS</span><label class="switch"><input type="checkbox" id="smObs"><span class="slider"></span></label></div>
+    <button type="button" class="sm-btn sm-desktop-only" id="smObsHelp">Jak podłączyć OBS…</button>
     <div class="sm-cap">Sieć</div>
     <button type="button" class="sm-btn" id="smNetFolderBtn" title="Gdzie zapisują się utwory pobrane z sieci (podfolder = źródło)">Folder zapisu z sieci</button>
     <button type="button" class="sm-btn" id="smNetMoveBtn" title="Zmienia folder już pobranych utworów na wybrany powyżej">Przenieś pobrane</button>
@@ -1530,7 +1547,34 @@
     'Zakończ': { en: 'Quit', es: 'Salir' },
     'Nic nie gra': { en: 'Nothing playing', es: 'No suena nada' },
     'Pulsar działa w tle': { en: 'Pulsar is still running', es: 'Pulsar sigue en segundo plano' },
-    'Muzyka gra dalej. Okno przywrócisz z menu ikony w zasobniku (Pokaż okno).': { en: 'Music keeps playing. Bring the window back from the tray icon menu (Show window).', es: 'La música sigue sonando. Recupera la ventana desde el menú del icono de la bandeja (Mostrar ventana).' }
+    'Muzyka gra dalej. Okno przywrócisz z menu ikony w zasobniku (Pokaż okno).': { en: 'Music keeps playing. Bring the window back from the tray icon menu (Show window).', es: 'La música sigue sonando. Recupera la ventana desde el menú del icono de la bandeja (Mostrar ventana).' },
+    'OBS / streaming': { en: 'OBS / streaming', es: 'OBS / streaming' },
+    'Dźwięk i overlay dla OBS': { en: 'Audio and overlay for OBS', es: 'Audio y overlay para OBS' },
+    'Wysyła dźwięk Pulsara do źródła „Przeglądarka” w OBS (bez kabli wirtualnych)': { en: 'Sends Pulsar audio to an OBS “Browser” source (no virtual cables)', es: 'Envía el audio de Pulsar a una fuente “Navegador” de OBS (sin cables virtuales)' },
+    'Jak podłączyć OBS…': { en: 'How to connect OBS…', es: 'Cómo conectar OBS…' },
+    'Pulsar w OBS': { en: 'Pulsar in OBS', es: 'Pulsar en OBS' },
+    'Połączenie z OBS: wł.': { en: 'OBS connection: on', es: 'Conexión con OBS: activada' },
+    'Połączenie z OBS: wył.': { en: 'OBS connection: off', es: 'Conexión con OBS: desactivada' },
+    'Nie udało się zapisać plików dla OBS': { en: 'Could not write the OBS files', es: 'No se pudieron guardar los archivos para OBS' },
+    'Wyłączone': { en: 'Off', es: 'Desactivado' },
+    'Podłączone źródła OBS: ': { en: 'Connected OBS sources: ', es: 'Fuentes de OBS conectadas: ' },
+    'Czekam na OBS…': { en: 'Waiting for OBS…', es: 'Esperando a OBS…' },
+    'Włącz nadawanie': { en: 'Start sending', es: 'Activar envío' },
+    'Wyłącz nadawanie': { en: 'Stop sending', es: 'Desactivar envío' },
+    'Skopiowano ścieżkę': { en: 'Path copied', es: 'Ruta copiada' },
+    'Kopiuj ścieżkę': { en: 'Copy path', es: 'Copiar ruta' },
+    'Otwórz folder': { en: 'Open folder', es: 'Abrir carpeta' },
+    'Dźwięk (i overlay)': { en: 'Audio (and overlay)', es: 'Audio (y overlay)' },
+    '1. W OBS dodaj źródło „Przeglądarka” (Browser).': { en: '1. In OBS, add a “Browser” source.', es: '1. En OBS, añade una fuente “Navegador” (Browser).' },
+    '2. Zaznacz „Plik lokalny” i wybierz jeden z plików:': { en: '2. Tick “Local file” and pick one of these files:', es: '2. Marca “Archivo local” y elige uno de estos archivos:' },
+    'overlay z okładką, tytułem i wizualizacją + dźwięk': { en: 'overlay with cover, title and visualizer + audio', es: 'overlay con portada, título y visualizador + audio' },
+    'sam dźwięk (bez obrazu)': { en: 'audio only (no picture)', es: 'solo audio (sin imagen)' },
+    '3. Zaznacz „Steruj dźwiękiem przez OBS” (Control audio via OBS) — bez tego OBS nie złapie dźwięku.': { en: '3. Tick “Control audio via OBS” — without it OBS will not capture the sound.', es: '3. Marca “Controlar audio mediante OBS” (Control audio via OBS); sin esto OBS no captará el sonido.' },
+    '4. Dla overlayu ustaw rozmiar np. 800 × 200. Źródło samo połączy się ponownie po restarcie Pulsara.': { en: '4. For the overlay, set a size such as 800 × 200. The source reconnects by itself after Pulsar restarts.', es: '4. Para el overlay, usa un tamaño como 800 × 200. La fuente se reconecta sola al reiniciar Pulsar.' },
+    'Obraz okna Pulsara': { en: 'Pulsar window picture', es: 'Imagen de la ventana de Pulsar' },
+    'Dodaj „Przechwytywanie okna”, wybierz Pulsar i ustaw metodę przechwytywania „Windows 10 (1903 i nowsze)” — inaczej obraz może być czarny.': { en: 'Add “Window Capture”, choose Pulsar and set the capture method to “Windows 10 (1903 and up)” — otherwise the picture may be black.', es: 'Añade “Captura de ventana”, elige Pulsar y usa el método “Windows 10 (1903 y posterior)”; si no, la imagen puede salir negra.' },
+    'Dźwięk w OBS jest ok. 0,15 s za obrazem okna. Dla idealnej synchronizacji dodaj do przechwytywania okna filtr „Opóźnienie renderowania” 150 ms.': { en: 'OBS audio is about 0.15 s behind the window picture. For perfect sync, add a 150 ms “Render Delay” filter to the window capture.', es: 'El audio en OBS va unos 0,15 s por detrás de la imagen. Para una sincronía perfecta, añade a la captura de ventana un filtro “Retraso de renderizado” de 150 ms.' },
+    '„Przechwytywanie dźwięku aplikacji” nie zadziała z Pulsarem: dźwięk gra w procesie WebView2, którego OBS nie widzi. Dlatego jest to rozwiązanie.': { en: '“Application Audio Capture” does not work with Pulsar: the sound plays in a WebView2 process that OBS cannot see. That is why this option exists.', es: 'La “Captura de audio de aplicación” no funciona con Pulsar: el sonido se reproduce en un proceso de WebView2 que OBS no ve. Por eso existe esta opción.' }
   };
   var I18N_STATIC = {
     'Opuść pełny ekran': { en: 'Exit fullscreen', es: 'Salir de pantalla completa' },
@@ -5171,6 +5215,7 @@
       audio._srcNode = audioCtx.createMediaElementSource(audio);
       audio._srcNode.connect(mainGain); mainGain.connect(inputBus);
       applyEQ(); applyNorm(); updateSoundBtnState();
+      try { document.dispatchEvent(new CustomEvent('pulsar:audiograph')); } catch(e){} // np. nadawanie do OBS
     } catch(e){ audioCtx = null; analyser = null; eqFilters = null; inputBus = null; normNode = null; mainGain = null; masterGain = null; fxIn = null; fxConv = null; }
   }
 
@@ -6738,14 +6783,25 @@
   window.__pulsarHost = {
     nowPlaying: function(){
       const tr = tracks[currentIndex];
+      const cu = tr ? coverUrlOf(tr) : '';
+      let accent = '';
+      try { accent = getComputedStyle(document.documentElement).getPropertyValue('--accent-rgb').trim(); } catch(e){}
       return {
         title: tr ? (tr.title || '') : '',
         artist: tr ? txArtist(tr.artist || '') : '',
         playing: !audio.paused,
         hasTracks: tracks.length > 0,
-        hasTrack: !!tr
+        hasTrack: !!tr,
+        cover: (cu && cu !== DEFAULT_COVER) ? cu : '',
+        pos: audio.currentTime || 0,
+        dur: isFinite(audio.duration) ? audio.duration : 0,
+        accent: accent
       };
     },
+    // Punkt odczepu dźwięku: wyjście po EQ/efektach/normalizacji/crossfadzie (to, co słychać)
+    audioTap: function(){ return (audioCtx && analyser) ? { ctx: audioCtx, node: analyser } : null; },
+    modal: function(opts){ openModal(Object.assign({ hideOk: true }, opts || {})); },
+    closeModal: function(){ closeModal(); },
     toggle: function(){ if (tracks.length) togglePlay(); },
     next: function(){ nextTrack(false); },
     prev: function(){ prevTrack(); },
