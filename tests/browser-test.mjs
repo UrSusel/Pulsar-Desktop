@@ -325,6 +325,10 @@ async function testBackup(browser){
   const dl = path.join(OUT, 'dl'); fs.rmSync(dl, { recursive: true, force: true }); fs.mkdirSync(dl, { recursive: true });
   let page = await openApp(browser, { ls: { playerVolume: '0.42' } });
   await loadFiles(page, ['t_v23.mp3', 't.m4a', 'gA.wav', 'cover.jpg'].map(f => path.join(MEDIA, f)));
+  // aplikacja w tle czyta tagi ID3 i zapisuje rekordy — edytujemy bazę dopiero, gdy przestanie się zmieniać,
+  // inaczej jej zapis (ze starą kopią w pamięci) nadpisałby ustawione niżej „ulubione”
+  { let prev = '', same = 0; const t0 = Date.now();
+    while (Date.now() - t0 < 12000){ const cur = JSON.stringify(await idbTracks(page)); same = cur === prev ? same + 1 : 0; prev = cur; if (same >= 4) break; await sleep(400); } }
   const tr = await idbTracks(page);
   // ulubione + album bezpośrednio w bazie, potem przeładowanie (restoreLibrary)
   await page.evaluate(ids => new Promise(res => {
@@ -468,14 +472,17 @@ async function testDesktop(browser){
   await page.evaluate(() => {
     const d = document.querySelector('.obs-theme-details'); d.open = true;
     const r = d.querySelector('input[type=range]'); r.value = '130'; r.dispatchEvent(new Event('input'));
-    const ss = d.querySelectorAll('select'); ss[1].value = 'fade'; ss[1].dispatchEvent(new Event('change')); ss[2].value = '15'; ss[2].dispatchEvent(new Event('change'));
+    const set = (k, v) => { const e = d.querySelector('select[data-key=' + k + ']'); e.value = v; e.dispatchEvent(new Event('change')); };
+    set('anim', 'fade'); set('autohide', '15'); set('radius', '0'); set('cshape', 'circle'); set('vizStyle', 'wave'); set('text', 'custom');
+    const tc = d.querySelector('select[data-key=text]').parentNode.querySelector('input[type=color]'); tc.value = '#ffcc00'; tc.dispatchEvent(new Event('input'));
     const c = d.querySelector('input[data-key=art]'); c.checked = true; c.dispatchEvent(new Event('change'));
   });
   await sleep(900);
   const th = await page.evaluate(() => JSON.parse(localStorage.getItem('pulsarObsTheme')));
-  check('OBS: więcej opcji zapisane', th.scale === 130 && th.anim === 'fade' && th.autohide === 15 && th.art === true, th);
-  const fa2 = await (page.frames().find(f => /overlay\.html\?preview/.test(f.url())) || { evaluate: async () => null }).evaluate(() => ({ s: document.body.style.getPropertyValue('--s'), art: document.documentElement.getAttribute('data-art'), anim: document.documentElement.getAttribute('data-anim') }));
-  check('OBS: podgląd — więcej opcji na żywo', !!fa2 && fa2.s === '1.3' && fa2.art === '1' && fa2.anim === 'fade', fa2);
+  check('OBS: więcej opcji zapisane', th.scale === 130 && th.anim === 'fade' && th.autohide === 15 && th.art === true && th.radius === 0 && th.cshape === 'circle' && th.vizStyle === 'wave' && th.text === '#ffcc00', th);
+  const fa2 = await (page.frames().find(f => /overlay\.html\?preview/.test(f.url())) || { evaluate: async () => null }).evaluate(() => { const r = document.documentElement; return { s: document.body.style.getPropertyValue('--s'), art: r.getAttribute('data-art'), anim: r.getAttribute('data-anim'),
+    rad: r.getAttribute('data-rad'), cshape: r.getAttribute('data-cshape'), tcol: r.getAttribute('data-tcol'), txt: document.body.style.getPropertyValue('--txt'), titleColor: getComputedStyle(document.getElementById('title')).color }; });
+  check('OBS: podgląd — więcej opcji na żywo', !!fa2 && fa2.s === '1.3' && fa2.art === '1' && fa2.anim === 'fade' && fa2.rad === '1' && fa2.cshape === 'circle' && fa2.tcol === '1' && fa2.titleColor === 'rgb(255, 204, 0)', fa2);
   check('OBS: motyw zapisany', th.style === 'bar' && th.pos === 'tr' && th.accent === '#22cc88', th);
   const fr = page.frames().find(f => /overlay\.html\?preview/.test(f.url()));
   const fa = fr && await fr.evaluate(() => ({ style: document.documentElement.getAttribute('data-style'), pos: document.documentElement.getAttribute('data-pos'), acc: document.body.style.getPropertyValue('--acc'), title: document.getElementById('title').textContent }));
@@ -522,7 +529,11 @@ async function testObs(browser){
     ['vinyl', 'bl', '', {}], ['neon', 'bl', '255, 60, 200', {}], ['pill', 'tr', '', {}],
     ['card', 'bl', '', { art: true, font: 'serif', scale: 80, label: false, tag: 'art' }],
     ['vinyl', 'br', '60, 220, 160', { bg: 30, margin: 60, marquee: true, tag: 'opts' }],
-    ['neon', 'tl', '', { cover: false, progress: false, font: 'mono', tag: 'nocover' }]];
+    ['neon', 'tl', '', { cover: false, progress: false, font: 'mono', tag: 'nocover' }],
+    ['glass', 'bl', '', { art: true }], ['terminal', 'bl', '', {}], ['tv', 'bl', '230, 40, 60', {}],
+    ['terminal', 'tr', '255, 176, 0', { vizStyle: 'wave', tag: 'amber' }],
+    ['tv', 'br', '', { cshape: 'circle', radius: 14, tsize: 120, text: '20, 30, 120', vizStyle: 'mirror', tag: 'custom' }],
+    ['card', 'bl', '', { vizStyle: 'mirror', cshape: 'circle', radius: 999, tag: 'mirror' }]];
   for (const [style, pos, accent, extra] of cases){
     const theme = Object.assign({ style, pos, viz: true, accent }, extra || {});
     await page.evaluate((theme, cover) => window.postMessage({ pulsarObsPreview: { title: 'Bardzo długi tytuł utworu, który się nie zmieści w jednej linii', artist: 'Wykonawca Testowy', playing: true, hasTrack: true, pos: 83, dur: 215, accent: '160, 107, 255', lang: 'pl', coverId: 'x', theme }, cover }, '*'), theme, cover);
@@ -533,13 +544,19 @@ async function testObs(browser){
         prog: r.getAttribute('data-prog'), label: r.getAttribute('data-label'), s: b.getPropertyValue('--s'), bga: b.getPropertyValue('--bga'), m: b.getPropertyValue('--m'),
         mq: document.getElementById('title').classList.contains('mq'), visible: getComputedStyle(c).opacity > 0.5,
         coverShown: getComputedStyle(document.querySelector('.cw')).display !== 'none', rowShown: getComputedStyle(document.querySelector('.row')).display !== 'none',
-        spin: getComputedStyle(document.querySelector('.cw')).animationName, bgart: getComputedStyle(document.getElementById('bgart')).display };
+        spin: getComputedStyle(document.querySelector('.cw')).animationName, bgart: getComputedStyle(document.getElementById('bgart')).display,
+        extra: { tcol: r.getAttribute('data-tcol'), titleColor: getComputedStyle(document.getElementById('title')).color, coverRadius: getComputedStyle(document.getElementById('cover')).borderTopLeftRadius,
+          cardRadius: getComputedStyle(c).borderTopLeftRadius, ts: b.getPropertyValue('--ts'), clip: getComputedStyle(c).clipPath } };
     });
     let ok = a.st === style && a.pos === pos && a.visible;
     if (extra && extra.tag === 'art') ok = ok && a.art === '1' && a.bgart === 'block' && a.font === 'serif' && a.s === '0.8' && a.label === '0';
     if (extra && extra.tag === 'opts') ok = ok && a.bga === '0.3' && a.m === '60px' && a.mq === true;
     if (extra && extra.tag === 'nocover') ok = ok && !a.coverShown && !a.rowShown && a.font === 'mono';
     if (style === 'vinyl') ok = ok && a.spin === 'pulsarSpin';
+    if (extra && extra.tag === 'custom') ok = ok && a.extra.tcol === '1' && a.extra.titleColor === 'rgb(20, 30, 120)' && a.extra.coverRadius === '50%' && a.extra.cardRadius === '14px' && a.extra.ts === '1.2';
+    if (extra && extra.tag === 'amber') ok = ok && a.extra.titleColor === 'rgb(255, 176, 0)';
+    if (style === 'terminal' && !extra.tag) ok = ok && a.extra.titleColor === 'rgb(90, 255, 130)';
+    if (style === 'tv') ok = ok && a.extra.clip === 'inset(0px)';
     check('overlay ' + style + '/' + pos + (extra && extra.tag ? ' +' + extra.tag : ''), ok, a);
   }
   // animacja „powiększenie” i chowanie przy braku utworu

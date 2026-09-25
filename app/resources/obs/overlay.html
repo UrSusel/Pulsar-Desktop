@@ -164,6 +164,76 @@
   html[data-style="pill"] .fill { box-shadow: none; }
   html[data-style="pill"][data-cover="0"] .card { padding-left: 22px; }
   html[data-style="pill"][data-cover="0"] .row { left: 22px; }
+
+  /* ---------- opcje wspólne: kolor tekstu, wielkość tytułu, rogi, kształt okładki ---------- */
+  .title { zoom: var(--ts, 1); }
+  html[data-tcol="1"] .title { color: rgb(var(--txt)) !important; }
+  html[data-tcol="1"] .artist, html[data-tcol="1"] .time { color: rgba(var(--txt), .72) !important; }
+  html[data-rad="1"] .card { border-radius: var(--r) !important; }
+  html[data-rad="1"]:not([data-style="vinyl"]):not([data-style="cover"]):not([data-style="pill"]) .cover { border-radius: min(var(--r), 16px); }
+  html[data-cshape="square"]:not([data-style="vinyl"]) .cover { border-radius: 0 !important; }
+  html[data-cshape="rounded"]:not([data-style="vinyl"]) .cover { border-radius: 14px !important; }
+  html[data-cshape="circle"]:not([data-style="vinyl"]):not([data-style="cover"]) .cover { border-radius: 50% !important; }
+
+  /* ---------- motyw: szkło (jasna, półprzezroczysta tafla) ---------- */
+  html[data-style="glass"] .card { width: min(680px, calc(100vw - 2 * var(--m))); border-radius: 26px; padding: 14px 22px 14px 14px;
+    background: linear-gradient(135deg, rgba(255, 255, 255, calc(.24 * var(--bga))), rgba(255, 255, 255, calc(.08 * var(--bga))));
+    border: 1px solid rgba(255, 255, 255, calc(.4 * var(--bga) + .08));
+    box-shadow: 0 20px 50px rgba(0, 0, 0, calc(.3 * var(--bga))), inset 0 1px 0 rgba(255, 255, 255, .5), inset 0 -1px 0 rgba(255, 255, 255, .08);
+    -webkit-backdrop-filter: blur(20px) saturate(1.5); backdrop-filter: blur(20px) saturate(1.5); }
+  html[data-style="glass"] .card::before { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none;
+    background: linear-gradient(165deg, rgba(255, 255, 255, .22), rgba(255, 255, 255, 0) 38%); }
+  html[data-style="glass"] .cover { border-radius: 18px; box-shadow: 0 10px 26px rgba(0, 0, 0, .3), 0 0 0 1px rgba(255, 255, 255, .35); }
+  html[data-style="glass"] .np { color: rgba(255, 255, 255, .85); filter: none; }
+  html[data-style="glass"] .title { text-shadow: 0 1px 14px rgba(0, 0, 0, .35); }
+  html[data-style="glass"] .artist { color: rgba(255, 255, 255, .85); text-shadow: 0 1px 8px rgba(0, 0, 0, .3); }
+  html[data-style="glass"] .bar { background: rgba(255, 255, 255, .25); }
+  html[data-style="glass"] .fill { background: #fff; box-shadow: 0 0 10px rgba(255, 255, 255, .7); }
+  html[data-style="glass"] .time { color: rgba(255, 255, 255, .85); }
+  html[data-style="glass"] canvas.viz { opacity: .4; border-radius: 0 0 26px 0; }
+  html[data-style="glass"] body, html[data-style="glass"] { --vc: 255, 255, 255; }
+
+  /* ---------- motyw: terminal (retro konsola) ---------- */
+  html[data-style="terminal"] body { --tc: 90, 255, 130; --vc: var(--tc); }
+  html[data-style="terminal"][data-customacc="1"] body { --tc: var(--acc); }
+  html[data-style="terminal"] .card { width: min(680px, calc(100vw - 2 * var(--m))); border-radius: 6px; padding: 14px 20px 14px 14px; gap: 16px;
+    font-family: "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Courier New", monospace;
+    background: rgba(3, 8, 4, calc(.92 * var(--bga))); border: 1px solid rgba(var(--tc), .5);
+    box-shadow: 0 0 26px rgba(var(--tc), .16), inset 0 0 44px rgba(var(--tc), .07); }
+  html[data-style="terminal"] .card::after { content: ""; position: absolute; inset: 0; border-radius: inherit; pointer-events: none; z-index: 3;
+    background: repeating-linear-gradient(180deg, rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, .22) 2px 3px); }
+  html[data-style="terminal"] .cw::after { content: ""; position: absolute; inset: 0; border-radius: 2px; background: rgba(var(--tc), .6); mix-blend-mode: multiply; }
+  html[data-style="terminal"] .cover { width: 86px; height: 86px; border-radius: 2px; filter: grayscale(1) contrast(1.25) brightness(1.1); box-shadow: 0 0 0 1px rgba(var(--tc), .7), 0 0 16px rgba(var(--tc), .35); }
+  html[data-style="terminal"] .np { color: rgb(var(--tc)); filter: none; letter-spacing: 1px; font-weight: 400; text-transform: lowercase; }
+  html[data-style="terminal"] .np::before { content: "pulsar:~$ "; opacity: .7; text-transform: none; }
+  html[data-style="terminal"] .title { color: rgb(var(--tc)); font-size: 23px; font-weight: 700; letter-spacing: -.02em; text-shadow: 0 0 8px rgba(var(--tc), .75); }
+  html[data-style="terminal"] .artist { color: rgba(var(--tc), .78); font-size: 15px; }
+  html[data-style="terminal"] .artist::after { content: "\2588"; margin-left: 4px; animation: pulsarBlink 1s steps(1) infinite; color: rgb(var(--tc)); }
+  html[data-style="terminal"] .bar { height: 10px; border-radius: 0; background: rgba(var(--tc), .1); box-shadow: inset 0 0 0 1px rgba(var(--tc), .45); }
+  html[data-style="terminal"] .fill { border-radius: 0; background: repeating-linear-gradient(90deg, rgb(var(--tc)) 0 6px, transparent 6px 8px); box-shadow: 0 0 8px rgba(var(--tc), .6); }
+  html[data-style="terminal"] .time { color: rgb(var(--tc)); }
+  html[data-style="terminal"] canvas.viz { left: 116px; width: calc(100% - 116px); opacity: .35; border-radius: 0; }
+  @keyframes pulsarBlink { 50% { opacity: 0; } }
+
+  /* ---------- motyw: belka TV (lower third) ---------- */
+  html[data-style="tv"] .card { width: auto; max-width: min(760px, calc(100vw - 2 * var(--m))); min-width: 360px; gap: 0; padding: 0; border: 0; border-radius: 3px; overflow: hidden;
+    background: rgba(250, 250, 252, calc(.96 * var(--bga))); color: #111; box-shadow: 0 12px 34px rgba(0, 0, 0, .4); }
+  html[data-style="tv"] .cw { align-self: stretch; display: grid; place-items: center; padding: 10px; background: rgb(var(--acc)); }
+  html[data-style="tv"] .cover { width: 70px; height: 70px; border-radius: 2px; box-shadow: 0 4px 12px rgba(0, 0, 0, .3); }
+  html[data-style="tv"] .meta { padding: 10px 24px 12px 18px; gap: 3px; }
+  html[data-style="tv"] .np { align-self: flex-start; background: rgb(var(--acc)); color: #fff; filter: none; font-size: 10.5px; padding: 2px 8px; border-radius: 2px; letter-spacing: 1.2px; }
+  html[data-style="tv"] .title { color: #111; text-shadow: none; font-size: 24px; }
+  html[data-style="tv"] .artist { color: #4a4a55; font-size: 15px; }
+  html[data-style="tv"] .row { margin-top: 4px; }
+  html[data-style="tv"] .bar { height: 4px; background: rgba(0, 0, 0, .1); }
+  html[data-style="tv"] .fill { background: rgb(var(--acc)); box-shadow: none; }
+  html[data-style="tv"] .time { color: #555; font-size: 12px; }
+  html[data-style="tv"] canvas.viz { left: auto; right: 0; width: 45%; height: 26px; opacity: .22; border-radius: 0; }
+  html[data-style="tv"] .bgart { filter: blur(26px) saturate(1.2) brightness(1.6); opacity: calc(.5 * var(--bga)); }
+  html[data-style="tv"][data-anim="slide"] .card { --ty: 0px; clip-path: inset(0 100% 0 0); transition: opacity .3s ease, clip-path .7s cubic-bezier(.7, 0, .2, 1); }
+  html[data-style="tv"][data-anim="slide"] .card.show { clip-path: inset(0 0 0 0); }
+  html[data-style="tv"][data-anim="slide"] .card.idle, html[data-style="tv"][data-anim="slide"] .card.show.ah { clip-path: inset(0 100% 0 0); }
+  html[data-style="tv"][data-pos$="r"][data-anim="slide"] .card.idle, html[data-style="tv"][data-pos$="r"][data-anim="slide"] .card.show.ah { clip-path: inset(0 0 0 100%); }
 </style>
 </head>
 <body>
@@ -185,7 +255,7 @@
   var PREVIEW = /[?&]preview\b/.test(location.search); // podgląd w ustawieniach Pulsara — dane przez postMessage, bez połączenia
   var themeAccent = ''; // własny kolor akcentu z motywu ('' = z okładki)
   var BAKED_THEME = /*PULSAR_THEME*/null; // motyw zapisany przez Pulsara w pliku dla OBS (działa od razu, jeszcze przed połączeniem)
-  var autoHide = 0, changedAt = performance.now(), marquee = false, curTitle = '';
+  var vizStyle = 'bars', autoHide = 0, changedAt = performance.now(), marquee = false, curTitle = '';
   var TARGET = 0.12;   // docelowy bufor [s] — małe opóźnienie względem Pulsara
   var MAX_LEAD = 0.3;  // powyżej tego nadmiarowe paczki są odrzucane
   var ctx = null, outGain = null, analyser = null, nextTime = 0, lastSeq = -1, lastAudioAt = 0;
@@ -318,7 +388,7 @@
   function num(v, lo, hi, def) { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : def; }
   function applyTheme(th) {
     var root = document.documentElement;
-    var st = { card: 1, bar: 1, cover: 1, minimal: 1, vinyl: 1, neon: 1, pill: 1 }[th.style] ? th.style : 'card';
+    var st = { card: 1, bar: 1, cover: 1, minimal: 1, vinyl: 1, neon: 1, pill: 1, glass: 1, terminal: 1, tv: 1 }[th.style] ? th.style : 'card';
     var ps = { bl: 1, br: 1, tl: 1, tr: 1, bc: 1 }[th.pos] ? th.pos : 'bl';
     if (root.getAttribute('data-style') !== st) root.setAttribute('data-style', st);
     if (root.getAttribute('data-pos') !== ps) root.setAttribute('data-pos', ps);
@@ -334,6 +404,14 @@
     root.setAttribute('data-prog', th.progress === false ? '0' : '1');
     root.setAttribute('data-label', th.label === false ? '0' : '1');
     root.setAttribute('data-art', th.art ? '1' : '0');
+    root.setAttribute('data-customacc', themeAccent ? '1' : '0');
+    var rgb = /^\d{1,3}, ?\d{1,3}, ?\d{1,3}$/;
+    if (rgb.test(String(th.text || ''))) { b.setProperty('--txt', th.text); root.setAttribute('data-tcol', '1'); } else root.setAttribute('data-tcol', '0');
+    b.setProperty('--ts', String(num(th.tsize, 50, 200, 100) / 100));
+    var rad = num(th.radius, -1, 999, -1);
+    root.setAttribute('data-rad', rad >= 0 ? '1' : '0'); b.setProperty('--r', Math.max(0, rad) + 'px');
+    root.setAttribute('data-cshape', { square: 1, rounded: 1, circle: 1 }[th.cshape] ? th.cshape : 'auto');
+    vizStyle = { bars: 1, wave: 1, mirror: 1 }[th.vizStyle] ? th.vizStyle : 'bars';
     autoHide = PREVIEW ? 0 : num(th.autohide, 0, 600, 0);
     var mq = !!th.marquee;
     if (mq !== marquee) { marquee = mq; setTitle(curTitle); }
@@ -368,13 +446,40 @@
     if (!analyser || Date.now() - lastAudioAt > 400) return;
     if (!vizData) vizData = new Uint8Array(analyser.frequencyBinCount);
     analyser.getByteFrequencyData(vizData);
-    var acc = getComputedStyle(document.body).getPropertyValue('--acc').trim() || '160,107,255';
-    g.fillStyle = 'rgba(' + acc + ',0.9)';
-    var bars = 48, bw = cv.width / bars;
+    var cs = getComputedStyle(document.body);
+    var acc = cs.getPropertyValue('--vc').trim() || cs.getPropertyValue('--acc').trim() || '160,107,255';
+    var bars = 48, bw = cv.width / bars, H = cv.height, vals = [];
     for (var i = 0; i < bars; i++) {
       var v = vizData[Math.min(vizData.length - 1, Math.floor(Math.pow(i / bars, 1.6) * vizData.length * 0.9))] / 255;
-      var bh = Math.max(1, v * v * cv.height);
-      g.fillRect(i * bw + 1, cv.height - bh, bw - 2, bh);
+      vals.push(v * v);
+    }
+    g.fillStyle = 'rgba(' + acc + ',0.9)';
+    if (vizStyle === 'wave') {
+      // gładka fala (wypełniona) — krzywe przez środki słupków
+      g.beginPath(); g.moveTo(0, H);
+      var px = 0, py = H - Math.max(1, vals[0] * H);
+      g.lineTo(0, py);
+      for (var k = 1; k < bars; k++) {
+        var x = k * bw + bw / 2, y = H - Math.max(1, vals[k] * H);
+        g.quadraticCurveTo(px, py, (px + x) / 2, (py + y) / 2); px = x; py = y;
+      }
+      g.lineTo(cv.width, py); g.lineTo(cv.width, H); g.closePath();
+      var grd = g.createLinearGradient(0, 0, 0, H); grd.addColorStop(0, 'rgba(' + acc + ',0.95)'); grd.addColorStop(1, 'rgba(' + acc + ',0.15)');
+      g.fillStyle = grd; g.fill();
+    } else if (vizStyle === 'mirror') {
+      // słupki symetryczne względem środka, zaokrąglone
+      for (var m = 0; m < bars; m++) {
+        var bh2 = Math.max(2, vals[m] * H);
+        var w2 = Math.max(1, bw - 3), x2 = m * bw + 1.5, y2 = (H - bh2) / 2, r2 = Math.min(w2 / 2, bh2 / 2);
+        g.beginPath();
+        if (g.roundRect) g.roundRect(x2, y2, w2, bh2, r2); else g.rect(x2, y2, w2, bh2);
+        g.fill();
+      }
+    } else {
+      for (var j = 0; j < bars; j++) {
+        var bh = Math.max(1, vals[j] * H);
+        g.fillRect(j * bw + 1, H - bh, bw - 2, bh);
+      }
     }
   }
 

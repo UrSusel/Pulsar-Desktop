@@ -1055,10 +1055,12 @@
     function getOn(){ try { return localStorage.getItem(PREF) === '1'; } catch (e){ return false; } }
     /* motyw overlayu: style card|bar|cover|minimal|vinyl|neon|pill, pos bl|br|tl|tr|bc, accent 'auto' | '#rrggbb', viz,
      * scale 50–200 %, bg (krycie tła) 0–100 %, margin px, font sans|condensed|serif|mono, anim slide|fade|zoom|none,
-     * autohide s (0 = nie chowaj), cover/progress/label (pokazuj), art (rozmyta okładka w tle), marquee (przewijany tytuł) */
+     * autohide s (0 = nie chowaj), cover/progress/label (pokazuj), art (rozmyta okładka w tle), marquee (przewijany tytuł),
+     * text 'auto' | '#rrggbb', tsize 50–200 %, radius -1 (z motywu) | px, cshape auto|square|rounded|circle, vizStyle bars|wave|mirror */
     const THEME_KEY = 'pulsarObsTheme';
     const THEME_DEF = { style: 'card', pos: 'bl', accent: 'auto', viz: true, scale: 100, bg: 100, margin: 24, font: 'sans', anim: 'slide',
-      autohide: 0, cover: true, progress: true, label: true, art: false, marquee: false };
+      autohide: 0, cover: true, progress: true, label: true, art: false, marquee: false,
+      text: 'auto', tsize: 100, radius: -1, cshape: 'auto', vizStyle: 'bars' };
     function getTheme(){
       let t = null; try { t = JSON.parse(localStorage.getItem(THEME_KEY) || 'null'); } catch (e){}
       return Object.assign({}, THEME_DEF, (t && typeof t === 'object') ? t : {});
@@ -1071,7 +1073,8 @@
     function themeWire(t){
       return { style: t.style, pos: t.pos, viz: t.viz !== false, accent: t.accent === 'auto' ? '' : hexToRgb(t.accent),
         scale: +t.scale || 100, bg: t.bg == null ? 100 : +t.bg, margin: t.margin == null ? 24 : +t.margin, font: t.font, anim: t.anim,
-        autohide: +t.autohide || 0, cover: t.cover !== false, progress: t.progress !== false, label: t.label !== false, art: !!t.art, marquee: !!t.marquee };
+        autohide: +t.autohide || 0, cover: t.cover !== false, progress: t.progress !== false, label: t.label !== false, art: !!t.art, marquee: !!t.marquee,
+        text: t.text && t.text !== 'auto' ? hexToRgb(t.text) : '', tsize: +t.tsize || 100, radius: t.radius == null ? -1 : +t.radius, cshape: t.cshape || 'auto', vizStyle: t.vizStyle || 'bars' };
     }
     function setOn(v){ try { localStorage.setItem(PREF, v ? '1' : '0'); } catch (e){} }
     function host(){ return window.__pulsarHost || null; }
@@ -1360,7 +1363,8 @@
         l.appendChild(s); grid.appendChild(l); return s;
       };
       sel('Styl', 'style', [['card', 'Karta'], ['bar', 'Pasek (cała szerokość)'], ['cover', 'Duża okładka'], ['minimal', 'Minimalny (sam tekst)'],
-        ['vinyl', 'Winyl (obracająca się płyta)'], ['neon', 'Neon'], ['pill', 'Pastylka (mała)']]);
+        ['vinyl', 'Winyl (obracająca się płyta)'], ['neon', 'Neon'], ['pill', 'Pastylka (mała)'],
+        ['glass', 'Szkło (jasna tafla)'], ['terminal', 'Terminal (retro konsola)'], ['tv', 'Belka TV']]);
       sel('Pozycja', 'pos', [['bl', 'Lewy dół'], ['bc', 'Środek dół'], ['br', 'Prawy dół'], ['tl', 'Lewa góra'], ['tr', 'Prawa góra']]);
       const al = el('label', 'obs-theme-field'); al.appendChild(el('span', null, tr('Kolor akcentu')));
       const arow = el('span', 'obs-theme-acc');
@@ -1390,16 +1394,31 @@
       range('Rozmiar', 'scale', 50, 200, 5, '%');
       range('Krycie tła', 'bg', 0, 100, 5, '%');
       range('Odstęp od krawędzi', 'margin', 0, 120, 2, ' px');
+      range('Wielkość tytułu', 'tsize', 60, 160, 5, '%');
       const sel2 = function (label, key, opts){
         const l = el('label', 'obs-theme-field'); l.appendChild(el('span', null, tr(label)));
         const s = el('select', 'sm-select');
         opts.forEach(function (o){ const op = el('option', null, tr(o[1])); op.value = o[0]; s.appendChild(op); });
         s.value = String(th[key]);
-        s.addEventListener('change', function (){ const t = getTheme(); t[key] = /^\d+$/.test(s.value) ? +s.value : s.value; setTheme(t); applyThemeNow(); });
+        s.dataset.key = key;
+        s.addEventListener('change', function (){ const t = getTheme(); t[key] = /^-?\d+$/.test(s.value) ? +s.value : s.value; setTheme(t); applyThemeNow(); });
         l.appendChild(s); more.appendChild(l); return s;
       };
       sel2('Czcionka', 'font', [['sans', 'Segoe UI (domyślna)'], ['condensed', 'Wąska (Bahnschrift)'], ['serif', 'Szeryfowa (Georgia)'], ['mono', 'Stała szerokość (Consolas)']]);
       sel2('Animacja', 'anim', [['slide', 'Wysunięcie'], ['fade', 'Przenikanie'], ['zoom', 'Powiększenie'], ['none', 'Bez animacji']]);
+      sel2('Rogi', 'radius', [['-1', 'Jak w stylu'], ['0', 'Ostre'], ['6', 'Lekko zaokrąglone'], ['14', 'Zaokrąglone'], ['26', 'Mocno zaokrąglone'], ['999', 'Kapsułka']]);
+      sel2('Kształt okładki', 'cshape', [['auto', 'Jak w stylu'], ['square', 'Kwadrat'], ['rounded', 'Zaokrąglona'], ['circle', 'Koło']]);
+      sel2('Styl wizualizacji', 'vizStyle', [['bars', 'Słupki'], ['wave', 'Fala'], ['mirror', 'Lustro (od środka)']]);
+      // kolor tekstu: automatyczny (z motywu) lub własny
+      const tl = el('label', 'obs-theme-field'); tl.appendChild(el('span', null, tr('Kolor tekstu')));
+      const trow = el('span', 'obs-theme-acc');
+      const ts = el('select', 'sm-select'); ts.dataset.key = 'text';
+      [['auto', 'Jak w stylu'], ['custom', 'Własny']].forEach(function (o){ const op = el('option', null, tr(o[1])); op.value = o[0]; ts.appendChild(op); });
+      const tc = el('input'); tc.type = 'color'; tc.value = th.text && th.text !== 'auto' ? th.text : '#ffffff';
+      ts.value = th.text && th.text !== 'auto' ? 'custom' : 'auto'; tc.hidden = ts.value === 'auto';
+      const saveTxt = function (){ const t = getTheme(); t.text = ts.value === 'auto' ? 'auto' : tc.value; setTheme(t); tc.hidden = ts.value === 'auto'; applyThemeNow(); };
+      ts.addEventListener('change', saveTxt); tc.addEventListener('input', saveTxt);
+      trow.appendChild(ts); trow.appendChild(tc); tl.appendChild(trow); more.appendChild(tl);
       sel2('Chowaj automatycznie', 'autohide', [['0', 'Nigdy'], ['8', 'Po 8 s od zmiany utworu'], ['15', 'Po 15 s od zmiany utworu'], ['30', 'Po 30 s od zmiany utworu']]);
       const checks = el('div', 'obs-theme-checks');
       const chk = function (label, key){
