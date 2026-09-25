@@ -1548,6 +1548,7 @@
     'Nic nie gra': { en: 'Nothing playing', es: 'No suena nada' },
     'Pulsar działa w tle': { en: 'Pulsar is still running', es: 'Pulsar sigue en segundo plano' },
     'Muzyka gra dalej. Okno przywrócisz z menu ikony w zasobniku (Pokaż okno).': { en: 'Music keeps playing. Bring the window back from the tray icon menu (Show window).', es: 'La música sigue sonando. Recupera la ventana desde el menú del icono de la bandeja (Mostrar ventana).' },
+    'aktualnie odtwarzany': { en: 'now playing', es: 'reproduciendo ahora' },
     'OBS / streaming': { en: 'OBS / streaming', es: 'OBS / streaming' },
     'Dźwięk i overlay dla OBS': { en: 'Audio and overlay for OBS', es: 'Audio y overlay para OBS' },
     'Wysyła dźwięk Pulsara do źródła „Przeglądarka” w OBS (bez kabli wirtualnych)': { en: 'Sends Pulsar audio to an OBS “Browser” source (no virtual cables)', es: 'Envía el audio de Pulsar a una fuente “Navegador” de OBS (sin cables virtuales)' },
@@ -3279,7 +3280,7 @@
     albumDetailCover.parentElement.classList.toggle('liked-cover', isLiked); // chowa „zmień okładkę”
     albumDetailCover.removeAttribute('title');
     albumDetailName.textContent = album.name;
-    albumDetailMeta.textContent = pluralTracks(albumIndices(album).length) + (album.id === activeAlbumId ? ' • aktualnie odtwarzany' : '');
+    albumDetailMeta.textContent = pluralTracks(albumIndices(album).length) + (album.id === activeAlbumId ? ' • ' + t('aktualnie odtwarzany') : '');
     albumTrackList.innerHTML = '';
     if (!album.trackIds.length){
       const hint = document.createElement('li');
@@ -3652,8 +3653,15 @@
   }
 
   function highlightActiveInList(){
-    const items = trackListEl.querySelectorAll('li[data-track-index]');
-    items.forEach(li => li.classList.toggle('active', Number(li.dataset.trackIndex) === currentIndex));
+    // główna lista + lista w otwartym albumie (wcześniej album pokazywał stary utwór aż do przerysowania)
+    [trackListEl, typeof albumTrackList !== 'undefined' ? albumTrackList : null].forEach(listEl => {
+      if (!listEl) return;
+      listEl.querySelectorAll('li[data-track-index]').forEach(li => li.classList.toggle('active', Number(li.dataset.trackIndex) === currentIndex));
+    });
+    if (openAlbumId && typeof albumDetailMeta !== 'undefined' && albumDetailMeta){
+      const album = openAlbumId === LIKED_ID ? likedAlbum() : albumById(openAlbumId);
+      if (album) albumDetailMeta.textContent = pluralTracks(albumIndices(album).length) + (album.id === activeAlbumId ? ' • ' + t('aktualnie odtwarzany') : '');
+    }
   }
 
   function updateTitleArtist(artist, title){

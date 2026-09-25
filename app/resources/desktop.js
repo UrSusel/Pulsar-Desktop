@@ -504,13 +504,16 @@
       // KLUCZOWE: nie odpytujemy okna w momencie wejścia w fullscreen (getSize zdąży zwrócić
       // wymiary pełnoekranowe → „przywrócenie" odtwarzałoby fullscreen i okno lądowało pod paskiem).
       // Zamiast tego zapisujemy geometrię ciągle, dopóki NIE jesteśmy w fullscreen.
+      var winFsGuard = 0;    // do tej chwili (ms) nie zapisujemy geometrii — okno jest w trakcie wychodzenia z fullscreena
       var saveWinGeo = function (){
-        if (winFsOn) return;
+        if (winFsOn || Date.now() < winFsGuard) return;
         Promise.all([
           Neutralino.window.getSize ? Neutralino.window.getSize() : Promise.resolve(null),
           Neutralino.window.getPosition ? Neutralino.window.getPosition().catch(function (){ return null; }) : Promise.resolve(null),
           Neutralino.window.isMaximized ? Neutralino.window.isMaximized().catch(function (){ return false; }) : Promise.resolve(false)
         ]).then(function (r){
+          // odpowiedź mogła przyjść już po wejściu w fullscreen / w trakcie wychodzenia → odrzuć
+          if (winFsOn || Date.now() < winFsGuard) return;
           var size = r[0], pos = r[1], maximized = !!r[2];
           if (size && size.width > 100 && size.height > 100){
             winFsSaved = { width: size.width, height: size.height, x: pos ? pos.x : null, y: pos ? pos.y : null, maximized: maximized };
@@ -520,24 +523,71 @@
       try { window.addEventListener('resize', function (){ setTimeout(saveWinGeo, 80); }); } catch (e){}
       setTimeout(saveWinGeo, 300);
       setTimeout(saveWinGeo, 1500);
-      var winFsRestore = function (){
-        setTimeout(function (){
-          try {
-            var sv = winFsSaved; winFsSaved = null;
-            if (sv && sv.maximized && Neutralino.window.maximize){ Neutralino.window.maximize(); return; }
-            if (sv && Neutralino.window.setSize){
-              Neutralino.window.setSize({ width: sv.width, height: sv.height });
-              if (Neutralino.window.move && sv.x != null && sv.y != null) Neutralino.window.move(sv.x, sv.y);
-            } else if (sv && Neutralino.window.center){ Neutralino.window.center(); }
-          } catch (e){}
-        }, 160); // chwilę po exitFullScreen — nadpisuje wadliwy powrót runtime'u (okno pod paskiem zadań)
+      var fsSleep = function (ms){ return new Promise(function (r){ setTimeout(r, ms); }); };
+      var fsSafe = function (fn){ try { return Promise.resolve(fn()).catch(function (){ return null; }); } catch (e){ return Promise.resolve(null); } };
+      // obszar roboczy monitora (bez paska zadań) w pikselach fizycznych — tak jak getSize/getPosition Neutralino
+      var workArea = function (){
+        try {
+          var d = window.devicePixelRatio || 1, sc = window.screen;
+          var l = (typeof sc.availLeft === 'number' ? sc.availLeft : 0), t = (typeof sc.availTop === 'number' ? sc.availTop : 0);
+          if (!sc.availWidth || !sc.availHeight) return null;
+          return { x: Math.round(l * d), y: Math.round(t * d), w: Math.round(sc.availWidth * d), h: Math.round(sc.availHeight * d) };
+        } catch (e){ return null; }
+      };
+      // dopasuj okno do obszaru roboczego, jeśli wystaje (np. dół pod paskiem zadań)
+      var fitToWorkArea = async function (){
+        var wa = workArea(); if (!wa) return;
+        var W = Neutralino.window;
+        if (await fsSafe(function (){ return W.isMaximized(); })) return;
+        var sz = await fsSafe(function (){ return W.getSize(); });
+        var ps = await fsSafe(function (){ return W.getPosition(); });
+        if (!sz || !ps) return;
+        var B = Math.round(8 * (window.devicePixelRatio || 1)); // niewidoczna ramka Windows 10/11 (~7–8 px) — to nie jest „wystawanie”
+        var w = Math.min(sz.width, wa.w + 2 * B), h = Math.min(sz.height, wa.h + B);
+        var x = Math.min(Math.max(ps.x, wa.x - B), wa.x + wa.w + B - w);
+        var y = Math.min(Math.max(ps.y, wa.y), wa.y + wa.h + B - h);
+        if (w !== sz.width || h !== sz.height) await fsSafe(function (){ return W.setSize({ width: w, height: h }); });
+        if (x !== ps.x || y !== ps.y) await fsSafe(function (){ return W.move(x, y); });
+      };
+      var winFsRestore = async function (sv){
+        var W = Neutralino.window;
+        await fsSleep(120); // chwilę po exitFullScreen — runtime przywraca styl i prostokąt
+        try {
+          if (sv && sv.maximized){
+            // Neutralino przywraca styl z WS_MAXIMIZE, ale prostokąt „ręcznie” → okno pod paskiem zadań,
+            // a samo maximize() nic nie robi (IsZoomed już = true). Restore + maximize wymusza poprawne ułożenie.
+            await fsSafe(function (){ return W.unmaximize(); });
+            await fsSleep(40);
+            await fsSafe(function (){ return W.maximize(); });
+          } else if (sv){
+            await fsSafe(function (){ return W.setSize({ width: sv.width, height: sv.height }); });
+            if (sv.x != null && sv.y != null) await fsSafe(function (){ return W.move(sv.x, sv.y); });
+            await fitToWorkArea();
+          } else {
+            await fitToWorkArea();
+          }
+          // druga kontrola — WebView2 potrafi jeszcze raz przeskalować okno po wyjściu z fullscreena elementu
+          await fsSleep(450);
+          if (!winFsOn){
+            if (sv && sv.maximized){
+              if (!(await fsSafe(function (){ return W.isMaximized(); }))) await fsSafe(function (){ return W.maximize(); });
+            } else await fitToWorkArea();
+          }
+        } catch (e){}
+        winFsGuard = 0;
+        if (!winFsOn) setTimeout(saveWinGeo, 50);
       };
       var winFs = function (on){
         if (winFsOn === on) return;
         winFsOn = on;
         try {
-          if (on){ saveWinGeo(); Neutralino.window.setFullScreen(); }
-          else { Neutralino.window.exitFullScreen(); winFsRestore(); }
+          if (on){ Neutralino.window.setFullScreen(); } // geometria jest już w pamięci (zapisywana na bieżąco)
+          else {
+            var sv = winFsSaved; // bierzemy geometrię TERAZ, zanim zdarzenia resize ją nadpiszą
+            winFsGuard = Date.now() + 3000;
+            Neutralino.window.exitFullScreen();
+            winFsRestore(sv);
+          }
         } catch (e){}
       };
       try {
