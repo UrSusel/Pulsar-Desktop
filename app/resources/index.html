@@ -688,9 +688,7 @@
   .sound-btn.active { color: var(--accent); }
   .net-wrap { padding: 0 14px 20px; flex: 1 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
   #netView[hidden] { display: none; }
-  .net-head { position: sticky; top: 0; z-index: 3; background: rgba(13,13,17,.95); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-    margin: 0 -14px 10px; padding: 12px 14px 8px; border-bottom: 1px solid rgba(255,255,255,.05); }
-  .net-head::before { content: 'Znajdź muzykę'; display:block; margin: 0 2px 10px; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+  .net-head { position: sticky; top: 0; z-index: 3; background: rgb(18,18,18); margin: 0 -14px 6px; padding: 4px 14px 10px; border-bottom: 1px solid rgba(255,255,255,.06); }
   .net-search { display: flex; align-items: center; gap: 10px; height: 46px; padding: 0 8px 0 15px; margin-bottom: 10px; border-radius: 999px;
     background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); transition: border-color .18s, box-shadow .18s, background .18s; cursor: text; }
   .net-search:focus-within { background: rgba(255,255,255,.09); border-color: var(--accent); box-shadow: 0 0 0 3px rgba(var(--accent-rgb), .15), 0 10px 34px rgba(0,0,0,.35); }
@@ -983,6 +981,77 @@
   .net-btn:disabled { opacity: .55; cursor: wait; }
   .net-src { font-size: 10.5px; color: rgba(255,255,255,.45); text-decoration: none; padding: 4px 6px; white-space: nowrap; }
   .net-src:hover { color: var(--accent); }
+  /* --- Wyszukiwarka sieciowa v2: jak lista utworów i okno ustawień --- */
+  .net-wrap { padding: 0 14px 20px; }
+  .net-title-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin: 4px 2px 10px; }
+  .net-title { font-size: 17px; font-weight: 700; letter-spacing: -.01em; margin: 0; color: #fff; }
+  .net-status { flex: none; border: 1px solid rgba(255,255,255,.12); background: rgba(255,255,255,.04); color: rgba(255,255,255,.55); font: inherit; font-size: 11px; padding: 3px 9px; border-radius: 999px; cursor: pointer; white-space: nowrap; }
+  .net-status::before { content: ""; display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: currentColor; margin-right: 6px; vertical-align: 1px; opacity: .9; }
+  .net-status:hover { color: #fff; border-color: rgba(255,255,255,.3); }
+  .net-status.net-bridge-on { color: #86e086; border-color: rgba(134,224,134,.4); background: rgba(134,224,134,.08); }
+  .net-status.net-bridge-off { color: #ff9d7a; border-color: rgba(255,157,122,.35); background: transparent; }
+  .net-search { height: 40px; border-radius: 10px; padding: 0 6px 0 12px; margin-bottom: 10px; gap: 8px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); }
+  .net-search:focus-within { box-shadow: none; border-color: var(--accent); background: rgba(255,255,255,.08); }
+  .net-search-ic { width: 16px; height: 16px; }
+  #netQuery { font-size: 13.5px; }
+  .net-providers { display: flex; flex-wrap: nowrap; gap: 4px; overflow-x: auto; scrollbar-width: none; margin: 0 -2px 8px; padding: 0 2px; mask-image: linear-gradient(90deg, #000 88%, transparent); }
+  .net-providers::-webkit-scrollbar { display: none; }
+  .net-chip { flex: none; border: 0; background: rgba(255,255,255,.06); color: rgba(255,255,255,.72); border-radius: 999px; padding: 6px 12px; font: inherit; font-size: 12px; cursor: pointer; transition: background .14s, color .14s; }
+  .net-chip:hover { background: rgba(255,255,255,.12); color: #fff; }
+  .net-chip.active { background: rgba(var(--accent-rgb), .2); color: #fff; box-shadow: inset 0 0 0 1px rgba(var(--accent-rgb), .55); }
+  .net-tools { display: flex; gap: 6px; align-items: center; flex-wrap: nowrap; min-width: 0; }
+  .net-tool { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); background: transparent; color: rgba(255,255,255,.7); font: inherit; font-size: 11.5px; cursor: pointer; white-space: nowrap; transition: .14s; }
+  .net-tool svg { width: 14px; height: 14px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+  .net-tool:hover { color: #fff; background: rgba(255,255,255,.06); }
+  #netAdvancedBtn.active { color: #fff; border-color: rgba(var(--accent-rgb), .6); background: rgba(var(--accent-rgb), .14); }
+  .net-mp3-lab { margin-left: auto; }
+  .net-mp3-lab input { position: absolute; opacity: 0; width: 0; height: 0; }
+  .net-sw { position: relative; width: 24px; height: 14px; border-radius: 999px; background: rgba(255,255,255,.2); transition: .2s; flex: none; }
+  .net-sw::after { content: ""; position: absolute; top: 2px; left: 2px; width: 10px; height: 10px; border-radius: 50%; background: #fff; transition: .2s; }
+  .net-mp3-lab input:checked + .net-sw { background: var(--accent); }
+  .net-mp3-lab input:checked + .net-sw::after { transform: translateX(10px); background: rgba(10,10,16,.85); }
+  .net-mp3-lab.active { color: #fff; border-color: rgba(255,255,255,.1); background: transparent; }
+  .net-recent { margin-top: 8px; }
+  .net-recent-cap { font-size: 10.5px; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.4); margin-right: 2px; }
+  .net-recent .net-chip { padding: 4px 10px; font-size: 11px; }
+  .net-recent-x { width: 22px; height: 22px; padding: 0 !important; display: inline-grid; place-items: center; color: rgba(255,255,255,.55); }
+  .net-browse-cap { font-size: 12px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.45); margin: 8px 2px 10px; }
+  .net-genres { grid-template-columns: repeat(auto-fill, minmax(104px, 1fr)); gap: 8px; }
+  .net-genre { min-height: 50px; filter: saturate(.8); border-radius: 10px; font-size: 12.5px; }
+  .net-genre:hover { transform: translateY(-2px); }
+  /* wyniki: wiersze jak w liście utworów */
+  .net-grid { display: flex; flex-direction: column; gap: 2px; }
+  .net-section-cap { font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: rgba(255,255,255,.45); margin: 12px 4px 6px; }
+  .net-card { display: grid; grid-template-columns: 48px minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: 7px 8px; border: 0; border-radius: 8px; background: transparent; transform: none !important; }
+  .net-card:hover { background: rgba(255,255,255,.07); }
+  .net-card.net-playing { outline: 0; background: rgba(var(--accent-rgb), .12); }
+  .net-card.net-playing .net-t { color: var(--accent); }
+  .net-card img { width: 48px; height: 48px; aspect-ratio: auto; border-radius: 4px; }
+  .net-card-info { position: relative; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .net-t { font-size: 13.5px; font-weight: 500; color: #fff; }
+  .net-a { font-size: 12px; }
+  .net-m { font-size: 11px; color: rgba(255,255,255,.38); display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .net-kind { display: inline-block; margin-right: 6px; vertical-align: 1px; font-size: 9.5px; padding: 0 6px; border-radius: 999px; background: rgba(255,255,255,.08); color: rgba(255,255,255,.55); line-height: 16px; }
+  .net-kind.full { background: rgba(134,224,134,.12); color: #9be29b; }
+  .net-acts { display: flex; align-items: center; gap: 4px; margin: 0; }
+  .net-btn { flex: none; font-family: inherit; }
+  .net-ic-btn { width: 32px; height: 32px; padding: 0; display: inline-grid; place-items: center; border-radius: 50%; border: 0; background: transparent; color: rgba(255,255,255,.75); cursor: pointer; text-decoration: none; }
+  .net-ic-btn svg { width: 16px; height: 16px; }
+  .net-ic-btn:hover { background: rgba(255,255,255,.1); color: #fff; }
+  .net-play { background: rgba(255,255,255,.08); }
+  .net-play .i-pause { display: none; }
+  .net-card.net-playing .net-play { background: var(--accent); color: #0c0c10; }
+  .net-card.net-playing .net-play .i-play { display: none; }
+  .net-card.net-playing .net-play .i-pause { display: block; }
+  .net-add { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px 0 9px; border-radius: 999px; border: 1px solid rgba(255,255,255,.16); background: transparent; color: #fff; font-size: 12px; cursor: pointer; white-space: nowrap; }
+  .net-add svg { width: 13px; height: 13px; }
+  .net-add:hover { border-color: var(--accent); background: rgba(var(--accent-rgb), .16); }
+  .net-btn:disabled { opacity: .35; cursor: default; }
+  .net-src { padding: 0; }
+  .net-save-all { justify-content: flex-start; padding: 6px 4px 4px; }
+  .net-save-all-btn { flex: none; }
+  #netFootHint { font-size: 11px; line-height: 1.5; color: rgba(255,255,255,.38); margin: 14px 4px 0; }
+  @media (max-width: 600px){ .net-add span { display: none; } .net-add { width: 32px; padding: 0; justify-content: center; } .net-card { gap: 10px; } }
   .net-badge { position: fixed; right: 16px; bottom: 86px; z-index: 90; display: flex; align-items: center; gap: 8px;
     background: rgba(12,12,16,.88); border: 1px solid rgba(var(--accent-rgb), .5); color: #fff; border-radius: 999px; padding: 7px 10px 7px 14px; font-size: 12px; max-width: 60vw; backdrop-filter: blur(10px); box-shadow: 0 6px 24px rgba(0,0,0,.5); }
   .net-badge span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1000,9 +1069,6 @@
   #audioXF { display: none; }
   @media (max-width: 430px){
     .library-toolbar { grid-template-columns: 1fr; }
-    .net-grid { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .net-card { padding: 7px; }
-    .net-btn { font-size: 10px; }
   }
 
   /* ================= Integracja z Windows (tylko wersja desktopowa) ================= */
@@ -1261,29 +1327,30 @@
 
     <div class="net-wrap" id="netView" hidden>
       <div class="net-head">
+        <div class="net-title-row">
+          <h3 class="net-title">Znajdź muzykę</h3>
+          <button class="net-status" id="netBridgeChip" type="button" title="Status lokalnego mostka yt-dlp">yt-dlp: ?</button>
+        </div>
         <label class="net-search" id="netSearchBox">
           <svg class="net-search-ic" viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.4"/><path d="M15.4 15.4L20.6 20.6"/></svg>
           <input type="search" id="netQuery" placeholder="Czego chcesz posłuchać?" aria-label="Wyszukaj utwory w sieci" autocomplete="off">
           <button type="button" class="net-search-x" id="netClearBtn" aria-label="Wyczyść wyszukiwanie" hidden><svg viewBox="0 0 24 24" width="13" height="13"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg></button>
         </label>
-        <div class="net-filters">
-          <div class="net-providers" id="netProviders">
-            <button class="net-chip active" data-prov="all" type="button">Wszystko</button>
-            <button class="net-chip" data-prov="itunes" type="button">iTunes</button>
-            <button class="net-chip" data-prov="deezer" type="button">Deezer</button>
-            <button class="net-chip" data-prov="audius" type="button">Audius</button>
-            <button class="net-chip" data-prov="youtube" type="button">YouTube</button>
-            <button class="net-chip" data-prov="archive" type="button">Internet Archive</button>
-            <button class="net-chip" data-prov="commons" type="button">Wikimedia</button>
-          </div>
-          <div class="net-search-actions">
-            <button class="lib-tool" id="netAdvancedBtn" type="button" title="Szukaj także po nazwie pliku, opisie i wykonawcy">Advanced</button>
-            <button class="lib-tool" id="netTrendingBtn" type="button" title="Popularne utwory z Audius">Na czasie</button>
-            <button class="lib-tool" id="netBridgeChip" type="button" title="Status lokalnego mostka yt-dlp">○ yt-dlp: ?</button>
-            <label class="lib-tool net-mp3-lab" id="netMp3Lab" title="Zapisuj pobierane z sieci utwory jako MP3 192 kbps (konwersja ffmpeg.wasm ładowana z CDN przy pierwszym zapisie). Gdy konwersja jest niemożliwa, zapisywany jest oryginalny format.">
-              <input type="checkbox" id="netMp3Toggle" checked> MP3
-            </label>
-          </div>
+        <div class="net-providers" id="netProviders" role="tablist" aria-label="Źródło">
+          <button class="net-chip active" data-prov="all" type="button">Wszystko</button>
+          <button class="net-chip" data-prov="youtube" type="button">YouTube</button>
+          <button class="net-chip" data-prov="itunes" type="button">iTunes</button>
+          <button class="net-chip" data-prov="deezer" type="button">Deezer</button>
+          <button class="net-chip" data-prov="audius" type="button">Audius</button>
+          <button class="net-chip" data-prov="archive" type="button">Internet Archive</button>
+          <button class="net-chip" data-prov="commons" type="button">Wikimedia</button>
+        </div>
+        <div class="net-tools">
+          <button class="net-tool" id="netTrendingBtn" type="button" title="Popularne utwory z Audius"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 17l6-6 4 4 8-8"/><path d="M15 7h6v6"/></svg><span>Na czasie</span></button>
+          <button class="net-tool" id="netAdvancedBtn" type="button" title="Szukaj także po nazwie pliku, opisie i wykonawcy"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>Advanced</span></button>
+          <label class="net-tool net-mp3-lab" id="netMp3Lab" title="Zapisuj pobierane z sieci utwory jako MP3 192 kbps (konwersja ffmpeg.wasm ładowana z CDN przy pierwszym zapisie). Gdy konwersja jest niemożliwa, zapisywany jest oryginalny format.">
+            <input type="checkbox" id="netMp3Toggle" checked><span class="net-sw" aria-hidden="true"></span><span>MP3</span>
+          </label>
         </div>
         <div class="net-browse" id="netBrowse">
           <div class="net-browse-cap">Przeglądaj</div>
@@ -1454,6 +1521,18 @@
     if (!_savedLang){ try { localStorage.setItem('playerLang', CUR_LANG); } catch(e){} }
   } catch(e){ CUR_LANG = 'pl'; }
   var I18N_DICT = {
+    'Otwórz źródło': { en: 'Open source page', es: 'Abrir la fuente' },
+    'pełny': { en: 'full', es: 'completa' },
+    'Zapis jako MP3': { en: 'Save as MP3', es: 'Guardar como MP3' },
+    'Ostatnio': { en: 'Recent', es: 'Recientes' },
+    'Wyczyść historię': { en: 'Clear history', es: 'Borrar historial' },
+    'Źródło': { en: 'Source', es: 'Fuente' },
+    'Znajdź muzykę': { en: 'Find music', es: 'Buscar música' },
+    'Odtwórz pełny utwór (stream)': { en: 'Play the full track (stream)', es: 'Reproducir la canción completa (stream)' },
+    'Odtwórz 30-sekundowy podgląd': { en: 'Play a 30-second preview', es: 'Reproducir un avance de 30 s' },
+    'Zapisz podgląd w bibliotece': { en: 'Save the preview to your library', es: 'Guardar el avance en la biblioteca' },
+    'Pobierz pełny plik do biblioteki': { en: 'Download the full file to your library', es: 'Descargar el archivo completo' },
+    'Pobierz audio z YouTube i zapisz w bibliotece (MP3, jeśli włączona konwersja)': { en: 'Download the audio from YouTube into your library (MP3 if conversion is on)', es: 'Descargar el audio de YouTube a tu biblioteca (MP3 si la conversión está activa)' },
     'Dodano nowe utwory: ': { en: 'New tracks added: ', es: 'Canciones nuevas añadidas: ' },
     ' (pominięto już obecne: ': { en: ' (already in library, skipped: ', es: ' (ya en la biblioteca, omitidas: ' },
     'Te utwory są już w bibliotece': { en: 'These tracks are already in your library', es: 'Estas canciones ya están en tu biblioteca' },
@@ -4957,6 +5036,12 @@
     const br = document.getElementById('netBrowse');
     if (br) br.hidden = netResults.length > 0 || netBusy;
   }
+  const NET_IC = {
+    play: '<svg class="i-play" viewBox="0 0 24 24" aria-hidden="true"><polygon points="8,5 19,12 8,19" fill="currentColor"/></svg>',
+    pause: '<svg class="i-pause" viewBox="0 0 24 24" aria-hidden="true"><rect x="7" y="5" width="3.5" height="14" rx="1" fill="currentColor"/><rect x="13.5" y="5" width="3.5" height="14" rx="1" fill="currentColor"/></svg>',
+    add: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+    ext: '<svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>'
+  };
   function netAddCard(r, i){
       const card = document.createElement('div'); card.className = 'net-card'; card.dataset.idx = String(i);
       const img = document.createElement('img'); img.alt = ''; img.loading = 'lazy';
@@ -4966,15 +5051,21 @@
       const aa = document.createElement('div'); aa.className = 'net-a'; aa.textContent = [r.artist, r.album].filter(Boolean).join(' · ');
       const mm = document.createElement('div'); mm.className = 'net-m';
       const providerLabel = { itunes: 'iTunes', deezer: 'Deezer', audius: 'Audius', youtube: 'YouTube', archive: 'Internet Archive', commons: 'Wikimedia Commons' }[r.provider] || r.provider;
-      mm.textContent = providerLabel + (r.isFull ? ' · pełny utwór' : ' · podgląd 30 s') + (r.durMs ? ' · ' + fmtMmSs(r.durMs) : '') + (r.year ? ' · ' + r.year : '');
+      mm.textContent = providerLabel + (r.durMs && r.isFull ? ' · ' + fmtMmSs(r.durMs) : '') + (r.year ? ' · ' + r.year : '');
       const acts = document.createElement('div'); acts.className = 'net-acts';
       const canPlay = !!(r.stream || r.ytStream);
-      const bPlay = document.createElement('button'); bPlay.type = 'button'; bPlay.className = 'net-btn'; bPlay.dataset.act = 'play'; bPlay.textContent = canPlay ? (r.ytStream ? t('▶ YouTube') : t('▶ Podgląd')) : t('Brak preview'); bPlay.disabled = !canPlay;
-      bPlay.title = r.isFull ? 'Odtwórz pełny utwór (stream)' : 'Odtwórz 30-sekundowy podgląd';
-      const bAdd = document.createElement('button'); bAdd.type = 'button'; bAdd.className = 'net-btn'; bAdd.dataset.act = 'add'; bAdd.textContent = canPlay ? (r.isFull ? t('Zapisz') : t('Dodaj')) : t('Niedostępny'); bAdd.disabled = !canPlay;
-      bAdd.title = r.isFull ? (r.ytStream ? 'Pobierz audio z YouTube i zapisz w bibliotece (MP3, jeśli włączona konwersja)' : 'Pobierz pełny plik do biblioteki') : 'Zapisz podgląd w bibliotece';
+      // okrągłe ikony jak w reszcie odtwarzacza; opis w podpowiedzi (title/aria-label, tłumaczone)
+      const bPlay = document.createElement('button'); bPlay.type = 'button'; bPlay.className = 'net-btn net-ic-btn net-play'; bPlay.dataset.act = 'play'; bPlay.disabled = !canPlay;
+      bPlay.innerHTML = NET_IC.play + NET_IC.pause;
+      bPlay.title = t(!canPlay ? 'Brak preview' : (r.isFull ? 'Odtwórz pełny utwór (stream)' : 'Odtwórz 30-sekundowy podgląd'));
+      bPlay.setAttribute('aria-label', bPlay.title);
+      const bAdd = document.createElement('button'); bAdd.type = 'button'; bAdd.className = 'net-btn net-add'; bAdd.dataset.act = 'add'; bAdd.disabled = !canPlay;
+      bAdd.innerHTML = NET_IC.add + '<span>' + (canPlay ? (r.isFull ? t('Zapisz') : t('Dodaj')) : t('Niedostępny')) + '</span>';
+      bAdd.title = t(r.isFull ? (r.ytStream ? 'Pobierz audio z YouTube i zapisz w bibliotece (MP3, jeśli włączona konwersja)' : 'Pobierz pełny plik do biblioteki') : 'Zapisz podgląd w bibliotece');
       acts.appendChild(bPlay); acts.appendChild(bAdd);
-      if (r.link){ const a = document.createElement('a'); a.className = 'net-src'; a.textContent = t('↗ źródło'); a.href = r.link; a.target = '_blank'; a.rel = 'noopener'; acts.appendChild(a); }
+      if (r.link){ const a = document.createElement('a'); a.className = 'net-src net-ic-btn'; a.innerHTML = NET_IC.ext; a.title = t('Otwórz źródło'); a.setAttribute('aria-label', a.title); a.href = r.link; a.target = '_blank'; a.rel = 'noopener'; acts.appendChild(a); }
+      const badge = document.createElement('span'); badge.className = 'net-kind' + (r.isFull ? ' full' : ''); badge.textContent = r.isFull ? t('pełny') : '30 s';
+      mm.insertBefore(badge, mm.firstChild);
       info.appendChild(tt); info.appendChild(aa); info.appendChild(mm);
       card.appendChild(img); card.appendChild(info); card.appendChild(acts);
       netGrid.appendChild(card);
@@ -5284,8 +5375,17 @@
     const hay = coverCompact(String(track.title || '') + ' ' + String(track.artist || '') + ' ' + (track.file && track.file.name || '') + ' ' + (track.folder || ''));
     return hay.indexOf(ha) > -1 ? ts + 1 : 0;
   }
+  // wersja studyjna ma pierwszeństwo przed „(Live in Vegas)”, „(… Remix)”, „(Acoustic)” — chyba że plik sam jest taką wersją
+  // (Deezer podaje title_short „Bones” także dla „Bones (Live in Vegas)”)
+  const COVER_VERSION_RE = /\b(live|remix|mix|acoustic|instrumental|karaoke|cover|edit|version|sped up|slowed|nightcore|demo)\b/i;
+  function coverVersionBonus(hitFullTitle, track){
+    const hv = COVER_VERSION_RE.test(String(hitFullTitle || '').replace(/^[^(\[]*/, ''));
+    const tv = COVER_VERSION_RE.test(coverCleanTitle(track.title) === String(track.title || '').trim() ? String(track.title || '') : String(track.title || '').replace(/official|audio|video|lyrics?/gi, ''));
+    return hv === tv ? 0.5 : 0;
+  }
   async function coverFromDeezer(cand, track){
-    const qs = cand.artist ? ['artist:"' + cand.artist.replace(/"/g, '') + '" track:"' + cand.title.replace(/"/g, '') + '"', cand.artist + ' ' + cand.title] : [cand.title];
+    // zwykłe zapytanie najpierw — składnia artist:"…" track:"…" w praktyce często zwraca 0 wyników
+    const qs = cand.artist ? [cand.artist + ' ' + cand.title, 'artist:"' + cand.artist.replace(/"/g, '') + '" track:"' + cand.title.replace(/"/g, '') + '"'] : [cand.title];
     for (const q of qs){
       await coverWait('deezer');
       const d = await coverJson('https://api.deezer.com/search?limit=10&q=' + encodeURIComponent(q), true);
@@ -5294,7 +5394,8 @@
       for (const r of list){
         const h = { title: r.title_short || r.title || '', artist: (r.artist && r.artist.name) || '', album: (r.album && r.album.title) || '', art: r.album && (r.album.cover_xl || r.album.cover_big || r.album.cover_medium) || '' };
         const sc = coverScore(h, cand, track);
-        if (sc > bs && h.art){ bs = sc; best = h; }
+        const sc2 = sc ? sc + coverVersionBonus(r.title || '', track) : 0;
+        if (sc2 > bs && h.art){ bs = sc2; best = h; }
       }
       if (best) return Object.assign(best, { provider: 'deezer' });
     }
@@ -5304,7 +5405,7 @@
     await coverWait('itunes');
     const its = await netItunes((cand.artist ? cand.artist + ' ' : '') + cand.title, 10);
     let best = null, bs = 0;
-    for (const r of its){ const sc = coverScore(r, cand, track); if (sc > bs && r.art){ bs = sc; best = r; } }
+    for (const r of its){ const sc = coverScore(r, cand, track); const sc2 = sc ? sc + coverVersionBonus(r.title, track) : 0; if (sc2 > bs && r.art){ bs = sc2; best = r; } }
     return best ? Object.assign({}, best, { provider: 'itunes' }) : null;
   }
   async function coverFromMusicBrainz(cand, track){
@@ -5406,13 +5507,13 @@
     netRecentEl.innerHTML = '';
     if (!netRecentList.length){ netRecentEl.hidden = true; return; }
     netRecentEl.hidden = false;
-    const cap = document.createElement('span'); cap.className = 'net-recent-cap'; cap.textContent = 'Ostatnio:'; netRecentEl.appendChild(cap);
+    const cap = document.createElement('span'); cap.className = 'net-recent-cap'; cap.textContent = t('Ostatnio'); netRecentEl.appendChild(cap);
     netRecentList.forEach(function(q){
       const b = document.createElement('button'); b.type = 'button'; b.className = 'net-chip'; b.textContent = q;
       b.addEventListener('click', function(){ if (netQuery) netQuery.value = q; syncNetClearBtn(); netSearch(q); });
       netRecentEl.appendChild(b);
     });
-    const x = document.createElement('button'); x.type = 'button'; x.className = 'net-chip'; x.textContent = '✕'; x.title = 'Wyczyść historię';
+    const x = document.createElement('button'); x.type = 'button'; x.className = 'net-chip net-recent-x'; x.innerHTML = '<svg viewBox="0 0 24 24" width="11" height="11" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" fill="none"/></svg>'; x.title = t('Wyczyść historię'); x.setAttribute('aria-label', x.title);
     x.addEventListener('click', function(){ netRecentList = []; try { localStorage.setItem('playerNetRecent', '[]'); } catch(e){} renderNetRecent(); });
     netRecentEl.appendChild(x);
   }
@@ -5481,7 +5582,7 @@
     return Promise.resolve(ytBridgePing(force)).then(function(ok){
       netBridgeChip.classList.toggle('net-bridge-on', !!ok);
       netBridgeChip.classList.toggle('net-bridge-off', !ok);
-      netBridgeChip.textContent = ok ? t('● yt-dlp: działa') : t('○ yt-dlp: wyłączony');
+      netBridgeChip.textContent = (ok ? t('● yt-dlp: działa') : t('○ yt-dlp: wyłączony')).replace(/^[●○]\s*/, '');
       netBridgeChip.title = ok ? 'Mostek yt-dlp połączony — podgląd i zapis MP3 z YouTube działają w pełni'
                                : 'Mostek yt-dlp nie odpowiada (http://127.0.0.1:' + BRIDGE_PORT + '). Kliknij, aby sprawdzić ponownie';
       updateBridgeBanner();

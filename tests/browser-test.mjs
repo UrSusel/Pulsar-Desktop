@@ -757,6 +757,37 @@ async function testCoversDesktop(browser){
   await page.close();
 }
 
+/* ---------------- wyszukiwarka sieciowa (zrzuty + podstawowe działanie) ---------------- */
+function netSearchMock(){
+  const jpg = fs.readFileSync(path.join(MEDIA, 'cover.jpg'));
+  const CORS = { 'Access-Control-Allow-Origin': '*' };
+  const songs = [['Bones', 'Imagine Dragons', 'Mercury - Act 2'], ['Believer', 'Imagine Dragons', 'Evolve'], ['Thunder', 'Imagine Dragons', 'Evolve'], ['Demons', 'Imagine Dragons', 'Night Visions'], ['Enemy', 'Imagine Dragons & JID', 'Arcane League of Legends'], ['Radioactive', 'Imagine Dragons', 'Night Visions']];
+  return (u) => {
+    if (u.hostname === 'itunes.apple.com') return { status: 200, contentType: 'application/json', headers: CORS, body: JSON.stringify({ results: songs.map((x, i) => ({ trackId: 100 + i, trackName: x[0], artistName: x[1], collectionName: x[2], artworkUrl100: 'https://cdn.test/a' + i + '/100x100bb.jpg', previewUrl: 'https://cdn.test/p' + i + '.m4a', trackTimeMillis: 180000 + i * 7000, releaseDate: '2021-03-11' })) }) };
+    if (u.hostname === 'api.deezer.com'){ const cb = u.searchParams.get('callback'); const body = JSON.stringify({ data: songs.slice(0, 3).map((x, i) => ({ id: 200 + i, title: x[0], artist: { name: x[1] }, album: { title: x[2], cover_xl: 'https://cdn.test/d' + i + '.jpg' }, preview: 'https://cdn.test/dp' + i + '.mp3' })) }); return cb ? { status: 200, contentType: 'text/javascript', body: cb + '(' + body + ')' } : { status: 403, body: '' }; }
+    if (u.hostname === 'cdn.test' && /\.jpg$/.test(u.pathname)) return { status: 200, contentType: 'image/jpeg', headers: CORS, body: jpg };
+    return null;
+  };
+}
+async function testNet(browser){
+  const page = await openApp(browser, { netMock: netSearchMock(), ls: { playerLibView: 'net' } });
+  await page.addStyleTag({ content: '*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}' });
+  await loadFiles(page, [path.join(MEDIA, 'gA.wav')]);
+  await page.evaluate(() => { const b = document.querySelector('.lib-tab[data-view="net"]'); b && b.click(); });
+  await page.evaluate(() => { const lp = document.getElementById('libraryPanel'); if (!lp.classList.contains('open')) document.getElementById('libraryBtn') && document.getElementById('libraryBtn').click(); });
+  await sleep(800);
+  await page.screenshot({ path: path.join(OUT, 'net-home.png') });
+  await page.type('#netQuery', 'imagine dragons'); await page.keyboard.press('Enter');
+  await poll(() => page.evaluate(() => document.querySelectorAll('#netGrid .net-card').length >= 3), 20000, 200);
+  await sleep(1200);
+  const n = await page.evaluate(() => document.querySelectorAll('#netGrid .net-card').length);
+  check('sieć: wyniki wyszukiwania', n >= 3, n);
+  await page.screenshot({ path: path.join(OUT, 'net-results.png') });
+  await page.setViewport({ width: 520, height: 820 }); await sleep(400);
+  await page.screenshot({ path: path.join(OUT, 'net-narrow.png') });
+  await page.close();
+}
+
 const browser = await launch();
 try {
   if (WHICH === 'all' || WHICH === 'obs') await testObs(browser);
@@ -765,6 +796,7 @@ try {
   if (WHICH === 'all' || WHICH === 'desktop') await testDesktop(browser);
   if (WHICH === 'all' || WHICH === 'library') await testLibraryAdd(browser);
   if (WHICH === 'all' || WHICH === 'covers'){ await testCovers(browser); await testCoversDesktop(browser); }
+  if (WHICH === 'all' || WHICH === 'net') await testNet(browser);
   if (WHICH === 'all' || WHICH === 'settings') await testSettings(browser);
   if (WHICH === 'all' || WHICH === 'gapless') await testGapless(browser);
 } catch (e){ console.log('FAIL wyjątek:', e && e.stack || e); failures++; }
