@@ -794,25 +794,72 @@
   .qp-artist { font-size: 11.5px; color: rgba(255,255,255,.5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .qp-djnote { font-size: 11px; color: rgba(255,255,255,.5); padding: 4px 8px; }
   .qp-end { text-align: center; color: rgba(255,255,255,.35); font-size: 12px; padding: 8px; }
-  /* --- Menu ustawień (debloat paska) --- */
+  /* --- Okno ustawień: kategorie po lewej, karty z opisami, wyszukiwarka --- */
   .settings-menu {
-    position: fixed; top: 62px; right: 14px; width: min(92vw, 300px); z-index: 71;
-    padding: 10px; border-radius: 14px;
-    background: rgba(10,10,16,.96); border: 1px solid rgba(255,255,255,.12);
-    box-shadow: 0 24px 60px rgba(0,0,0,.6); backdrop-filter: blur(12px);
-    max-height: calc(100vh - 76px); overflow-y: auto; overscroll-behavior: contain;
+    position: fixed; inset: 0; z-index: 71; display: flex; align-items: center; justify-content: center;
+    padding: 24px; background: rgba(4,4,8,.55);
   }
   .settings-menu[hidden] { display: none; }
-  .sm-cap { font-size: 10.5px; letter-spacing: .8px; text-transform: uppercase; color: rgba(255,255,255,.4); padding: 6px 6px 4px; }
-  .sm-row { display: flex; align-items: center; gap: 10px; padding: 6px 6px; border-radius: 9px; }
-  .sm-row:hover { background: rgba(255,255,255,.05); }
-  .sm-lab { flex: 1; font-size: 13px; color: #fff; }
+  .sm-dialog {
+    width: min(880px, 100%); height: min(620px, 100%); display: flex; overflow: hidden;
+    border-radius: 18px; background: rgba(14,14,20,.97); border: 1px solid rgba(255,255,255,.1);
+    box-shadow: 0 30px 80px rgba(0,0,0,.65);
+  }
+  .sm-side { flex: 0 0 210px; display: flex; flex-direction: column; padding: 18px 10px; background: rgba(255,255,255,.025); border-right: 1px solid rgba(255,255,255,.07); }
+  .sm-title { font-size: 17px; font-weight: 600; color: #fff; padding: 2px 12px 16px; }
+  .sm-nav { display: flex; flex-direction: column; gap: 2px; }
+  .sm-tab { display: flex; align-items: center; gap: 11px; width: 100%; padding: 9px 12px; border: 0; border-radius: 10px; background: transparent; color: rgba(255,255,255,.72); font: inherit; font-size: 13.5px; text-align: left; cursor: pointer; transition: background .14s, color .14s; }
+  .sm-tab svg { width: 18px; height: 18px; flex: none; opacity: .85; }
+  .sm-tab:hover { background: rgba(255,255,255,.06); color: #fff; }
+  .sm-tab.active { background: rgba(var(--accent-rgb), .16); color: #fff; box-shadow: inset 3px 0 0 var(--accent); }
+  .sm-tab.active svg { color: var(--accent); opacity: 1; }
+  .sm-main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .sm-head { display: flex; align-items: center; gap: 10px; padding: 14px 16px 10px 22px; }
+  .sm-search { flex: 1; display: flex; align-items: center; gap: 8px; max-width: 340px; padding: 0 12px; height: 34px; border-radius: 10px; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.1); color: rgba(255,255,255,.5); }
+  .sm-search:focus-within { border-color: var(--accent); }
+  .sm-search svg { width: 15px; height: 15px; flex: none; }
+  .sm-search input { flex: 1; min-width: 0; background: none; border: 0; outline: 0; color: #fff; font: inherit; font-size: 13px; }
+  .sm-search input::-webkit-search-cancel-button { filter: invert(1); opacity: .6; }
+  .sm-close { margin-left: auto; width: 34px; height: 34px; display: grid; place-items: center; border: 0; border-radius: 10px; background: transparent; color: rgba(255,255,255,.7); cursor: pointer; }
+  .sm-close svg { width: 18px; height: 18px; }
+  .sm-close:hover { background: rgba(255,255,255,.08); color: #fff; }
+  .sm-body { flex: 1; overflow-y: auto; overscroll-behavior: contain; padding: 4px 22px 22px; }
+  .sm-pane { display: none; }
+  .sm-pane.active, .sm-body.searching .sm-pane { display: block; }
+  .sm-pane-title { font-size: 20px; font-weight: 600; color: #fff; margin: 6px 0 14px; }
+  .sm-body.searching .sm-pane-title { font-size: 12px; font-weight: 500; letter-spacing: .6px; text-transform: uppercase; color: rgba(255,255,255,.45); margin: 14px 0 8px; }
+  .sm-card { background: rgba(255,255,255,.035); border: 1px solid rgba(255,255,255,.07); border-radius: 14px; padding: 6px 14px 10px; margin-bottom: 14px; }
+  .sm-cap { font-size: 11px; font-weight: 600; letter-spacing: .7px; text-transform: uppercase; color: rgba(255,255,255,.42); margin: 8px 0 2px; padding: 0; }
+  .sm-row { display: flex; align-items: center; gap: 14px; padding: 10px 0; min-height: 44px; }
+  .sm-card .sm-row + .sm-row { border-top: 1px solid rgba(255,255,255,.06); }
+  .sm-txt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+  .sm-lab { font-size: 13.5px; color: #fff; }
+  .sm-desc { font-size: 11.5px; line-height: 1.35; color: rgba(255,255,255,.5); }
+  .sm-desc-top { margin-bottom: 4px; }
   .sm-slot { flex: 0 0 auto; display: inline-flex; }
-  .sm-slot .icon-btn { width: 34px; height: 30px; }
-  .sm-row input[type="range"] { flex: 1; accent-color: rgb(var(--accent-rgb)); }
-  .sm-val { flex: 0 0 64px; text-align: right; font-size: 11.5px; color: var(--accent); font-variant-numeric: tabular-nums; }
-  .sm-select { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.18); border-radius: 8px; padding: 4px 8px; font-size: 12px; cursor: pointer; }
+  .sm-slot-hidden { display: none !important; }
+  .sm-slot .icon-btn { width: 36px; height: 30px; }
+  .sm-slot .toggle-label { display: none; }
+  .sm-row-range .sm-txt { flex: 0 0 auto; }
+  .sm-row input[type="range"] { flex: 1; min-width: 80px; accent-color: rgb(var(--accent-rgb)); }
+  .sm-val { flex: 0 0 auto; min-width: 54px; text-align: right; font-size: 12px; color: var(--accent); font-variant-numeric: tabular-nums; }
+  .sm-val:empty { display: none; }
+  .sm-select { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.16); border-radius: 9px; padding: 6px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
   .sm-select option { background: #14141c; color: #fff; }
+  .sm-act { flex: none; padding: 7px 14px; border-radius: 9px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.07); color: #fff; font: inherit; font-size: 12.5px; cursor: pointer; transition: .14s; white-space: nowrap; }
+  .sm-act:hover { background: rgba(var(--accent-rgb), .18); border-color: var(--accent); }
+  .sm-dialog input:checked + .slider:before { background: rgba(10,10,16,.85); } /* gałka widoczna także przy białym akcencie */
+  .sm-empty { text-align: center; color: rgba(255,255,255,.45); font-size: 13px; padding: 40px 0; }
+  .sm-hide { display: none !important; }
+  @media (max-width: 640px){
+    .settings-menu { padding: 0; }
+    .sm-dialog { flex-direction: column; border-radius: 0; height: 100%; }
+    .sm-side { flex: none; padding: 10px 8px 6px; border-right: 0; border-bottom: 1px solid rgba(255,255,255,.07); }
+    .sm-title { padding: 4px 8px 8px; }
+    .sm-nav { flex-direction: row; overflow-x: auto; }
+    .sm-tab { width: auto; flex: none; white-space: nowrap; }
+    .sm-tab.active { box-shadow: inset 0 -2px 0 var(--accent); }
+  }
   /* --- Płynne przejścia: zmiana utworu, panele, widoki --- */
   @keyframes swapIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
   .swap-anim { animation: swapIn .42s cubic-bezier(.22,.8,.3,1) both; }
@@ -822,7 +869,7 @@
   .menu-in { animation: menuIn .26s cubic-bezier(.22,.8,.3,1) both; transform-origin: top right; }
   @keyframes viewIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
   .view-anim { animation: viewIn .34s cubic-bezier(.22,.8,.3,1) both; }
-  .sm-btn { width: 100%; margin: 4px 0 2px; padding: 9px 10px; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); color: #fff; font-size: 12.5px; cursor: pointer; font-family: inherit; transition: .14s; }
+  .sm-btn { display: block; width: 100%; margin: 6px 0 2px; padding: 9px 12px; text-align: left; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border-radius: 10px; border: 1px solid rgba(255,255,255,.14); background: rgba(255,255,255,.06); color: #fff; font-size: 12.5px; cursor: pointer; font-family: inherit; transition: .14s; }
   .sm-btn:disabled { opacity: .55; cursor: progress; }
   .sm-path { font-size: 11.5px; color: rgba(255,255,255,.7); font-family: Consolas, monospace; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
   .sm-mini { flex: none; padding: 4px 9px; border-radius: 8px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.06); color: #fff; font: inherit; font-size: 11.5px; cursor: pointer; }
@@ -1327,43 +1374,59 @@
     </div>
   </div>
   <div class="settings-menu" id="settingsMenu" hidden>
-    <div class="sm-cap">Odtwarzanie</div>
-    <button type="button" class="sm-btn" id="smEqBtn" title="Equalizer, normalizacja, crossfade, pogłos">Equalizer i dźwięk…</button>
-    <div class="sm-row"><span class="sm-lab">Dźwięk (skrót)</span><span class="sm-slot" id="smSoundSlot"><button class="icon-btn" data-ic="stroke" id="soundBtn" title="Equalizer, normalizacja, crossfade" aria-label="Ustawienia dźwięku"><svg viewBox="0 0 24 24"><path d="M5 20v-3M5 13V4M12 20v-7M12 9V4M19 20v-2M19 14V4"/><circle cx="5" cy="15" r="2"/><circle cx="12" cy="11" r="2"/><circle cx="19" cy="16" r="2"/></svg></button></span></div>
-    <div class="sm-cap">Wygląd</div>
-    <div class="sm-row"><span class="sm-lab">Język</span><select id="smLang" class="sm-select" aria-label="Język interfejsu"><option value="pl">Polski</option><option value="en">English</option><option value="es">Español</option></select></div>
-    <div class="sm-row"><span class="sm-lab">Reakcja na muzykę (motywy tła)</span><label class="switch"><input type="checkbox" id="smAudioReact" checked><span class="slider"></span></label></div>
-    <div class="sm-row"><span class="sm-lab">Tło reakcyjne 3D</span><span class="sm-slot" id="sm3dSlot"><div class="reactive-toggle" title="Reaktywne tło GPU — pulsowanie w rytm basu i beatu"><label class="switch"><input type="checkbox" id="reactiveToggle"><span class="slider"></span></label><span class="toggle-label">3D</span></div></span></div>
-    <div class="sm-row"><span class="sm-lab">Śledzenie myszy (ruch tła)</span><label class="switch"><input type="checkbox" id="smBgFollow" checked><span class="slider"></span></label></div>
-    <div class="sm-row"><span class="sm-lab">Auto-DJ</span><span class="sm-slot" id="smAutoDjSlot"></span></div>
-    <div class="sm-row"><span class="sm-lab">Pomijaj ciszę</span><span class="sm-slot" id="smSilenceSlot"></span></div>
-    <div class="sm-row"><span class="sm-lab">Sleep timer</span><select id="smSleep" class="sm-select" aria-label="Sleep timer"><option value="0">Wyłączony</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="end">Koniec utworu</option></select><span class="sm-val" id="smSleepVal"></span></div>
-    <div class="sm-row"><span class="sm-lab">Balans L·P</span><input type="range" id="smPan" min="-100" max="100" step="5" value="0" aria-label="Balans kanałów"><span class="sm-val" id="smPanVal">środek</span></div>
-    <div class="sm-row"><span class="sm-lab">Mono</span><label class="switch"><input type="checkbox" id="smMono"><span class="slider"></span></label></div>
-    <div class="sm-row"><span class="sm-lab" title="Następny utwór startuje bez przerwy (gdy crossfade jest wyłączony)">Gapless (bez przerw między utworami)</span><label class="switch"><input type="checkbox" id="smGapless" checked><span class="slider"></span></label></div>
-    <div class="sm-row"><span class="sm-lab">Wznawiaj od miejsca, w którym skończyłeś</span><label class="switch"><input type="checkbox" id="smResume" checked><span class="slider"></span></label></div>
-    <div class="sm-cap sm-desktop-only">Windows</div>
-    <button type="button" class="sm-btn sm-desktop-only" id="smMiniBtn" title="Małe okno z okładką i przyciskami — zawsze na wierzchu">Tryb mini (kompaktowe okno)</button>
-    <div class="sm-row sm-desktop-only"><span class="sm-lab">Zawsze na wierzchu</span><label class="switch"><input type="checkbox" id="smOnTop"><span class="slider"></span></label></div>
-    <div class="sm-row sm-desktop-only"><span class="sm-lab" title="Zamknięcie okna chowa je do zasobnika — muzyka gra dalej">Zamykanie chowa okno do zasobnika</span><label class="switch"><input type="checkbox" id="smCloseToTray"><span class="slider"></span></label></div>
-    <div class="sm-row sm-desktop-only"><span class="sm-lab">Powiadomienie o nowym utworze</span><label class="switch"><input type="checkbox" id="smNotify"><span class="slider"></span></label></div>
-    <div class="sm-cap sm-desktop-only">OBS / streaming</div>
-    <div class="sm-row sm-desktop-only"><span class="sm-lab" title="Wysyła dźwięk Pulsara do źródła „Przeglądarka” w OBS (bez kabli wirtualnych)">Dźwięk i overlay dla OBS</span><label class="switch"><input type="checkbox" id="smObs"><span class="slider"></span></label></div>
-    <button type="button" class="sm-btn sm-desktop-only" id="smObsHelp">Jak podłączyć OBS…</button>
-    <div class="sm-cap">Sieć</div>
-    <button type="button" class="sm-btn" id="smNetFolderBtn" title="Gdzie zapisują się utwory pobrane z sieci (podfolder = źródło)">Folder zapisu z sieci</button>
-    <button type="button" class="sm-btn" id="smNetMoveBtn" title="Zmienia folder już pobranych utworów na wybrany powyżej">Przenieś pobrane</button>
-    <div class="sm-row"><span class="sm-lab">Zapisuj MP3 na dysku (mostek)</span><label class="switch"><input type="checkbox" id="smNetDiskToggle"><span class="slider"></span></label></div>
-    <button type="button" class="sm-btn" id="smNetDiskBtn" title="Prawdziwy folder na dysku, do którego mostek zapisuje pobrane MP3">Folder na dysku</button>
-    <button type="button" class="sm-btn sm-desktop-only" id="smYtdlpBtn" title="Pobiera najnowszą wersję yt-dlp — naprawia pobieranie, gdy YouTube coś zmieni">Aktualizuj yt-dlp</button>
-    <div class="sm-row sm-desktop-only"><span class="sm-lab" title="Raz na dobę sprawdza nowe wydanie; przy błędzie pobierania próbuje aktualizacji">Automatyczne aktualizacje yt-dlp</span><label class="switch"><input type="checkbox" id="smYtdlpAuto" checked><span class="slider"></span></label></div>
-    <div class="sm-cap sm-desktop-only">Obserwowany folder</div>
-    <div class="sm-row sm-desktop-only"><span class="sm-lab sm-path" id="smWatchPath">nie wybrano</span><button type="button" class="sm-mini" id="smWatchOff" hidden>Wyłącz</button></div>
-    <button type="button" class="sm-btn sm-desktop-only" id="smWatchBtn" title="Nowe pliki audio z tego folderu (i podfolderów) same trafią do biblioteki">Wybierz folder…</button>
-    <div class="sm-cap">Eksport i kopia zapasowa</div>
-    <button type="button" class="sm-btn" id="smM3uBtn">Eksportuj kolejkę (M3U)</button>
-    <div class="sm-btn-row"><button type="button" class="sm-btn" id="smBackupBtn" title="Jeden plik .pulsarlib: utwory, okładki, albumy, ulubione, statystyki i ustawienia">Kopia biblioteki…</button><button type="button" class="sm-btn" id="smRestoreBtn" title="Wczytuje plik .pulsarlib — dokłada brakujące utwory i albumy">Przywróć z kopii…</button></div>
-    <input type="file" id="backupFileInput" accept=".pulsarlib" hidden>
+   <div class="sm-dialog" role="dialog" aria-modal="true" aria-labelledby="smTitle">
+    <aside class="sm-side">
+      <div class="sm-title" id="smTitle">Ustawienia</div>
+      <nav class="sm-nav" id="smNav">
+        <button type="button" class="sm-tab" data-pane="play"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg><span>Odtwarzanie</span></button>
+        <button type="button" class="sm-tab" data-pane="look"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><path d="M12 3a9 9 0 0 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.4-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.3A4.7 4.7 0 0 0 22 10.7C22 6.4 17.5 3 12 3z"/><circle cx="7.5" cy="10.5" r="1"/><circle cx="11" cy="7" r="1"/><circle cx="16" cy="8" r="1"/></svg><span>Wygląd</span></button>
+        <button type="button" class="sm-tab" data-pane="lib"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 19V5M8 19V5"/><path d="M12 19V7l4-2 4 14"/></svg><span>Biblioteka</span></button>
+        <button type="button" class="sm-tab" data-pane="net"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 21h16"/></svg><span>Pobieranie</span></button>
+        <button type="button" class="sm-tab sm-desktop-only" data-pane="win"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="14" rx="2"/><path d="M3 8h18M8 21h8"/></svg><span>Windows</span></button>
+        <button type="button" class="sm-tab sm-desktop-only" data-pane="obs"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="2.5"/><path d="M16.2 7.8a6 6 0 0 1 0 8.4M7.8 16.2a6 6 0 0 1 0-8.4M19 5a10 10 0 0 1 0 14M5 19A10 10 0 0 1 5 5"/></svg><span>OBS / streaming</span></button>
+      </nav>
+    </aside>
+    <section class="sm-main">
+      <div class="sm-head">
+        <div class="sm-search"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><input type="search" id="smSearch" placeholder="Szukaj w ustawieniach" aria-label="Szukaj w ustawieniach" autocomplete="off"></div>
+        <button type="button" class="sm-close" id="smClose" title="Zamknij (Esc)" aria-label="Zamknij ustawienia"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg></button>
+      </div>
+      <div class="sm-body" id="smBody">
+      <div class="sm-pane" data-pane="play">
+        <h2 class="sm-pane-title">Odtwarzanie</h2>
+        <div class="sm-card"><h3 class="sm-cap">Dźwięk</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Equalizer i dźwięk</span><span class="sm-desc">EQ, normalizacja głośności, crossfade, pogłos</span></div><span class="sm-slot sm-slot-hidden" id="smSoundSlot"><button class="icon-btn" data-ic="stroke" id="soundBtn" title="Equalizer, normalizacja, crossfade" aria-label="Ustawienia dźwięku"><svg viewBox="0 0 24 24"><path d="M5 20v-3M5 13V4M12 20v-7M12 9V4M19 20v-2M19 14V4"/><circle cx="5" cy="15" r="2"/><circle cx="12" cy="11" r="2"/><circle cx="19" cy="16" r="2"/></svg></button></span><button type="button" class="sm-act" id="smEqBtn" title="Equalizer, normalizacja, crossfade, pogłos">Otwórz…</button></div><div class="sm-row sm-row-range"><div class="sm-txt"><span class="sm-lab">Balans L·P</span></div><input type="range" id="smPan" min="-100" max="100" step="5" value="0" aria-label="Balans kanałów"><span class="sm-val" id="smPanVal">środek</span></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Mono</span><span class="sm-desc">Oba kanały grają to samo — przydatne z jedną słuchawką</span></div><label class="switch"><input type="checkbox" id="smMono"><span class="slider"></span></label></div></div>
+        <div class="sm-card"><h3 class="sm-cap">Przejścia i kolejka</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Gapless (bez przerw między utworami)</span><span class="sm-desc">Następny utwór startuje bez przerwy (gdy crossfade jest wyłączony)</span></div><label class="switch"><input type="checkbox" id="smGapless" checked><span class="slider"></span></label></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Auto-DJ</span><span class="sm-desc">Dobiera następne utwory po tempie i energii</span></div><span class="sm-slot sm-slot-hidden" id="smAutoDjSlot"></span><label class="switch"><input type="checkbox" id="smAutoDj"><span class="slider"></span></label></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Pomijaj ciszę</span><span class="sm-desc">Przycina ciszę na początku i końcu utworów</span></div><span class="sm-slot sm-slot-hidden" id="smSilenceSlot"></span><label class="switch"><input type="checkbox" id="smSkipSilence"><span class="slider"></span></label></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Wznawiaj od miejsca, w którym skończyłeś</span><span class="sm-desc">Po uruchomieniu wraca do ostatniego utworu, pozycji i albumu</span></div><label class="switch"><input type="checkbox" id="smResume" checked><span class="slider"></span></label></div></div>
+        <div class="sm-card"><h3 class="sm-cap">Sleep timer</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Wyłącz muzykę po</span><span class="sm-desc">Łagodnie wycisza na koniec</span></div><select id="smSleep" class="sm-select" aria-label="Sleep timer"><option value="0">Wyłączony</option><option value="5">5 min</option><option value="10">10 min</option><option value="15">15 min</option><option value="30">30 min</option><option value="45">45 min</option><option value="60">60 min</option><option value="end">Koniec utworu</option></select><span class="sm-val" id="smSleepVal"></span></div></div>
+      </div>
+      <div class="sm-pane" data-pane="look">
+        <h2 class="sm-pane-title">Wygląd</h2>
+        <div class="sm-card"><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Język</span></div><select id="smLang" class="sm-select" aria-label="Język interfejsu"><option value="pl">Polski</option><option value="en">English</option><option value="es">Español</option></select></div></div>
+        <div class="sm-card"><h3 class="sm-cap">Tło</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Tło reakcyjne 3D</span><span class="sm-desc">Reaktywne tło GPU — pulsowanie w rytm basu i beatu</span></div><span class="sm-slot" id="sm3dSlot"><div class="reactive-toggle" title="Reaktywne tło GPU — pulsowanie w rytm basu i beatu"><label class="switch"><input type="checkbox" id="reactiveToggle"><span class="slider"></span></label><span class="toggle-label">3D</span></div></span></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Reakcja na muzykę (motywy tła)</span><span class="sm-desc">Kolory i światło tła reagują na dźwięk</span></div><label class="switch"><input type="checkbox" id="smAudioReact" checked><span class="slider"></span></label></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Śledzenie myszy (ruch tła)</span><span class="sm-desc">Tło lekko podąża za kursorem</span></div><label class="switch"><input type="checkbox" id="smBgFollow" checked><span class="slider"></span></label></div></div>
+      </div>
+      <div class="sm-pane" data-pane="lib">
+        <h2 class="sm-pane-title">Biblioteka</h2>
+        <div class="sm-card sm-desktop-only"><h3 class="sm-cap">Obserwowany folder</h3><div class="sm-row"><div class="sm-txt"><span class="sm-desc sm-desc-top">Nowe pliki audio z tego folderu (i podfolderów) same trafią do biblioteki</span><span class="sm-lab sm-path" id="smWatchPath">nie wybrano</span></div><button type="button" class="sm-mini" id="smWatchOff" hidden>Wyłącz</button></div><button type="button" class="sm-btn" id="smWatchBtn" title="Nowe pliki audio z tego folderu (i podfolderów) same trafią do biblioteki">Wybierz folder…</button></div>
+        <div class="sm-card"><h3 class="sm-cap">Kopia zapasowa</h3><div class="sm-row"><div class="sm-txt"><span class="sm-desc sm-desc-top">Jeden plik .pulsarlib: utwory, okładki, albumy, ulubione, statystyki i ustawienia</span></div></div><div class="sm-btn-row"><button type="button" class="sm-btn" id="smBackupBtn" title="Jeden plik .pulsarlib: utwory, okładki, albumy, ulubione, statystyki i ustawienia">Kopia biblioteki…</button><button type="button" class="sm-btn" id="smRestoreBtn" title="Wczytuje plik .pulsarlib — dokłada brakujące utwory i albumy">Przywróć z kopii…</button></div><input type="file" id="backupFileInput" accept=".pulsarlib" hidden></div>
+        <div class="sm-card"><h3 class="sm-cap">Eksport</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Kolejka jako playlista M3U</span><span class="sm-desc">Do otwarcia w innych odtwarzaczach</span></div><button type="button" class="sm-act" id="smM3uBtn">Eksportuj kolejkę (M3U)</button></div></div>
+      </div>
+      <div class="sm-pane" data-pane="net">
+        <h2 class="sm-pane-title">Pobieranie</h2>
+        <div class="sm-card"><h3 class="sm-cap">Zapis utworów z sieci</h3><button type="button" class="sm-btn" id="smNetFolderBtn" title="Gdzie zapisują się utwory pobrane z sieci (podfolder = źródło)">Folder zapisu z sieci</button><button type="button" class="sm-btn" id="smNetMoveBtn" title="Zmienia folder już pobranych utworów na wybrany powyżej">Przenieś pobrane</button><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zapisuj MP3 na dysku (mostek)</span><span class="sm-desc">Kopia każdego pobranego utworu w prawdziwym folderze</span></div><label class="switch"><input type="checkbox" id="smNetDiskToggle"><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smNetDiskBtn" title="Prawdziwy folder na dysku, do którego mostek zapisuje pobrane MP3">Folder na dysku</button></div>
+        <div class="sm-card sm-desktop-only"><h3 class="sm-cap">yt-dlp</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Automatyczne aktualizacje yt-dlp</span><span class="sm-desc">Raz na dobę sprawdza nowe wydanie; przy błędzie pobierania próbuje aktualizacji</span></div><label class="switch"><input type="checkbox" id="smYtdlpAuto" checked><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smYtdlpBtn" title="Pobiera najnowszą wersję yt-dlp — naprawia pobieranie, gdy YouTube coś zmieni">Aktualizuj yt-dlp</button></div>
+      </div>
+      <div class="sm-pane sm-desktop-only" data-pane="win">
+        <h2 class="sm-pane-title">Windows</h2>
+        <div class="sm-card"><h3 class="sm-cap">Okno</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Tryb mini (kompaktowe okno)</span><span class="sm-desc">Małe okno z okładką i przyciskami — zawsze na wierzchu</span></div><button type="button" class="sm-act" id="smMiniBtn" title="Małe okno z okładką i przyciskami — zawsze na wierzchu">Włącz</button></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zawsze na wierzchu</span></div><label class="switch"><input type="checkbox" id="smOnTop"><span class="slider"></span></label></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zamykanie chowa okno do zasobnika</span><span class="sm-desc">Zamknięcie okna chowa je do zasobnika — muzyka gra dalej</span></div><label class="switch"><input type="checkbox" id="smCloseToTray"><span class="slider"></span></label></div></div>
+        <div class="sm-card"><h3 class="sm-cap">Powiadomienia</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Powiadomienie o nowym utworze</span></div><label class="switch"><input type="checkbox" id="smNotify"><span class="slider"></span></label></div></div>
+      </div>
+      <div class="sm-pane sm-desktop-only" data-pane="obs">
+        <h2 class="sm-pane-title">OBS / streaming</h2>
+        <div class="sm-card"><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Dźwięk i overlay dla OBS</span><span class="sm-desc">Wysyła dźwięk Pulsara do źródła „Przeglądarka” w OBS (bez kabli wirtualnych)</span></div><label class="switch"><input type="checkbox" id="smObs"><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smObsHelp">Jak podłączyć OBS…</button></div>
+      </div>
+      <div class="sm-empty" id="smEmpty" hidden>Brak wyników</div>
+      </div>
+    </section>
+   </div>
   </div>
   <div class="queue-panel" id="queuePanel" hidden>
     <div class="qp-head"><span>Na następce</span><button type="button" class="qp-close" id="queueCloseBtn" aria-label="Zamknij kolejkę">✕</button></div>
@@ -1391,6 +1454,33 @@
     if (!_savedLang){ try { localStorage.setItem('playerLang', CUR_LANG); } catch(e){} }
   } catch(e){ CUR_LANG = 'pl'; }
   var I18N_DICT = {
+    'Brak wyników': { en: 'No results', es: 'Sin resultados' },
+    'Do otwarcia w innych odtwarzaczach': { en: 'Open it in other players', es: 'Para abrir en otros reproductores' },
+    'Dobiera następne utwory po tempie i energii': { en: 'Picks the next tracks by tempo and energy', es: 'Elige las siguientes canciones por tempo y energía' },
+    'EQ, normalizacja głośności, crossfade, pogłos': { en: 'EQ, loudness normalization, crossfade, reverb', es: 'EQ, normalización de volumen, crossfade, reverberación' },
+    'Equalizer i dźwięk': { en: 'Equalizer & sound', es: 'Ecualizador y sonido' },
+    'Kolejka jako playlista M3U': { en: 'Queue as an M3U playlist', es: 'Cola como lista M3U' },
+    'Kolory i światło tła reagują na dźwięk': { en: 'Background colours and light react to the sound', es: 'Los colores y la luz del fondo reaccionan al sonido' },
+    'Koniec utworu': { en: 'End of track', es: 'Fin de la canción' },
+    'Kopia każdego pobranego utworu w prawdziwym folderze': { en: 'A copy of every downloaded track in a real folder', es: 'Una copia de cada canción descargada en una carpeta real' },
+    'Kopia zapasowa': { en: 'Backup', es: 'Copia de seguridad' },
+    'Oba kanały grają to samo — przydatne z jedną słuchawką': { en: 'Both channels play the same — handy with one earbud', es: 'Ambos canales suenan igual — útil con un solo auricular' },
+    'Okno': { en: 'Window', es: 'Ventana' },
+    'Otwórz…': { en: 'Open…', es: 'Abrir…' },
+    'Po uruchomieniu wraca do ostatniego utworu, pozycji i albumu': { en: 'On start, returns to the last track, position and album', es: 'Al iniciar, vuelve a la última canción, posición y álbum' },
+    'Pobieranie': { en: 'Downloads', es: 'Descargas' },
+    'Powiadomienia': { en: 'Notifications', es: 'Notificaciones' },
+    'Przejścia i kolejka': { en: 'Transitions & queue', es: 'Transiciones y cola' },
+    'Przycina ciszę na początku i końcu utworów': { en: 'Trims silence at the start and end of tracks', es: 'Recorta el silencio al inicio y al final' },
+    'Szukaj w ustawieniach': { en: 'Search settings', es: 'Buscar en ajustes' },
+    'Tło': { en: 'Background', es: 'Fondo' },
+    'Tło lekko podąża za kursorem': { en: 'The background gently follows the cursor', es: 'El fondo sigue suavemente al cursor' },
+    'Wyłącz muzykę po': { en: 'Stop music after', es: 'Detener la música tras' },
+    'Włącz': { en: 'Turn on', es: 'Activar' },
+    'Zamknij (Esc)': { en: 'Close (Esc)', es: 'Cerrar (Esc)' },
+    'Zamknij ustawienia': { en: 'Close settings', es: 'Cerrar ajustes' },
+    'Zapis utworów z sieci': { en: 'Saving tracks from the web', es: 'Guardado de canciones de la red' },
+    'Łagodnie wycisza na koniec': { en: 'Fades out gently at the end', es: 'Se desvanece suavemente al final' },
     'Edytuj tagi': { en: 'Edit tags', es: 'Editar etiquetas' },
     'Zmień okładkę…': { en: 'Change cover…', es: 'Cambiar portada…' },
     'Usuń okładkę': { en: 'Remove cover', es: 'Quitar portada' },
@@ -2622,12 +2712,23 @@
       albums = storedAlbums.map(a => Object.assign({ createdAt: 0, customCover: false }, a));
       if (tracks.length) {
         if (folderBtn) folderBtn.classList.remove('attention');
-        rebuildQueue();
-        renderLibrary();
         // Wznawianie: ostatni utwór + pozycja (bez autostartu)
         const rs = readResumePos();
         let startIdx = 0;
         if (rs){ const i = tracks.findIndex(x => x.id === rs.id); if (i >= 0) startIdx = i; }
+        // …i album, z którego leciała kolejka (tylko jeśli nadal istnieje i zawiera ten utwór)
+        try {
+          const aid = localStorage.getItem('playerActiveAlbum');
+          const al = aid ? albumById(aid) : null;
+          const inAlbum = al && albumIndices(al);
+          if (inAlbum && inAlbum.length && (!rs || inAlbum.indexOf(startIdx) > -1)){
+            activeAlbumId = al.id;
+            if (!rs) startIdx = inAlbum[0];
+          }
+        } catch(e){}
+        currentIndex = startIdx; // losowa kolejka zaczyna się od bieżącego utworu
+        rebuildQueue();
+        renderLibrary();
         loadTrack(startIdx, { autoplay: false });
         if (rs && tracks[startIdx] && tracks[startIdx].id === rs.id && rs.t > 1) applyResumeTime(rs.t);
       }
@@ -3173,7 +3274,12 @@
     const idx = album ? albumIndices(album) : [];
     return idx.length ? idx : tracks.map((_, i) => i);
   }
+  // Zapamiętanie, z jakiego albumu leci kolejka — po restarcie następny utwór nadal jest z albumu, a nie z całej biblioteki
+  function saveActiveAlbum(){
+    try { if (activeAlbumId) localStorage.setItem('playerActiveAlbum', activeAlbumId); else localStorage.removeItem('playerActiveAlbum'); } catch(e){}
+  }
   function rebuildQueue(){
+    saveActiveAlbum();
     let idx = baseQueueIndices();
     if (shuffleOn){
       const others = idx.filter(i => i !== currentIndex);
@@ -3541,6 +3647,7 @@
     if (!idxs.length) return;
     if (withShuffle){ shuffleOn = true; savePlayerMode(); }
     activeAlbumId = album.id;
+    saveActiveAlbum();
     queue = withShuffle ? shuffleIndices(idxs) : idxs.slice();
     loadTrack(queue[0], { autoplay: true });
     updateModeButtons();
@@ -4096,6 +4203,7 @@
     albums = albums.filter(a => a.id !== album.id);
     if (activeAlbumId === album.id) {
       activeAlbumId = null;
+      saveActiveAlbum();
       if (currentIndex > -1 && tracks[currentIndex]) updateTitleArtist(txArtist(tracks[currentIndex].artist), tracks[currentIndex].title);
     }
     if (openAlbumId === album.id) openAlbumId = null;
@@ -6307,6 +6415,15 @@
     const reactiveWrap = document.querySelector('.reactive-toggle');
     if (slot3d && reactiveWrap){ slot3d.appendChild(reactiveWrap); reactiveWrap.style.display = 'inline-flex'; }
     updateAutoDjBtn(); updateSkipSilenceBtn();
+    // Przełączniki w oknie ustawień sterują oryginalnymi przyciskami (cała logika zostaje w nich) i śledzą ich stan
+    [['smAutoDj', autoDjBtn], ['smSkipSilence', skipSilenceBtn]].forEach(function(pair){
+      const sw = document.getElementById(pair[0]), btn = pair[1];
+      if (!sw || !btn) return;
+      const sync = function(){ sw.checked = btn.classList.contains('active'); };
+      sync();
+      sw.addEventListener('change', function(){ if (sw.checked !== btn.classList.contains('active')) btn.click(); sync(); });
+      try { new MutationObserver(sync).observe(btn, { attributes: true, attributeFilter: ['class'] }); } catch(e){}
+    });
   })();
   const smEqBtn = document.getElementById('smEqBtn');
   if (smEqBtn) smEqBtn.addEventListener('click', function(){
@@ -6319,7 +6436,9 @@
       e.stopPropagation();
       settingsMenu.hidden = !settingsMenu.hidden;
       if (!settingsMenu.hidden){
-        animSwap(settingsMenu, 'menu-in');
+        animSwap(settingsMenu.querySelector('.sm-dialog') || settingsMenu, 'menu-in');
+        smResetSearch();
+        smShowPane(smCurrentPane());
         const mv = document.getElementById('smNetMoveBtn');
         if (mv){ const n = tracks.filter(function(t){ return !!t.netId; }).length; mv.textContent = t('Przenieś pobrane') + ' (' + n + ')'; mv.disabled = !n; }
         const dbEl = document.getElementById('smNetDiskBtn');
@@ -6336,12 +6455,74 @@
     });
     document.addEventListener('click', function(e){
       if (settingsMenu.hidden) return;
+      if (e.target === settingsMenu){ settingsMenu.hidden = true; return; } // klik w przyciemnione tło
       if (e.target.closest('#settingsMenu') || e.target.closest('#settingsBtn')) return;
       settingsMenu.hidden = true;
     });
+    const smCloseEl = document.getElementById('smClose');
+    if (smCloseEl) smCloseEl.addEventListener('click', function(){ settingsMenu.hidden = true; });
     document.addEventListener('keydown', function(e){
       if (e.key === 'Escape' && settingsMenu && !settingsMenu.hidden) settingsMenu.hidden = true;
     });
+  }
+  /* ---- Okno ustawień: zakładki + wyszukiwarka ---- */
+  function smPaneVisible(pane){ return !!pane && !(pane.classList.contains('sm-desktop-only') && !document.documentElement.classList.contains('nl-desktop')); }
+  function smCurrentPane(){
+    let id = 'play';
+    try { id = localStorage.getItem('pulsarSettingsTab') || 'play'; } catch(e){}
+    const pane = settingsMenu && settingsMenu.querySelector('.sm-pane[data-pane="' + id + '"]');
+    return smPaneVisible(pane) ? id : 'play';
+  }
+  function smShowPane(id){
+    if (!settingsMenu) return;
+    settingsMenu.querySelectorAll('.sm-pane').forEach(function(p){ p.classList.toggle('active', p.dataset.pane === id); });
+    settingsMenu.querySelectorAll('.sm-tab').forEach(function(b){ const on = b.dataset.pane === id; b.classList.toggle('active', on); b.setAttribute('aria-current', on ? 'page' : 'false'); });
+    const body = document.getElementById('smBody'); if (body) body.scrollTop = 0;
+  }
+  function smResetSearch(){
+    const q = document.getElementById('smSearch');
+    if (q && q.value){ q.value = ''; smFilter(''); }
+  }
+  function smFilter(raw){
+    const body = document.getElementById('smBody');
+    if (!body) return;
+    const q = String(raw || '').trim().toLocaleLowerCase();
+    body.classList.toggle('searching', !!q);
+    const items = body.querySelectorAll('.sm-card > .sm-row, .sm-card > .sm-btn, .sm-card > .sm-btn-row');
+    items.forEach(function(el){
+      const card = el.parentNode;
+      const cap = card.querySelector('.sm-cap');
+      const hay = (el.textContent + ' ' + (el.getAttribute('title') || '') + ' ' + Array.from(el.querySelectorAll('[title]')).map(function(x){ return x.getAttribute('title'); }).join(' ') + ' ' + (cap ? cap.textContent : '')).toLocaleLowerCase();
+      el.classList.toggle('sm-hide', !!q && hay.indexOf(q) === -1);
+    });
+    // karta widoczna, jeśli ma choć jeden pasujący element; sekcja — jeśli ma widoczną kartę (CSS ukrywa „tylko desktop”)
+    body.querySelectorAll('.sm-card').forEach(function(card){
+      const vis = !q || Array.from(card.children).some(function(c){ return !c.classList.contains('sm-cap') && c.tagName !== 'INPUT' && !c.classList.contains('sm-hide'); });
+      card.classList.toggle('sm-hide', !vis);
+    });
+    let any = false;
+    body.querySelectorAll('.sm-pane').forEach(function(pane){
+      pane.classList.remove('sm-hide');
+      const has = Array.from(pane.querySelectorAll('.sm-card')).some(function(c){ return c.getClientRects().length > 0; });
+      pane.classList.toggle('sm-hide', !!q && !has);
+      if (has && pane.getClientRects().length) any = true;
+    });
+    const empty = document.getElementById('smEmpty'); if (empty) empty.hidden = !q || any;
+  }
+  if (settingsMenu){
+    settingsMenu.querySelectorAll('.sm-tab').forEach(function(b){
+      b.addEventListener('click', function(){
+        smResetSearch();
+        try { localStorage.setItem('pulsarSettingsTab', b.dataset.pane); } catch(e){}
+        smShowPane(b.dataset.pane);
+      });
+    });
+    const smSearchEl = document.getElementById('smSearch');
+    if (smSearchEl){
+      smSearchEl.addEventListener('input', function(){ smFilter(smSearchEl.value); });
+      smSearchEl.addEventListener('keydown', function(e){ if (e.key === 'Escape' && smSearchEl.value){ e.stopPropagation(); smSearchEl.value = ''; smFilter(''); } });
+    }
+    smShowPane(smCurrentPane());
   }
   function fmtPan(v){
     v = Math.round(v * 100);
@@ -7487,6 +7668,12 @@
   };
 
   // Haczyk diagnostyczny (przydatny w konsoli i w testach)
+  // Haki dla testów automatycznych (tests/browser-test.mjs) — symulują kliknięcia użytkownika
+  window.__pulsarTest = {
+    indexOf: id => tracks.findIndex(x => x.id === id),
+    openAlbum: id => { openLibrary(); setLibView('albums'); openAlbumId = id; renderLibrary(); },
+    playFromLibrary: i => { openLibrary(); setLibView('tracks'); openAlbumId = null; renderLibrary(); const li = tracks[i] && document.querySelector('#trackList li[data-track-id="' + tracks[i].id + '"]'); if (li) li.click(); return !!li; }
+  };
   window.__player = {
     state(){ return { tracks: tracks.length, albums: albums.map(a => ({ name: a.name, tracks: a.trackIds.length })),
       repeatMode, shuffle: shuffleOn, currentIndex, queue: queue.slice(), threeDMode, visualMode,

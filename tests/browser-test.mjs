@@ -1,5 +1,5 @@
 // Testy przeglądarkowe Pulsara (headless Chromium).
-//   NODE_PATH=<katalog z puppeteer-core i @sparticuz/chromium> node tests/browser-test.mjs <media-dir> [gapless|tags|backup|desktop|obs|all]
+//   NODE_PATH=<katalog z puppeteer-core i @sparticuz/chromium> node tests/browser-test.mjs <media-dir> [gapless|tags|backup|desktop|obs|settings|all]
 // Tryb „przeglądarka”: neutralino.js podmieniony na pusty plik (desktop.js się nie włącza).
 // Tryb „desktop”: neutralino.js podmieniony na stub, którego system plików i execCommand obsługuje Node
 //   (yt-dlp jest symulowany — sprawdzamy logikę aktualizacji, nie sieć).
@@ -507,12 +507,115 @@ async function testObs(browser){
   await page.close();
 }
 
+/* ---------------- okno ustawień + zapamiętanie albumu ---------------- */
+async function testSettings(browser){
+  let page = await openApp(browser, {});
+  await loadFiles(page, ['gA.wav', 'gB.wav', 'gC.wav'].map(f => path.join(MEDIA, f)));
+  await sleep(800);
+  const tr = await idbTracks(page);
+  const idOf = n => (tr.find(x => x.name === n) || {}).id;
+  // album z dwóch utworów (B, C) prosto w IndexedDB, potem przeładowanie
+  await page.evaluate((b, c) => new Promise(res => {
+    const r = indexedDB.open('ambient-player-library', 2);
+    r.onsuccess = () => { const tx = r.result.transaction('playlists', 'readwrite'); tx.objectStore('playlists').put({ id: 'alb1', name: 'Test album', trackIds: [b, c], createdAt: 1, customCover: false }); tx.oncomplete = res; };
+  }), idOf('gB.wav'), idOf('gC.wav'));
+  await page.reload({ waitUntil: 'load' }); await sleep(1200);
+  const idx = await page.evaluate(ids => ids.map(id => window.__pulsarTest.indexOf(id)), [idOf('gA.wav'), idOf('gB.wav'), idOf('gC.wav')]).catch(() => null);
+  // odtwórz utwór B z widoku albumu (tak jak użytkownik)
+  await page.evaluate(() => window.__pulsarTest.openAlbum('alb1'));
+  await sleep(400);
+  const clicked = await page.evaluate(() => { const li = document.querySelectorAll('#albumTrackList li')[0]; if (!li) return false; li.click(); return true; });
+  await sleep(1200);
+  const s1 = await page.evaluate(() => ({ st: window.__player.state(), ls: localStorage.getItem('playerActiveAlbum') }));
+  check('album: kliknięcie utworu w albumie → kolejka z albumu', clicked && s1.ls === 'alb1' && s1.st.queue.length === 2 && idx && s1.st.currentIndex === idx[1], { clicked, ls: s1.ls, queue: s1.st.queue, cur: s1.st.currentIndex, idx });
+  await page.evaluate(() => { const a = document.getElementById('audio'); a.currentTime = 1.5; a.pause(); });
+  await sleep(500);
+  await page.reload({ waitUntil: 'load' }); await sleep(1500);
+  const s2 = await page.evaluate(() => ({ st: window.__player.state(), card: !!document.querySelector('.album-card.active-album') }));
+  check('album: po restarcie kolejka nadal z albumu', s2.st.queue.length === 2 && s2.st.currentIndex === idx[1] && s2.st.queue.indexOf(idx[0]) === -1, { queue: s2.st.queue, cur: s2.st.currentIndex });
+  await page.evaluate(() => window.__player.nextTrack()); await sleep(800);
+  const s3 = await page.evaluate(() => window.__player.state());
+  check('album: następny utwór = następny z albumu', s3.currentIndex === idx[2], { cur: s3.currentIndex });
+  // odtworzenie z całej biblioteki → album zapomniany
+  await page.evaluate(() => { document.getElementById('audio').pause(); });
+  await page.evaluate(() => window.__pulsarTest.playFromLibrary(0)); await sleep(800);
+  const lsOff = await page.evaluate(() => localStorage.getItem('playerActiveAlbum'));
+  await page.evaluate(() => document.getElementById('audio').pause());
+  await page.reload({ waitUntil: 'load' }); await sleep(1500);
+  const s4 = await page.evaluate(() => window.__player.state());
+  check('biblioteka: po graniu z całej listy restart nie wraca do albumu', lsOff === null && s4.queue.length === 3, { lsOff, queue: s4.queue });
+
+  // --- okno ustawień ---
+  const shot = async n => { const f = path.join(OUT, n); await page.screenshot({ path: f }); return f; };
+  await page.addStyleTag({ content: '*{backdrop-filter:none!important;-webkit-backdrop-filter:none!important}' }); // piaskownica bez GPU
+  await page.$eval('#settingsBtn', b => b.click()); await sleep(500);
+  const open = await page.evaluate(() => { const m = document.getElementById('settingsMenu'); const d = m.querySelector('.sm-dialog').getBoundingClientRect(); return { hidden: m.hidden, w: Math.round(d.width), h: Math.round(d.height), tabs: [...m.querySelectorAll('.sm-tab')].filter(b => b.getClientRects().length).map(b => b.dataset.pane), active: (m.querySelector('.sm-pane.active') || {}).dataset?.pane }; });
+  check('ustawienia: okno otwarte, zakładki (bez Windows/OBS w przeglądarce)', !open.hidden && open.w > 700 && open.tabs.join() === 'play,look,lib,net' && open.active === 'play', open);
+  await shot('settings-play.png');
+  for (const pane of ['look', 'lib', 'net']){
+    await page.$eval('.sm-tab[data-pane="' + pane + '"]', b => b.click()); await sleep(250);
+    await shot('settings-' + pane + '.png');
+  }
+  const act = await page.evaluate(() => document.querySelector('.sm-pane.active').dataset.pane);
+  check('ustawienia: przełączanie zakładek', act === 'net');
+  // kontrolki nadal działają (np. przełącznik gapless)
+  await page.$eval('.sm-tab[data-pane="play"]', b => b.click());
+  await page.$eval('#smGapless', el => el.click()); await sleep(200);
+  const gl = await page.evaluate(() => localStorage.getItem('playerGapless'));
+  await page.$eval('#smGapless', el => el.click());
+  check('ustawienia: przełącznik gapless zapisuje się', gl === '0', gl);
+  await page.$eval('#smSkipSilence', el => el.click()); await sleep(200);
+  const ss = await page.evaluate(() => [localStorage.getItem('playerSkipSilence'), document.getElementById('skipSilenceBtn').classList.contains('active')]);
+  await page.$eval('#smSkipSilence', el => el.click()); await sleep(200);
+  const ss2 = await page.evaluate(() => [localStorage.getItem('playerSkipSilence'), document.getElementById('smSkipSilence').checked]);
+  check('ustawienia: przełącznik „Pomijaj ciszę” steruje funkcją', ss[0] === '1' && ss[1] && ss2[0] === '0' && !ss2[1], { ss, ss2 });
+  await page.$eval('#smAutoDj', el => el.click()); await sleep(200);
+  const dj = await page.evaluate(() => [document.getElementById('autoDjBtn').classList.contains('active'), document.getElementById('smAutoDj').checked]);
+  await page.$eval('#smAutoDj', el => el.click()); await sleep(200);
+  check('ustawienia: przełącznik Auto-DJ steruje funkcją', dj[0] && dj[1], dj);
+  await shot('settings-play2.png');
+  // wyszukiwarka
+  await page.type('#smSearch', 'gapless'); await sleep(200);
+  const f1 = await page.evaluate(() => [...document.querySelectorAll('#smBody .sm-row, #smBody .sm-btn')].filter(e => e.getClientRects().length).map(e => e.textContent.trim().slice(0, 40)));
+  await shot('settings-search.png');
+  check('ustawienia: szukaj „gapless” → 1 wynik', f1.length === 1 && /Gapless/.test(f1[0]), f1);
+  await page.$eval('#smSearch', el => { el.value = ''; }); await page.type('#smSearch', 'folder'); await sleep(200);
+  const f2 = await page.evaluate(() => [...document.querySelectorAll('#smBody .sm-row, #smBody .sm-btn')].filter(e => e.getClientRects().length).length);
+  check('ustawienia: szukaj „folder” → wyniki z innych zakładek', f2 >= 2, f2);
+  await page.$eval('#smSearch', el => { el.value = ''; }); await page.type('#smSearch', 'zzzqqq'); await sleep(200);
+  const empty = await page.evaluate(() => !document.getElementById('smEmpty').hidden);
+  check('ustawienia: brak wyników → komunikat', empty);
+  await page.keyboard.press('Escape'); await sleep(150);
+  const afterEsc1 = await page.evaluate(() => ({ q: document.getElementById('smSearch').value, hidden: document.getElementById('settingsMenu').hidden }));
+  await page.keyboard.press('Escape'); await sleep(150);
+  const afterEsc2 = await page.evaluate(() => document.getElementById('settingsMenu').hidden);
+  check('ustawienia: Esc czyści wyszukiwanie, drugi Esc zamyka', afterEsc1.q === '' && !afterEsc1.hidden && afterEsc2, { afterEsc1, afterEsc2 });
+  // ostatnia zakładka zapamiętana, klik w tło zamyka
+  await page.$eval('#settingsBtn', b => b.click()); await sleep(300);
+  await page.$eval('.sm-tab[data-pane="look"]', b => b.click());
+  await page.mouse.click(20, 420); await sleep(200);
+  const bg = await page.evaluate(() => document.getElementById('settingsMenu').hidden);
+  await page.$eval('#settingsBtn', b => b.click()); await sleep(300);
+  const rem = await page.evaluate(() => document.querySelector('.sm-pane.active').dataset.pane);
+  check('ustawienia: klik w tło zamyka, ostatnia zakładka zapamiętana', bg && rem === 'look', { bg, rem });
+  // wersja desktopowa (Windows/OBS) + angielski — tylko wygląd
+  await page.evaluate(() => { document.documentElement.classList.add('nl-desktop'); window.__player.__i18n.set('en'); });
+  await page.$eval('.sm-tab[data-pane="win"]', b => b.click()); await sleep(300);
+  await shot('settings-win-en.png');
+  const en = await page.evaluate(() => document.querySelector('.sm-pane.active .sm-pane-title').textContent + ' | ' + document.getElementById('smSearch').placeholder);
+  check('ustawienia: tłumaczenie EN', /Windows/.test(en) && /Search settings/.test(en), en);
+  await page.setViewport({ width: 520, height: 800 }); await sleep(300);
+  await shot('settings-narrow.png');
+  await page.close();
+}
+
 const browser = await launch();
 try {
   if (WHICH === 'all' || WHICH === 'obs') await testObs(browser);
   if (WHICH === 'all' || WHICH === 'tags') await testTags(browser);
   if (WHICH === 'all' || WHICH === 'backup') await testBackup(browser);
   if (WHICH === 'all' || WHICH === 'desktop') await testDesktop(browser);
+  if (WHICH === 'all' || WHICH === 'settings') await testSettings(browser);
   if (WHICH === 'all' || WHICH === 'gapless') await testGapless(browser);
 } catch (e){ console.log('FAIL wyjątek:', e && e.stack || e); failures++; }
 await browser.close();
