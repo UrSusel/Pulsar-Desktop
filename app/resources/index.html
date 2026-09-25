@@ -1130,6 +1130,18 @@
   .obs-theme-acc { display: flex; gap: 6px; align-items: center; }
   .obs-theme-acc input[type=color] { width: 34px; height: 28px; padding: 0; border: 1px solid rgba(255,255,255,.2); border-radius: 6px; background: none; cursor: pointer; flex: none; }
   .obs-theme-check { display: flex; align-items: center; gap: 8px; font-size: 12.5px; align-self: end; padding-bottom: 5px; cursor: pointer; }
+  .obs-theme-details { border: 1px solid rgba(255,255,255,.08); border-radius: 10px; padding: 0 12px; background: rgba(255,255,255,.02); }
+  .obs-theme-details > summary { cursor: pointer; list-style: none; padding: 10px 0; font-size: 12.5px; font-weight: 600; color: rgba(255,255,255,.8); display: flex; align-items: center; gap: 8px; }
+  .obs-theme-details > summary::-webkit-details-marker { display: none; }
+  .obs-theme-details > summary::before { content: ""; width: 6px; height: 6px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform .15s; margin: 0 2px; }
+  .obs-theme-details[open] > summary::before { transform: rotate(45deg); }
+  .obs-theme-more { padding-bottom: 12px; }
+  .obs-theme-range b { color: #fff; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .obs-theme-range input[type=range] { width: 100%; accent-color: var(--accent); margin: 4px 0 0; }
+  .obs-theme-checks { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px 16px; }
+  .obs-theme-checks .obs-theme-check { padding: 0; }
+  .obs-theme-reset { grid-column: 1 / -1; justify-self: start; background: transparent; border: 1px solid rgba(255,255,255,.14); color: rgba(255,255,255,.75); border-radius: 8px; padding: 5px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+  .obs-theme-reset:hover { color: #fff; border-color: rgba(255,255,255,.3); }
   .obs-preview { position: relative; width: 100%; aspect-ratio: 800 / 360; overflow: hidden; border-radius: 10px; flex: none;
     background: repeating-conic-gradient(#2a2a30 0 25%, #1e1e24 0 50%) 0 0 / 20px 20px; border: 1px solid rgba(255,255,255,.1); }
   .obs-preview iframe { color-scheme: normal; background: transparent; position: absolute; left: 0; top: 0; width: 800px; height: 360px; border: 0; transform-origin: 0 0; transform: scale(var(--k, .5)); pointer-events: none; }
@@ -1521,6 +1533,34 @@
     if (!_savedLang){ try { localStorage.setItem('playerLang', CUR_LANG); } catch(e){} }
   } catch(e){ CUR_LANG = 'pl'; }
   var I18N_DICT = {
+    'Winyl (obracająca się płyta)': { en: 'Vinyl (spinning record)', es: 'Vinilo (disco girando)' },
+    'Neon': { en: 'Neon', es: 'Neón' },
+    'Pastylka (mała)': { en: 'Pill (small)', es: 'Píldora (pequeña)' },
+    'Rozmiar': { en: 'Size', es: 'Tamaño' },
+    'Krycie tła': { en: 'Background opacity', es: 'Opacidad del fondo' },
+    'Odstęp od krawędzi': { en: 'Edge margin', es: 'Margen del borde' },
+    'Czcionka': { en: 'Font', es: 'Fuente' },
+    'Segoe UI (domyślna)': { en: 'Segoe UI (default)', es: 'Segoe UI (predeterminada)' },
+    'Wąska (Bahnschrift)': { en: 'Condensed (Bahnschrift)', es: 'Estrecha (Bahnschrift)' },
+    'Szeryfowa (Georgia)': { en: 'Serif (Georgia)', es: 'Serif (Georgia)' },
+    'Stała szerokość (Consolas)': { en: 'Monospace (Consolas)', es: 'Monoespaciada (Consolas)' },
+    'Animacja': { en: 'Animation', es: 'Animación' },
+    'Wysunięcie': { en: 'Slide', es: 'Deslizar' },
+    'Przenikanie': { en: 'Fade', es: 'Fundido' },
+    'Powiększenie': { en: 'Zoom', es: 'Zoom' },
+    'Bez animacji': { en: 'No animation', es: 'Sin animación' },
+    'Chowaj automatycznie': { en: 'Auto-hide', es: 'Ocultar automáticamente' },
+    'Nigdy': { en: 'Never', es: 'Nunca' },
+    'Po 8 s od zmiany utworu': { en: '8 s after track change', es: '8 s tras cambiar de pista' },
+    'Po 15 s od zmiany utworu': { en: '15 s after track change', es: '15 s tras cambiar de pista' },
+    'Po 30 s od zmiany utworu': { en: '30 s after track change', es: '30 s tras cambiar de pista' },
+    'Okładka': { en: 'Cover', es: 'Portada' },
+    'Pasek postępu i czas': { en: 'Progress bar and time', es: 'Barra de progreso y tiempo' },
+    'Napis „Teraz gra”': { en: '“Now playing” label', es: 'Texto «Sonando ahora»' },
+    'Rozmyta okładka w tle': { en: 'Blurred cover background', es: 'Portada difuminada de fondo' },
+    'Przewijaj długi tytuł': { en: 'Scroll long titles', es: 'Desplazar títulos largos' },
+    'Przywróć domyślny wygląd': { en: 'Restore default look', es: 'Restaurar el aspecto predeterminado' },
+    'Więcej opcji wyglądu': { en: 'More appearance options', es: 'Más opciones de aspecto' },
     'Otwórz źródło': { en: 'Open source page', es: 'Abrir la fuente' },
     'pełny': { en: 'full', es: 'completa' },
     'Zapis jako MP3': { en: 'Save as MP3', es: 'Guardar como MP3' },

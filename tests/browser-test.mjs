@@ -464,7 +464,18 @@ async function testDesktop(browser){
   await sleep(800);
   await page.evaluate(() => { const s = document.querySelectorAll('.obs-theme select'); s[0].value = 'bar'; s[0].dispatchEvent(new Event('change')); s[1].value = 'tr'; s[1].dispatchEvent(new Event('change')); s[2].value = 'custom'; s[2].dispatchEvent(new Event('change')); const c = document.querySelector('.obs-theme input[type=color]'); c.value = '#22cc88'; c.dispatchEvent(new Event('input')); });
   await sleep(900);
+  // „Więcej opcji”: suwak rozmiaru, animacja, auto-chowanie, rozmyta okładka
+  await page.evaluate(() => {
+    const d = document.querySelector('.obs-theme-details'); d.open = true;
+    const r = d.querySelector('input[type=range]'); r.value = '130'; r.dispatchEvent(new Event('input'));
+    const ss = d.querySelectorAll('select'); ss[1].value = 'fade'; ss[1].dispatchEvent(new Event('change')); ss[2].value = '15'; ss[2].dispatchEvent(new Event('change'));
+    const c = d.querySelector('input[data-key=art]'); c.checked = true; c.dispatchEvent(new Event('change'));
+  });
+  await sleep(900);
   const th = await page.evaluate(() => JSON.parse(localStorage.getItem('pulsarObsTheme')));
+  check('OBS: więcej opcji zapisane', th.scale === 130 && th.anim === 'fade' && th.autohide === 15 && th.art === true, th);
+  const fa2 = await (page.frames().find(f => /overlay\.html\?preview/.test(f.url())) || { evaluate: async () => null }).evaluate(() => ({ s: document.body.style.getPropertyValue('--s'), art: document.documentElement.getAttribute('data-art'), anim: document.documentElement.getAttribute('data-anim') }));
+  check('OBS: podgląd — więcej opcji na żywo', !!fa2 && fa2.s === '1.3' && fa2.art === '1' && fa2.anim === 'fade', fa2);
   check('OBS: motyw zapisany', th.style === 'bar' && th.pos === 'tr' && th.accent === '#22cc88', th);
   const fr = page.frames().find(f => /overlay\.html\?preview/.test(f.url()));
   const fa = fr && await fr.evaluate(() => ({ style: document.documentElement.getAttribute('data-style'), pos: document.documentElement.getAttribute('data-pos'), acc: document.body.style.getPropertyValue('--acc'), title: document.getElementById('title').textContent }));
@@ -481,6 +492,9 @@ async function testDesktop(browser){
   await sleep(1500);
   const html = fs.existsSync(gen) ? fs.readFileSync(gen, 'utf8') : '';
   check('OBS: pulsar-obs.html z motywem', /data-style="bar" data-pos="tr" data-viz="1"/.test(html), html.slice(0, 120));
+  const baked = (/var BAKED_THEME = (\{[^\n]*?\});/.exec(html) || [])[1];
+  let bj = null; try { bj = JSON.parse(baked); } catch (e){}
+  check('OBS: pełny motyw zapieczony w pliku (rozmiar, animacja, auto-chowanie)', !!bj && bj.style === 'bar' && bj.scale === 130 && bj.anim === 'fade' && bj.autohide === 15 && bj.art === true, baked);
   // ustawienia — zrzut menu
   await page.evaluate(() => { const m = document.getElementById('settingsMenu'); window.__player && 0; if (document.getElementById('modalDim')) document.getElementById('modalCancel').click(); });
   await sleep(300);
@@ -504,13 +518,35 @@ async function testObs(browser){
   await page.evaluate(() => document.body.style.background = '#3a4a5a');
   const cover = 'data:image/jpeg;base64,' + fs.readFileSync(path.join(MEDIA, 'cover.jpg')).toString('base64');
   const shots = [];
-  for (const [style, pos, accent] of [['card', 'bl', ''], ['bar', 'bl', '255, 90, 60'], ['cover', 'br', ''], ['minimal', 'tl', '80, 200, 255'], ['card', 'bc', '255, 200, 0'], ['bar', 'tr', '']]){
-    await page.evaluate((style, pos, accent, cover) => window.postMessage({ pulsarObsPreview: { title: 'Bardzo długi tytuł utworu, który się nie zmieści', artist: 'Wykonawca Testowy', playing: true, hasTrack: true, pos: 83, dur: 215, accent: '160, 107, 255', lang: 'pl', coverId: 'x', theme: { style, pos, viz: true, accent } }, cover }, '*'), style, pos, accent, cover);
+  const cases = [['card', 'bl', ''], ['bar', 'bl', '255, 90, 60'], ['cover', 'br', ''], ['minimal', 'tl', '80, 200, 255'], ['card', 'bc', '255, 200, 0'], ['bar', 'tr', ''],
+    ['vinyl', 'bl', '', {}], ['neon', 'bl', '255, 60, 200', {}], ['pill', 'tr', '', {}],
+    ['card', 'bl', '', { art: true, font: 'serif', scale: 80, label: false, tag: 'art' }],
+    ['vinyl', 'br', '60, 220, 160', { bg: 30, margin: 60, marquee: true, tag: 'opts' }],
+    ['neon', 'tl', '', { cover: false, progress: false, font: 'mono', tag: 'nocover' }]];
+  for (const [style, pos, accent, extra] of cases){
+    const theme = Object.assign({ style, pos, viz: true, accent }, extra || {});
+    await page.evaluate((theme, cover) => window.postMessage({ pulsarObsPreview: { title: 'Bardzo długi tytuł utworu, który się nie zmieści w jednej linii', artist: 'Wykonawca Testowy', playing: true, hasTrack: true, pos: 83, dur: 215, accent: '160, 107, 255', lang: 'pl', coverId: 'x', theme }, cover }, '*'), theme, cover);
     await sleep(900);
-    const f = path.join(OUT, 'obs-' + style + '-' + pos + '.png'); await page.screenshot({ path: f }); shots.push(f);
-    const attrs = await page.evaluate(() => [document.documentElement.getAttribute('data-style'), document.documentElement.getAttribute('data-pos')]);
-    check('overlay ' + style + '/' + pos, attrs[0] === style && attrs[1] === pos);
+    const f = path.join(OUT, 'obs-' + style + '-' + pos + (extra && extra.tag ? '-' + extra.tag : '') + '.png'); await page.screenshot({ path: f }); shots.push(f);
+    const a = await page.evaluate(() => { const r = document.documentElement, c = document.getElementById('card'), b = document.body.style;
+      return { st: r.getAttribute('data-style'), pos: r.getAttribute('data-pos'), font: r.getAttribute('data-font'), art: r.getAttribute('data-art'), cover: r.getAttribute('data-cover'),
+        prog: r.getAttribute('data-prog'), label: r.getAttribute('data-label'), s: b.getPropertyValue('--s'), bga: b.getPropertyValue('--bga'), m: b.getPropertyValue('--m'),
+        mq: document.getElementById('title').classList.contains('mq'), visible: getComputedStyle(c).opacity > 0.5,
+        coverShown: getComputedStyle(document.querySelector('.cw')).display !== 'none', rowShown: getComputedStyle(document.querySelector('.row')).display !== 'none',
+        spin: getComputedStyle(document.querySelector('.cw')).animationName, bgart: getComputedStyle(document.getElementById('bgart')).display };
+    });
+    let ok = a.st === style && a.pos === pos && a.visible;
+    if (extra && extra.tag === 'art') ok = ok && a.art === '1' && a.bgart === 'block' && a.font === 'serif' && a.s === '0.8' && a.label === '0';
+    if (extra && extra.tag === 'opts') ok = ok && a.bga === '0.3' && a.m === '60px' && a.mq === true;
+    if (extra && extra.tag === 'nocover') ok = ok && !a.coverShown && !a.rowShown && a.font === 'mono';
+    if (style === 'vinyl') ok = ok && a.spin === 'pulsarSpin';
+    check('overlay ' + style + '/' + pos + (extra && extra.tag ? ' +' + extra.tag : ''), ok, a);
   }
+  // animacja „powiększenie” i chowanie przy braku utworu
+  await page.evaluate(cover => window.postMessage({ pulsarObsPreview: { title: 'X', artist: 'Y', playing: false, hasTrack: false, pos: 0, dur: 100, lang: 'pl', coverId: 'x', theme: { style: 'card', pos: 'bl', anim: 'zoom' } }, cover }, '*'), cover);
+  await sleep(900);
+  const hid = await page.evaluate(() => ({ op: +getComputedStyle(document.getElementById('card')).opacity, tr: getComputedStyle(document.getElementById('card')).transform, anim: document.documentElement.getAttribute('data-anim') }));
+  check('overlay: animacja zoom + chowanie', hid.anim === 'zoom' && hid.op < 0.1 && /matrix\(0\.8/.test(hid.tr), hid);
   await page.close();
 }
 
@@ -711,7 +747,7 @@ async function testCovers(browser){
   const by = n => tr.find(x => x.name === n) || {};
   const bones = by('Imagine Dragons - Bones (Official Audio).mp3'), bel = by('Believer.mp3'), unk = by('Nieznany.mp3'), q = by('Queen.mp3');
   check('okładki: Bones (tytuł z YouTube + kanał „ImagineDragons”) → Deezer, właściwy wykonawca', bones.cover === jpg.length && bones.title === 'Bones' && bones.artist === 'Imagine Dragons', bones);
-  check('okładki: Deezer przez JSONP (bez CORS), zapytanie artist:"Imagine Dragons" track:"Bones"', log.deezer.some(d => d.jsonp && d.q === 'artist:"imagine dragons" track:"bones"'), log.deezer.slice(0, 3));
+  check('okładki: Deezer przez JSONP (bez CORS), najpierw zwykłe zapytanie „imagine dragons bones”', log.deezer.some(d => d.jsonp && d.q === 'imagine dragons bones'), log.deezer.slice(0, 4));
   check('okładki: Believer (kanał „- Topic”) → iTunes 600×600', bel.cover === jpg.length && bel.artist === 'Imagine Dragons' && log.img.includes('/believer/600x600bb.jpg'), { bel, img: log.img });
   check('okładki: Queen („QueenVEVO”, „(Remastered 2011)”) → MusicBrainz, oficjalne wydanie', q.cover === jpg.length && q.title === 'Bohemian Rhapsody' && q.artist === 'Queen' && log.img.includes('/release/rel-q/front-500') && !log.img.includes('/release/rel-b/front-500'), { q, img: log.img });
   check('okładki: niepasujący wynik NIE jest przypisywany', unk.cover === 0 && unk.title === 'Zupełnie Nieznany Kawałek [HD]', unk);

@@ -13,20 +13,43 @@
 -->
 <style>
   html, body { margin: 0; height: 100%; background: transparent; overflow: hidden; }
-  body { font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; color: #fff; --acc: 160, 107, 255; }
+  body { font-family: "Segoe UI", system-ui, -apple-system, Roboto, Arial, sans-serif; color: #fff; --acc: 160, 107, 255; --m: 24px; --bga: 1; --s: 1; }
+  html[data-font="condensed"] body { font-family: "Bahnschrift SemiCondensed", Bahnschrift, "Arial Narrow", "Roboto Condensed", sans-serif; }
+  html[data-font="serif"] body { font-family: Georgia, Cambria, "Times New Roman", serif; }
+  html[data-font="mono"] body { font-family: "Cascadia Mono", Consolas, "DejaVu Sans Mono", "Courier New", monospace; }
+  html[data-font="mono"] .title { letter-spacing: -.02em; }
   html[data-mode="audio"] .card { display: none !important; }
   .card {
-    position: absolute; left: 24px; bottom: 24px; width: min(720px, calc(100vw - 48px));
+    position: absolute; left: var(--m); bottom: var(--m); width: min(720px, calc(100vw - 2 * var(--m))); zoom: var(--s);
     display: grid; grid-template-columns: auto 1fr; gap: 18px; align-items: center;
     padding: 16px 20px 16px 16px; border-radius: 20px; box-sizing: border-box;
-    background: linear-gradient(135deg, rgba(12, 12, 20, .82), rgba(12, 12, 20, .64));
-    border: 1px solid rgba(var(--acc), .45);
+    background: linear-gradient(135deg, rgba(12, 12, 20, calc(.82 * var(--bga))), rgba(12, 12, 20, calc(.64 * var(--bga))));
+    border: 1px solid rgba(var(--acc), calc(.45 * var(--bga) + .1));
     box-shadow: 0 18px 50px rgba(0, 0, 0, .45), 0 0 40px rgba(var(--acc), .18) inset;
-    --tx: 0px; --ty: 14px;
-    opacity: 0; transform: translate(var(--tx), var(--ty)); transition: opacity .6s ease, transform .6s ease, border-color .8s ease;
+    --tx: 0px; --ty: 14px; --sc: 1;
+    opacity: 0; transform: translate(var(--tx), var(--ty)) scale(var(--sc)); transition: opacity .6s ease, transform .6s ease, border-color .8s ease;
   }
-  .card.show { opacity: 1; transform: translate(var(--tx), 0); }
-  .card.idle { opacity: .0; transform: translate(var(--tx), var(--ty)); }
+  .card.show { opacity: 1; transform: translate(var(--tx), 0) scale(1); }
+  .card.idle, .card.show.ah { opacity: .0; transform: translate(var(--tx), var(--ty)) scale(var(--sc)); }
+  /* animacja pojawiania się */
+  html[data-anim="fade"] .card { --ty: 0px !important; }
+  html[data-anim="zoom"] .card { --ty: 0px !important; --sc: .82; transition-timing-function: cubic-bezier(.2, .9, .3, 1.25); }
+  html[data-anim="none"] .card { transition: none; }
+  .cw { position: relative; line-height: 0; flex: none; }
+  /* rozmyta okładka w tle */
+  .bgart { display: none; position: absolute; inset: -30px; z-index: -1; background: center / cover no-repeat; filter: blur(26px) saturate(1.3) brightness(.55); opacity: var(--bga); }
+  html[data-art="1"] .card { isolation: isolate; overflow: hidden; }
+  html[data-art="1"] .bgart { display: block; }
+  /* przewijanie długiego tytułu */
+  .title.mq { text-overflow: clip; -webkit-mask-image: linear-gradient(90deg, transparent, #000 4%, #000 92%, transparent); mask-image: linear-gradient(90deg, transparent, #000 4%, #000 92%, transparent); }
+  .title .mq-in { display: inline-block; padding-left: 4%; animation: pulsarMq var(--mqd, 12s) linear infinite; }
+  @keyframes pulsarMq { 0%, 12% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+  /* elementy do ukrycia */
+  html[data-cover="0"] .cw { display: none; }
+  html[data-cover="0"] .card { grid-template-columns: 1fr; }
+  html[data-cover="0"] canvas.viz { left: 0; width: 100%; border-radius: 0 0 20px 20px; }
+  html[data-prog="0"] .row { display: none !important; }
+  html[data-label="0"] .np { display: none !important; }
   .cover { width: 112px; height: 112px; border-radius: 14px; object-fit: cover; background: #151520; box-shadow: 0 10px 30px rgba(0, 0, 0, .5); }
   .cover:not([src]) { background: radial-gradient(circle at 30% 25%, rgba(var(--acc), .85), rgba(var(--acc), .15) 70%), #151520; }
   .meta { min-width: 0; display: flex; flex-direction: column; gap: 4px; }
@@ -40,9 +63,9 @@
   canvas.viz { position: absolute; left: 146px; right: 0; bottom: 0; width: calc(100% - 146px); height: 34px; opacity: .55; pointer-events: none; border-radius: 0 0 20px 0; }
 
   /* ---------- pozycja (Pulsar → Ustawienia → OBS → Wygląd overlayu) ---------- */
-  html[data-pos="br"] .card { left: auto; right: 24px; }
-  html[data-pos="tl"] .card { bottom: auto; top: 24px; --ty: -14px; }
-  html[data-pos="tr"] .card { bottom: auto; top: 24px; left: auto; right: 24px; --ty: -14px; }
+  html[data-pos="br"] .card { left: auto; right: var(--m); }
+  html[data-pos="tl"] .card { bottom: auto; top: var(--m); --ty: -14px; }
+  html[data-pos="tr"] .card { bottom: auto; top: var(--m); left: auto; right: var(--m); --ty: -14px; }
   html[data-pos="bc"] .card { left: 50%; --tx: -50%; }
   html[data-viz="0"] canvas.viz { display: none; }
 
@@ -50,7 +73,7 @@
   html[data-style="bar"] .card {
     left: 0; right: 0; bottom: 0; top: auto; width: 100%; --tx: 0px; --ty: 100%;
     grid-template-columns: auto 1fr; gap: 14px; padding: 10px 150px 13px 12px; border-radius: 0;
-    border-width: 1px 0 0; background: linear-gradient(90deg, rgba(12, 12, 20, .9), rgba(12, 12, 20, .72));
+    border-width: 1px 0 0; background: linear-gradient(90deg, rgba(12, 12, 20, calc(.9 * var(--bga))), rgba(12, 12, 20, calc(.72 * var(--bga))));
     box-shadow: 0 -8px 30px rgba(0, 0, 0, .35);
   }
   html[data-style="bar"][data-pos^="t"] .card { top: 0; bottom: auto; border-width: 0 0 1px; --ty: -100%; }
@@ -67,7 +90,8 @@
   html[data-style="bar"] canvas.viz { left: auto; right: 0; width: 42%; height: 100%; opacity: .28; border-radius: 0; }
 
   /* ---------- motyw: duża okładka z napisem ---------- */
-  html[data-style="cover"] .card { display: block; width: 300px; padding: 0; border-radius: 18px; overflow: hidden; }
+  html[data-style="cover"] .card { display: block; width: 300px; overflow: hidden; padding: 0; border-radius: 18px; overflow: hidden; }
+  html[data-style="cover"] .cw { display: block; }
   html[data-style="cover"] .cover { display: block; width: 100%; height: 300px; border-radius: 0; box-shadow: none; }
   html[data-style="cover"] .meta {
     position: absolute; left: 0; right: 0; bottom: 0; z-index: 2; gap: 2px;
@@ -87,12 +111,65 @@
   html[data-style="minimal"] .title { font-size: 26px; text-shadow: 0 2px 8px rgba(0, 0, 0, .85), 0 0 2px rgba(0, 0, 0, .9); }
   html[data-style="minimal"] .artist { font-size: 17px; color: rgba(255, 255, 255, .85); text-shadow: 0 2px 6px rgba(0, 0, 0, .85); }
   html[data-style="minimal"] .row { margin-top: 4px; }
+  html[data-style="minimal"] .bgart { display: none; }
   html[data-style="minimal"] .bar { height: 3px; background: rgba(255, 255, 255, .22); }
+
+  /* ---------- motyw: winyl (obracająca się płyta) ---------- */
+  html[data-style="vinyl"] .card { width: min(640px, calc(100vw - 2 * var(--m))); gap: 20px; padding: 12px 30px 12px 12px; border-radius: 999px;
+    background: linear-gradient(90deg, rgba(10, 10, 14, calc(.86 * var(--bga))), rgba(10, 10, 14, calc(.66 * var(--bga)))); border-color: rgba(255, 255, 255, calc(.12 * var(--bga) + .04)); box-shadow: 0 10px 34px rgba(0, 0, 0, calc(.45 * var(--bga))); }
+  html[data-style="vinyl"] .cw { width: 108px; height: 108px; border-radius: 50%; background: #0b0b0e; box-shadow: 0 8px 24px rgba(0, 0, 0, .6), 0 0 0 1px rgba(255, 255, 255, .06);
+    animation: pulsarSpin 7s linear infinite; animation-play-state: paused; }
+  html[data-style="vinyl"][data-playing="1"] .cw { animation-play-state: running; }
+  html[data-style="vinyl"] .cover { width: 100%; height: 100%; border-radius: 50%; box-shadow: none;
+    -webkit-mask-image: radial-gradient(circle, transparent 9%, #000 9.5%, #000 36%, transparent 36.5%, transparent 38%, #000 38.5%);
+    mask-image: radial-gradient(circle, transparent 9%, #000 9.5%, #000 36%, transparent 36.5%, transparent 38%, #000 38.5%); }
+  html[data-style="vinyl"] .cw::before { content: ""; position: absolute; inset: 0; border-radius: 50%; pointer-events: none; z-index: 1;
+    background: repeating-radial-gradient(circle, rgba(0, 0, 0, 0) 0 2px, rgba(0, 0, 0, .28) 2px 3px), radial-gradient(circle, transparent 36%, rgba(0, 0, 0, .55) 37%, rgba(0, 0, 0, .35) 100%);
+    -webkit-mask-image: radial-gradient(circle, transparent 36.5%, #000 37%); mask-image: radial-gradient(circle, transparent 36.5%, #000 37%); }
+  html[data-style="vinyl"] .cw::after { content: ""; position: absolute; left: 50%; top: 50%; width: 10px; height: 10px; margin: -5px 0 0 -5px; border-radius: 50%; z-index: 2;
+    background: #0b0b0e; box-shadow: 0 0 0 3px rgba(var(--acc), .9); }
+  html[data-style="vinyl"] .title { font-size: 24px; }
+  html[data-style="vinyl"] canvas.viz { left: 140px; right: 34px; width: calc(100% - 174px); height: 30px; opacity: .45; border-radius: 0; }
+  html[data-style="vinyl"][data-cover="0"] .card { padding-left: 30px; }
+  html[data-style="vinyl"][data-cover="0"] canvas.viz { left: 30px; width: calc(100% - 64px); }
+  @keyframes pulsarSpin { to { transform: rotate(360deg); } }
+
+  /* ---------- motyw: neon ---------- */
+  html[data-style="neon"] .card { width: min(680px, calc(100vw - 2 * var(--m))); border-radius: 14px; border: 2px solid rgba(var(--acc), 1);
+    background: rgba(6, 4, 12, calc(.6 * var(--bga)));
+    box-shadow: 0 0 8px rgba(var(--acc), .9), 0 0 28px rgba(var(--acc), .45), inset 0 0 22px rgba(var(--acc), .3); }
+  html[data-style="neon"] .cover { width: 96px; height: 96px; border-radius: 8px; box-shadow: 0 0 0 2px rgba(var(--acc), 1), 0 0 22px rgba(var(--acc), .7); }
+  html[data-style="neon"] .np { color: #fff; text-shadow: 0 0 6px rgba(var(--acc), 1), 0 0 14px rgba(var(--acc), .8); filter: none; animation: pulsarFlicker 5s infinite; }
+  html[data-style="neon"] .title { text-transform: uppercase; letter-spacing: 1px; font-size: 25px; font-weight: 700;
+    text-shadow: 0 0 4px #fff, 0 0 10px rgba(var(--acc), 1), 0 0 24px rgba(var(--acc), .9), 0 0 42px rgba(var(--acc), .6); }
+  html[data-style="neon"] .artist { color: rgba(var(--acc), 1); filter: brightness(1.5); text-shadow: 0 0 10px rgba(var(--acc), .8); }
+  html[data-style="neon"] .bar { height: 3px; background: rgba(var(--acc), .18); overflow: visible; }
+  html[data-style="neon"] .fill { background: #fff; box-shadow: 0 0 6px #fff, 0 0 12px rgba(var(--acc), 1), 0 0 24px rgba(var(--acc), 1); }
+  html[data-style="neon"] .time { color: rgba(var(--acc), 1); filter: brightness(1.5); text-shadow: 0 0 8px rgba(var(--acc), .9); }
+  html[data-style="neon"] canvas.viz { opacity: .75; filter: drop-shadow(0 0 4px rgba(var(--acc), 1)); left: 132px; width: calc(100% - 132px); }
+  @keyframes pulsarFlicker { 0%, 91%, 95%, 100% { opacity: 1; } 92% { opacity: .35; } 93.5% { opacity: .9; } 94% { opacity: .4; } }
+
+  /* ---------- motyw: pastylka (mała, do rogu ekranu) ---------- */
+  html[data-style="pill"] .card { width: auto; max-width: min(560px, calc(100vw - 2 * var(--m))); grid-template-columns: auto minmax(0, 1fr); gap: 11px;
+    padding: 6px 22px 6px 6px; border-radius: 999px; background: rgba(16, 16, 24, calc(.88 * var(--bga))); border-color: rgba(255, 255, 255, calc(.14 * var(--bga) + .04));
+    box-shadow: 0 8px 26px rgba(0, 0, 0, calc(.4 * var(--bga))); overflow: hidden; }
+  html[data-style="pill"] .cover { width: 42px; height: 42px; border-radius: 50%; box-shadow: none; }
+  html[data-style="pill"] .meta { flex-direction: row; align-items: baseline; gap: 8px; }
+  html[data-style="pill"] .np, html[data-style="pill"] .time, html[data-style="pill"] canvas.viz { display: none; }
+  html[data-style="pill"] .title { font-size: 16px; font-weight: 700; flex: 0 1 auto; max-width: 68%; text-shadow: none; }
+  html[data-style="pill"] .artist { font-size: 14px; flex: 0 1000 auto; color: rgba(255, 255, 255, .62); }
+  html[data-style="pill"] .artist:not(:empty)::before { content: "· "; color: rgba(255, 255, 255, .35); }
+  html[data-style="pill"] .row { position: absolute; left: 60px; right: 22px; bottom: 5px; margin: 0; }
+  html[data-style="pill"] .bar { height: 2px; background: rgba(255, 255, 255, .1); }
+  html[data-style="pill"] .fill { box-shadow: none; }
+  html[data-style="pill"][data-cover="0"] .card { padding-left: 22px; }
+  html[data-style="pill"][data-cover="0"] .row { left: 22px; }
 </style>
 </head>
 <body>
   <div class="card" id="card">
-    <img class="cover" id="cover" alt="">
+    <div class="bgart" id="bgart"></div>
+    <div class="cw"><img class="cover" id="cover" alt=""></div>
     <div class="meta">
       <div class="np" id="np">Teraz gra</div>
       <div class="title" id="title"></div>
@@ -107,6 +184,8 @@
   var MODE = document.documentElement.getAttribute('data-mode') || 'overlay';
   var PREVIEW = /[?&]preview\b/.test(location.search); // podgląd w ustawieniach Pulsara — dane przez postMessage, bez połączenia
   var themeAccent = ''; // własny kolor akcentu z motywu ('' = z okładki)
+  var BAKED_THEME = /*PULSAR_THEME*/null; // motyw zapisany przez Pulsara w pliku dla OBS (działa od razu, jeszcze przed połączeniem)
+  var autoHide = 0, changedAt = performance.now(), marquee = false, curTitle = '';
   var TARGET = 0.12;   // docelowy bufor [s] — małe opóźnienie względem Pulsara
   var MAX_LEAD = 0.3;  // powyżej tego nadmiarowe paczki są odrzucane
   var ctx = null, outGain = null, analyser = null, nextTime = 0, lastSeq = -1, lastAudioAt = 0;
@@ -210,24 +289,54 @@
     if (!m) return;
     meta.playing = !!m.playing; meta.pos = +m.pos || 0; meta.dur = +m.dur || 0; meta.at = performance.now();
     if (m.lang && LABELS[m.lang]) $('np').textContent = LABELS[m.lang];
-    if (m.title != null && $('title').textContent !== m.title) $('title').textContent = m.title;
+    if (m.title != null && curTitle !== m.title) { setTitle(m.title); changedAt = performance.now(); }
+    if (m.playing && !meta.wasPlaying) changedAt = performance.now(); // wznowienie po pauzie → pokaż znowu (auto-chowanie)
+    meta.wasPlaying = !!m.playing;
+    document.documentElement.setAttribute('data-playing', m.playing ? '1' : '0');
     if (m.artist != null && $('artist').textContent !== m.artist) $('artist').textContent = m.artist;
     if (m.theme) applyTheme(m.theme);
     var acc = themeAccent || m.accent;
     if (acc) document.body.style.setProperty('--acc', acc);
-    if (!m.coverId) { $('cover').removeAttribute('src'); $('cover').dataset.id = ''; }
+    if (!m.coverId) { $('cover').removeAttribute('src'); $('cover').dataset.id = ''; $('bgart').style.backgroundImage = ''; }
     var card = $('card');
     if (m.title) card.classList.add('show');
     card.classList.toggle('idle', !m.hasTrack || m.hidden === true);
   }
+  function setTitle(t) {
+    curTitle = t; var el = $('title');
+    el.classList.remove('mq'); el.textContent = t;
+    if (!marquee || !t) return;
+    // tylko gdy się nie mieści — mierzymy po ułożeniu
+    requestAnimationFrame(function () {
+      if (curTitle !== t || el.scrollWidth <= el.clientWidth + 2) return;
+      var sp = document.createElement('span'); sp.className = 'mq-in';
+      sp.textContent = t + '\u2003\u2003\u2003' + t + '\u2003\u2003\u2003';
+      el.textContent = ''; el.appendChild(sp); el.classList.add('mq');
+      el.style.setProperty('--mqd', Math.max(8, t.length * 0.32) + 's');
+    });
+  }
+  function num(v, lo, hi, def) { v = Number(v); return isFinite(v) ? Math.max(lo, Math.min(hi, v)) : def; }
   function applyTheme(th) {
     var root = document.documentElement;
-    var st = { card: 1, bar: 1, cover: 1, minimal: 1 }[th.style] ? th.style : 'card';
+    var st = { card: 1, bar: 1, cover: 1, minimal: 1, vinyl: 1, neon: 1, pill: 1 }[th.style] ? th.style : 'card';
     var ps = { bl: 1, br: 1, tl: 1, tr: 1, bc: 1 }[th.pos] ? th.pos : 'bl';
     if (root.getAttribute('data-style') !== st) root.setAttribute('data-style', st);
     if (root.getAttribute('data-pos') !== ps) root.setAttribute('data-pos', ps);
     root.setAttribute('data-viz', th.viz === false ? '0' : '1');
     themeAccent = /^\d{1,3}, ?\d{1,3}, ?\d{1,3}$/.test(String(th.accent || '')) ? th.accent : '';
+    var b = document.body.style;
+    b.setProperty('--s', String(num(th.scale, 50, 200, 100) / 100));
+    b.setProperty('--bga', String(num(th.bg, 0, 100, 100) / 100));
+    b.setProperty('--m', num(th.margin, 0, 120, 24) + 'px');
+    root.setAttribute('data-font', { sans: 1, condensed: 1, serif: 1, mono: 1 }[th.font] ? th.font : 'sans');
+    root.setAttribute('data-anim', { slide: 1, fade: 1, zoom: 1, none: 1 }[th.anim] ? th.anim : 'slide');
+    root.setAttribute('data-cover', th.cover === false ? '0' : '1');
+    root.setAttribute('data-prog', th.progress === false ? '0' : '1');
+    root.setAttribute('data-label', th.label === false ? '0' : '1');
+    root.setAttribute('data-art', th.art ? '1' : '0');
+    autoHide = PREVIEW ? 0 : num(th.autohide, 0, 600, 0);
+    var mq = !!th.marquee;
+    if (mq !== marquee) { marquee = mq; setTitle(curTitle); }
   }
   function onCover(c) {
     if (!c) return;
@@ -235,6 +344,7 @@
     if (img.dataset.id === c.id) return;
     img.dataset.id = c.id || '';
     if (c.data) img.src = c.data; else img.removeAttribute('src');
+    $('bgart').style.backgroundImage = c.data ? 'url("' + c.data + '")' : '';
   }
   function tick() {
     requestAnimationFrame(tick);
@@ -243,6 +353,7 @@
     if (meta.dur) pos = Math.min(pos, meta.dur);
     $('fill').style.width = (meta.dur ? (pos / meta.dur) * 100 : 0) + '%';
     $('time').textContent = meta.dur ? fmt(pos) + ' / ' + fmt(meta.dur) : '';
+    $('card').classList.toggle('ah', autoHide > 0 && performance.now() - changedAt > autoHide * 1000);
     drawViz();
   }
   var vizData = null;
@@ -269,6 +380,7 @@
 
   // OBS pozwala na autoodtwarzanie; w zwykłej przeglądarce kontekst audio ruszy po kliknięciu
   document.addEventListener('click', function () { if (ctx && ctx.state === 'suspended') ctx.resume(); });
+  if (BAKED_THEME) applyTheme(BAKED_THEME);
   requestAnimationFrame(tick);
   if (PREVIEW) {
     // tło „przezroczystości” rysuje sam podgląd (ramka w oknie Pulsara nie zawsze jest przezroczysta)

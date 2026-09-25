@@ -1053,9 +1053,12 @@
     const FRAMES = 2048; // ~43 ms przy 48 kHz
 
     function getOn(){ try { return localStorage.getItem(PREF) === '1'; } catch (e){ return false; } }
-    /* motyw overlayu: style card|bar|cover|minimal, pos bl|br|tl|tr|bc, accent 'auto' | '#rrggbb', viz */
+    /* motyw overlayu: style card|bar|cover|minimal|vinyl|neon|pill, pos bl|br|tl|tr|bc, accent 'auto' | '#rrggbb', viz,
+     * scale 50–200 %, bg (krycie tła) 0–100 %, margin px, font sans|condensed|serif|mono, anim slide|fade|zoom|none,
+     * autohide s (0 = nie chowaj), cover/progress/label (pokazuj), art (rozmyta okładka w tle), marquee (przewijany tytuł) */
     const THEME_KEY = 'pulsarObsTheme';
-    const THEME_DEF = { style: 'card', pos: 'bl', accent: 'auto', viz: true };
+    const THEME_DEF = { style: 'card', pos: 'bl', accent: 'auto', viz: true, scale: 100, bg: 100, margin: 24, font: 'sans', anim: 'slide',
+      autohide: 0, cover: true, progress: true, label: true, art: false, marquee: false };
     function getTheme(){
       let t = null; try { t = JSON.parse(localStorage.getItem(THEME_KEY) || 'null'); } catch (e){}
       return Object.assign({}, THEME_DEF, (t && typeof t === 'object') ? t : {});
@@ -1065,7 +1068,11 @@
       const m = /^#?([0-9a-f]{6})$/i.exec(String(h || '')); if (!m) return '';
       const n = parseInt(m[1], 16); return ((n >> 16) & 255) + ', ' + ((n >> 8) & 255) + ', ' + (n & 255);
     }
-    function themeWire(t){ return { style: t.style, pos: t.pos, viz: t.viz !== false, accent: t.accent === 'auto' ? '' : hexToRgb(t.accent) }; }
+    function themeWire(t){
+      return { style: t.style, pos: t.pos, viz: t.viz !== false, accent: t.accent === 'auto' ? '' : hexToRgb(t.accent),
+        scale: +t.scale || 100, bg: t.bg == null ? 100 : +t.bg, margin: t.margin == null ? 24 : +t.margin, font: t.font, anim: t.anim,
+        autohide: +t.autohide || 0, cover: t.cover !== false, progress: t.progress !== false, label: t.label !== false, art: !!t.art, marquee: !!t.marquee };
+    }
     function setOn(v){ try { localStorage.setItem(PREF, v ? '1' : '0'); } catch (e){} }
     function host(){ return window.__pulsarHost || null; }
     function tr(s){ const h = host(); try { return h && h.t ? h.t(s) : s; } catch (e){ return s; } }
@@ -1094,7 +1101,8 @@
           if (!r.ok) throw new Error('overlay ' + r.status);
           const th = getTheme();
           const html = (await r.text()).replace(/data-style="[a-z]+" data-pos="[a-z]+" data-viz="[01]"/,
-            'data-style="' + th.style + '" data-pos="' + th.pos + '" data-viz="' + (th.viz !== false ? '1' : '0') + '"');
+            'data-style="' + th.style + '" data-pos="' + th.pos + '" data-viz="' + (th.viz !== false ? '1' : '0') + '"')
+            .replace('/*PULSAR_THEME*/null', JSON.stringify(themeWire(th)).replace(/</g, '\\u003c'));
           await Neutralino.filesystem.writeFile(joinPath(OBS_DIR, FILES.overlay), html);
           await Neutralino.filesystem.writeFile(joinPath(OBS_DIR, FILES.audio), html.replace('data-mode="overlay"', 'data-mode="audio"'));
         }
@@ -1351,7 +1359,8 @@
         s.addEventListener('change', function (){ const t = getTheme(); t[key] = s.value; setTheme(t); applyThemeNow(); });
         l.appendChild(s); grid.appendChild(l); return s;
       };
-      sel('Styl', 'style', [['card', 'Karta'], ['bar', 'Pasek (cała szerokość)'], ['cover', 'Duża okładka'], ['minimal', 'Minimalny (sam tekst)']]);
+      sel('Styl', 'style', [['card', 'Karta'], ['bar', 'Pasek (cała szerokość)'], ['cover', 'Duża okładka'], ['minimal', 'Minimalny (sam tekst)'],
+        ['vinyl', 'Winyl (obracająca się płyta)'], ['neon', 'Neon'], ['pill', 'Pastylka (mała)']]);
       sel('Pozycja', 'pos', [['bl', 'Lewy dół'], ['bc', 'Środek dół'], ['br', 'Prawy dół'], ['tl', 'Lewa góra'], ['tr', 'Prawa góra']]);
       const al = el('label', 'obs-theme-field'); al.appendChild(el('span', null, tr('Kolor akcentu')));
       const arow = el('span', 'obs-theme-acc');
@@ -1367,6 +1376,52 @@
       vc.addEventListener('change', function (){ const t = getTheme(); t.viz = vc.checked; setTheme(t); applyThemeNow(); });
       vl.appendChild(vc); vl.appendChild(el('span', null, tr('Wizualizacja (słupki)'))); grid.appendChild(vl);
       wrap.appendChild(grid);
+      // --- więcej opcji ---
+      const more = el('div', 'obs-theme-grid obs-theme-more');
+      const range = function (label, key, min, max, step, unit){
+        const l = el('label', 'obs-theme-field obs-theme-range');
+        const cap = el('span'); const val = el('b');
+        cap.appendChild(document.createTextNode(tr(label) + ' ')); cap.appendChild(val); l.appendChild(cap);
+        const r = el('input'); r.type = 'range'; r.min = min; r.max = max; r.step = step; r.value = th[key];
+        const show = function (){ val.textContent = r.value + unit; };
+        r.addEventListener('input', function (){ show(); const t = getTheme(); t[key] = +r.value; setTheme(t); applyThemeNow(); });
+        show(); l.appendChild(r); more.appendChild(l); return r;
+      };
+      range('Rozmiar', 'scale', 50, 200, 5, '%');
+      range('Krycie tła', 'bg', 0, 100, 5, '%');
+      range('Odstęp od krawędzi', 'margin', 0, 120, 2, ' px');
+      const sel2 = function (label, key, opts){
+        const l = el('label', 'obs-theme-field'); l.appendChild(el('span', null, tr(label)));
+        const s = el('select', 'sm-select');
+        opts.forEach(function (o){ const op = el('option', null, tr(o[1])); op.value = o[0]; s.appendChild(op); });
+        s.value = String(th[key]);
+        s.addEventListener('change', function (){ const t = getTheme(); t[key] = /^\d+$/.test(s.value) ? +s.value : s.value; setTheme(t); applyThemeNow(); });
+        l.appendChild(s); more.appendChild(l); return s;
+      };
+      sel2('Czcionka', 'font', [['sans', 'Segoe UI (domyślna)'], ['condensed', 'Wąska (Bahnschrift)'], ['serif', 'Szeryfowa (Georgia)'], ['mono', 'Stała szerokość (Consolas)']]);
+      sel2('Animacja', 'anim', [['slide', 'Wysunięcie'], ['fade', 'Przenikanie'], ['zoom', 'Powiększenie'], ['none', 'Bez animacji']]);
+      sel2('Chowaj automatycznie', 'autohide', [['0', 'Nigdy'], ['8', 'Po 8 s od zmiany utworu'], ['15', 'Po 15 s od zmiany utworu'], ['30', 'Po 30 s od zmiany utworu']]);
+      const checks = el('div', 'obs-theme-checks');
+      const chk = function (label, key){
+        const l = el('label', 'obs-theme-check');
+        const c = el('input'); c.type = 'checkbox'; c.dataset.key = key; c.checked = key === 'art' || key === 'marquee' ? !!th[key] : th[key] !== false;
+        c.addEventListener('change', function (){ const t = getTheme(); t[key] = c.checked; setTheme(t); applyThemeNow(); });
+        l.appendChild(c); l.appendChild(el('span', null, tr(label))); checks.appendChild(l);
+      };
+      chk('Okładka', 'cover'); chk('Pasek postępu i czas', 'progress'); chk('Napis „Teraz gra”', 'label');
+      chk('Rozmyta okładka w tle', 'art'); chk('Przewijaj długi tytuł', 'marquee');
+      more.appendChild(checks);
+      const reset = el('button', 'obs-theme-reset', tr('Przywróć domyślny wygląd')); reset.type = 'button';
+      reset.addEventListener('click', function (){
+        setTheme(Object.assign({}, THEME_DEF)); applyThemeNow();
+        const nw = buildThemeUi(); wrap.replaceWith(nw);
+      });
+      more.appendChild(reset);
+      const det = el('details', 'obs-theme-details');
+      const sum = el('summary', null, tr('Więcej opcji wyglądu')); det.appendChild(sum); det.appendChild(more);
+      try { det.open = sessionStorage.getItem('pulsarObsMore') === '1'; } catch (e){}
+      det.addEventListener('toggle', function (){ try { sessionStorage.setItem('pulsarObsMore', det.open ? '1' : '0'); } catch (e){} });
+      wrap.appendChild(det);
       const pv = el('div', 'obs-preview');
       const fr = el('iframe'); fr.src = '/obs/overlay.html?preview=1'; fr.setAttribute('tabindex', '-1'); fr.title = tr('Podgląd');
       fr.addEventListener('load', function (){ previewFrame = fr; sendPreview(); });
