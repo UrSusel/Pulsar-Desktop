@@ -549,29 +549,44 @@
         if (w !== sz.width || h !== sz.height) await fsSafe(function (){ return W.setSize({ width: w, height: h }); });
         if (x !== ps.x || y !== ps.y) await fsSafe(function (){ return W.move(x, y); });
       };
-      var winFsRestore = async function (sv){
+      // Kolejka operacji na oknie — wejście/wyjście z fullscreena nigdy się nie przeplatają
+      var fsChain = Promise.resolve();
+      var fsQueue = function (fn){ fsChain = fsChain.then(fn, fn).catch(function (){}); return fsChain; };
+      var winFsWasMax = false;
+      var fsEnter = async function (){
         var W = Neutralino.window;
-        await fsSleep(120); // chwilę po exitFullScreen — runtime przywraca styl i prostokąt
+        var sv = winFsSaved;
+        var isMax = !!(await fsSafe(function (){ return W.isMaximized(); }));
+        winFsWasMax = isMax || !!(sv && sv.maximized);
+        // KLUCZOWE: Neutralino (Windows) robi fullscreen przez podmianę stylu okna. Gdy okno jest zmaksymalizowane,
+        // po wyjściu flaga WS_MAXIMIZE wraca „ręcznie” i Windows gubi stan (okno pod paskiem albo odczepione).
+        // Dlatego najpierw zwykłe „przywróć” Windows — Neutralino dostaje czyste, niezmaksymalizowane okno.
+        if (isMax){ await fsSafe(function (){ return W.unmaximize(); }); await fsSleep(30); }
+        if (!winFsOn) return; // użytkownik zdążył już wyjść
+        await fsSafe(function (){ return W.setFullScreen(); });
+      };
+      var fsExit = async function (sv){
+        var W = Neutralino.window;
+        await fsSafe(function (){ return W.exitFullScreen(); }); // przywraca zwykłe okno (sprzed fullscreena)
+        await fsSleep(80);
         try {
-          if (sv && sv.maximized){
-            // Neutralino przywraca styl z WS_MAXIMIZE, ale prostokąt „ręcznie” → okno pod paskiem zadań,
-            // a samo maximize() nic nie robi (IsZoomed już = true). Restore + maximize wymusza poprawne ułożenie.
-            await fsSafe(function (){ return W.unmaximize(); });
-            await fsSleep(40);
-            await fsSafe(function (){ return W.maximize(); });
-          } else if (sv){
-            await fsSafe(function (){ return W.setSize({ width: sv.width, height: sv.height }); });
-            if (sv.x != null && sv.y != null) await fsSafe(function (){ return W.move(sv.x, sv.y); });
-            await fitToWorkArea();
+          if (winFsWasMax){
+            await fsSafe(function (){ return W.maximize(); });     // standardowa maksymalizacja → obszar roboczy nad paskiem
           } else {
+            if (sv){
+              await fsSafe(function (){ return W.setSize({ width: sv.width, height: sv.height }); });
+              if (sv.x != null && sv.y != null) await fsSafe(function (){ return W.move(sv.x, sv.y); });
+            }
             await fitToWorkArea();
           }
-          // druga kontrola — WebView2 potrafi jeszcze raz przeskalować okno po wyjściu z fullscreena elementu
-          await fsSleep(450);
-          if (!winFsOn){
-            if (sv && sv.maximized){
-              if (!(await fsSafe(function (){ return W.isMaximized(); }))) await fsSafe(function (){ return W.maximize(); });
-            } else await fitToWorkArea();
+          // kontrola wyniku (do 3 razy) — gdyby Windows/WebView2 jeszcze coś przestawił
+          for (var i = 0; i < 3 && !winFsOn; i++){
+            await fsSleep(150 + i * 200);
+            if (winFsOn) break;
+            if (winFsWasMax){
+              if (await fsSafe(function (){ return W.isMaximized(); })) break;
+              await fsSafe(function (){ return W.maximize(); });
+            } else { await fitToWorkArea(); }
           }
         } catch (e){}
         winFsGuard = 0;
@@ -580,15 +595,12 @@
       var winFs = function (on){
         if (winFsOn === on) return;
         winFsOn = on;
-        try {
-          if (on){ Neutralino.window.setFullScreen(); } // geometria jest już w pamięci (zapisywana na bieżąco)
-          else {
-            var sv = winFsSaved; // bierzemy geometrię TERAZ, zanim zdarzenia resize ją nadpiszą
-            winFsGuard = Date.now() + 3000;
-            Neutralino.window.exitFullScreen();
-            winFsRestore(sv);
-          }
-        } catch (e){}
+        if (on){ fsQueue(fsEnter); } // geometria jest już w pamięci (zapisywana na bieżąco)
+        else {
+          var sv = winFsSaved; // bierzemy geometrię TERAZ, zanim zdarzenia resize ją nadpiszą
+          winFsGuard = Date.now() + 4000;
+          fsQueue(function (){ return fsExit(sv); });
+        }
       };
       try {
         var origReq = Element.prototype.requestFullscreen;
