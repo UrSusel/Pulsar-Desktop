@@ -1,0 +1,58 @@
+{
+  "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
+  "applicationId": "pl.pulsar.app",
+  "version": "1.0.0",
+  "defaultMode": "window",
+  "port": 47329,
+  "documentRoot": "/resources/",
+  "url": "/",
+  "enableServer": true,
+  "enableNativeAPI": true,
+  "tokenSecurity": "one-time",
+  "logging": {
+    "enabled": false,
+    "writeToLogFile": false
+  },
+  "nativeAllowList": [
+    "app.*",
+    "os.*",
+    "filesystem.*",
+    "storage.*",
+    "window.*",
+    "debug.*"
+  ],
+  "globalVariables": {
+    "TEST1": "Hello",
+    "TEST2": [
+      2,
+      4,
+      5
+    ],
+    "TEST3": {
+      "value1": 10,
+      "value2": {}
+    }
+  },
+  "modes": {
+    "window": {
+      "title": "Pulsar \u2014 Build 0.09.25",
+      "width": 1280,
+      "height": 840,
+      "minWidth": 760,
+      "minHeight": 560,
+      "center": true,
+      "fullScreen": false,
+      "alwaysOnTop": false,
+      "icon": "/resources/icons/appIcon.png",
+      "enableInspector": false
+    }
+  },
+  "cli": {
+    "binaryName": "pulsar",
+    "resourcesPath": "/resources/",
+    "extensionsPath": "",
+    "clientLibrary": "/resources/neutralino.js",
+    "binaryVersion": "6.9.0",
+    "clientVersion": "6.9.0"
+  }
+}

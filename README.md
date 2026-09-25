@@ -31,6 +31,32 @@ A free, portable music player for **Windows 10/11** with a pulsar-nebula soul: s
 
 Single-file web app (vanilla JS + WebGL shaders) wrapped with [Neutralino.js](https://neutralino.js.org) (WebView2) — ~20 MB, no Electron, no Node.js required at runtime. Downloads powered by the bundled [yt-dlp](https://github.com/yt-dlp/yt-dlp).
 
+## 🧩 Source code & building
+
+The app source lives in [`app/`](app/) (recovered 1:1 from `resources.neu`, SHA-256 verified):
+
+```
+app/
+├─ neutralino.config.json    # window, permissions, version
+└─ resources/
+   ├─ index.html             # the whole player (HTML + CSS + JS, single file)
+   ├─ desktop.js             # desktop layer: runs yt-dlp.exe, file system, window
+   ├─ neutralino.js          # Neutralino client library 6.9.0
+   └─ icons/appIcon.png
+```
+
+Rebuild `resources.neu` after editing (Python 3 only, no Node.js needed):
+
+```bash
+python tools/neu.py pack app resources.neu     # folder  -> resources.neu
+python tools/neu.py unpack resources.neu app   # resources.neu -> folder
+python tools/neu.py verify resources.neu       # check SHA-256 integrity
+```
+
+Then put `pulsar.exe` + `resources.neu` + `yt-dlp.exe` in one folder and run `pulsar.exe`.
+`pulsar.exe` is the stock Neutralino 6.9.0 Windows binary, so it never needs rebuilding.
+Packing is deterministic: an unmodified `app/` produces a byte-identical `resources.neu`.
+
 ---
 
 *Please respect the artists you love — use the YouTube features responsibly.*
