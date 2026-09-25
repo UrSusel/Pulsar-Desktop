@@ -14,6 +14,8 @@ A free, portable music player for **Windows 10/11** with a pulsar-nebula soul: s
 - 🎤 **Synced lyrics** — elegant column, buttery-smooth in fullscreen
 - ⏱️ **Sleep timer & stats** — gentle fade-out, favorites, play counts, smart sorting
 - 🔌 **Truly portable** — keep it on any drive, even a USB stick
+- 🪟 **Windows integration** — tray icon with playback menu, optional close-to-tray, always-on-top, compact mini mode, now-playing in the window/taskbar title, track-change notifications
+- ⏯️ **Resume where you left off** — last track and position are restored on start
 
 ## 📸 Screenshots
 

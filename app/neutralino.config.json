@@ -44,7 +44,8 @@
       "fullScreen": false,
       "alwaysOnTop": false,
       "icon": "/resources/icons/appIcon.png",
-      "enableInspector": false
+      "enableInspector": false,
+      "exitProcessOnClose": false
     }
   },
   "cli": {

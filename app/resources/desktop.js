@@ -544,6 +544,8 @@
         var origReq = Element.prototype.requestFullscreen;
         if (origReq){
           Element.prototype.requestFullscreen = function (){
+            // w trybie mini pełny ekran nie ma sensu (główny interfejs jest schowany)
+            if (document.documentElement.classList.contains('nl-mini')) return Promise.resolve();
             winFs(true);
             try { return origReq.call(this).catch(function (){}); } catch (e){ return Promise.resolve(); }
           };
@@ -564,6 +566,265 @@
       } catch (e){}
     }
   } catch (e){}
+
+  /* ================= Integracja z Windows =================
+   * - ikona w zasobniku z menu (teraz gra, odtwórz/pauza, poprzedni/następny, pokaż/ukryj, tryb mini,
+   *   zawsze na wierzchu, zamykanie do zasobnika, zakończ)
+   * - ✕ zamyka aplikację albo (opcjonalnie) chowa okno do zasobnika — muzyka gra dalej
+   * - tryb mini: małe okno z okładką i przyciskami (domyślnie zawsze na wierzchu)
+   * - „zawsze na wierzchu” dla zwykłego okna
+   * - tytuł okna / paska zadań = bieżący utwór
+   * - opcjonalne powiadomienie o nowym utworze, gdy okno jest schowane lub nieaktywne
+   * Wymaga "exitProcessOnClose": false w neutralino.config.json (inaczej ✕ od razu kończy proces).
+   */
+  (function windowsIntegration(){
+    const TRAY_ICON = '/resources/icons/trayIcon.png';
+    const MINI = { width: 480, height: 190, minWidth: 320, minHeight: 130 };
+    const NORMAL = { width: 1280, height: 840, minWidth: 760, minHeight: 560 };
+    const K = {
+      onTop: 'pulsarOnTop', miniOnTop: 'pulsarMiniOnTop', closeToTray: 'pulsarCloseToTray', notify: 'pulsarNotify',
+      mini: 'pulsarMini', miniGeo: 'pulsarMiniGeo', normalGeo: 'pulsarNormalGeo', trayHint: 'pulsarTrayHintShown'
+    };
+    const W = Neutralino.window;
+
+    function getB(k, d){ try { const v = localStorage.getItem(k); return v === null ? d : v === '1'; } catch (e){ return d; } }
+    function setB(k, v){ try { localStorage.setItem(k, v ? '1' : '0'); } catch (e){} }
+    function getJ(k){ try { return JSON.parse(localStorage.getItem(k) || 'null'); } catch (e){ return null; } }
+    function setJ(k, v){ try { localStorage.setItem(k, JSON.stringify(v)); } catch (e){} }
+    function host(){ return window.__pulsarHost || null; }
+    function tr(s){ const h = host(); try { return h && h.t ? h.t(s) : s; } catch (e){ return s; } }
+    function toast(s){ const h = host(); try { if (h && h.toast) h.toast(s); } catch (e){} }
+    function safe(fn){ try { return Promise.resolve(fn()).catch(function (){ return null; }); } catch (e){ return Promise.resolve(null); } }
+    function sleep(ms){ return new Promise(function (r){ setTimeout(r, ms); }); }
+    function onDom(fn){ if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true }); else fn(); }
+    function clip(s, n){ s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
+    function menuText(s){ return String(s).replace(/&/g, '&&'); } // w menu Windows „&” to mnemonik
+
+    let started = false, trayOk = false, hidden = false, mini = false, focused = true, quitting = false, miniBusy = false;
+    let onTop = getB(K.onTop, false), miniOnTop = getB(K.miniOnTop, true);
+    let baseTitle = 'Pulsar', lastTitle = '', lastTrayJson = '', lastTrackKey = null, pendingNotify = false, refreshTimer = 0;
+
+    function effectiveOnTop(){ return mini ? miniOnTop : onTop; }
+    function applyOnTop(){ return safe(function (){ return W.setAlwaysOnTop(effectiveOnTop()); }); }
+
+    /* ---- tytuł okna + zasobnik + powiadomienia (z opóźnieniem, żeby zgrupować zdarzenia) ---- */
+    function scheduleRefresh(){
+      clearTimeout(refreshTimer);
+      refreshTimer = setTimeout(refresh, 120);
+    }
+    function nowPlaying(){
+      const h = host();
+      try { return h && h.nowPlaying ? h.nowPlaying() : null; } catch (e){ return null; }
+    }
+    function refresh(){
+      const np = nowPlaying();
+      // tytuł okna (widoczny też po najechaniu na ikonę na pasku zadań)
+      let title = baseTitle;
+      if (np && np.hasTrack && np.title) title = (np.playing ? '▶ ' : '') + np.title + (np.artist ? ' — ' + np.artist : '') + ' · Pulsar';
+      if (title !== lastTitle){ lastTitle = title; safe(function (){ return W.setTitle(title); }); }
+      // powiadomienie o nowym utworze
+      const key = np && np.hasTrack ? (np.title + '\u0000' + np.artist) : '';
+      if (key !== lastTrackKey){
+        const first = lastTrackKey === null;
+        lastTrackKey = key;
+        pendingNotify = !first && !!key;
+      }
+      if (pendingNotify && np && np.playing){
+        pendingNotify = false;
+        if (getB(K.notify, false) && trayOk && (hidden || !focused)){
+          safe(function (){ return Neutralino.os.showNotification(clip(np.title, 60), clip(np.artist || 'Pulsar', 80), 'INFO'); });
+        }
+      }
+      buildTray(np);
+    }
+    function buildTray(np){
+      if (!started) return;
+      const can = !!(np && np.hasTracks);
+      const label = np && np.hasTrack && np.title ? '♪  ' + clip(np.title + (np.artist ? ' — ' + np.artist : ''), 60) : tr('Nic nie gra');
+      const items = [
+        { id: 'np', text: menuText(label), isDisabled: true },
+        { text: '-' },
+        { id: 'toggle', text: menuText(tr(np && np.playing ? 'Pauza' : 'Odtwórz')), isDisabled: !can },
+        { id: 'prev', text: menuText(tr('Poprzedni')), isDisabled: !can },
+        { id: 'next', text: menuText(tr('Następny')), isDisabled: !can },
+        { text: '-' },
+        { id: 'show', text: menuText(tr(hidden ? 'Pokaż okno' : 'Ukryj okno')) },
+        { id: 'mini', text: menuText(tr('Tryb mini')), isChecked: mini },
+        { id: 'ontop', text: menuText(tr('Zawsze na wierzchu')), isChecked: effectiveOnTop() },
+        { id: 'closetray', text: menuText(tr('Zamykaj do zasobnika')), isChecked: getB(K.closeToTray, false) },
+        { text: '-' },
+        { id: 'quit', text: menuText(tr('Zakończ')) }
+      ];
+      const json = JSON.stringify(items);
+      if (json === lastTrayJson && trayOk) return;
+      lastTrayJson = json;
+      safe(function (){ return Neutralino.os.setTray({ icon: TRAY_ICON, menuItems: items }); }).then(function (r){
+        // setTray zwraca obiekt przy sukcesie; bez działającej ikony nie wolno chować okna (nie byłoby jak wrócić)
+        if (r !== null) trayOk = true; else if (!trayOk) lastTrayJson = '';
+      });
+    }
+
+    /* ---- pokaż / ukryj / zakończ ---- */
+    function hideWindow(){
+      if (!trayOk){ quit(); return; }
+      hidden = true;
+      safe(function (){ return W.hide(); });
+      if (!getB(K.trayHint, false)){
+        setB(K.trayHint, true);
+        safe(function (){ return Neutralino.os.showNotification(tr('Pulsar działa w tle'), tr('Muzyka gra dalej. Okno przywrócisz z menu ikony w zasobniku (Pokaż okno).'), 'INFO'); });
+      }
+      scheduleRefresh();
+    }
+    function showWindow(){
+      hidden = false;
+      safe(function (){ return W.show(); })
+        .then(function (){ return safe(function (){ return W.unminimize(); }); })
+        .then(function (){ return safe(function (){ return W.focus(); }); });
+      scheduleRefresh();
+    }
+    function quit(){
+      if (quitting) return;
+      quitting = true;
+      try { const h = host(); if (h && h.saveState) h.saveState(); } catch (e){}
+      try { Neutralino.app.exit(); } catch (e){}
+    }
+
+    /* ---- zawsze na wierzchu ---- */
+    function setOnTop(v, silent){
+      if (mini){ miniOnTop = !!v; setB(K.miniOnTop, miniOnTop); }
+      else { onTop = !!v; setB(K.onTop, onTop); }
+      applyOnTop();
+      if (!silent) toast(tr(effectiveOnTop() ? 'Zawsze na wierzchu: wł.' : 'Zawsze na wierzchu: wył.'));
+      syncSettingsUI(); scheduleRefresh();
+      try { const h = host(); if (h && h.miniSync) h.miniSync(); } catch (e){}
+    }
+    function toggleOnTop(){ setOnTop(!effectiveOnTop()); }
+
+    /* ---- tryb mini ---- */
+    async function readGeo(){
+      const r = await Promise.all([
+        safe(function (){ return W.getSize(); }),
+        safe(function (){ return W.getPosition(); }),
+        safe(function (){ return W.isMaximized(); })
+      ]);
+      const size = r[0], pos = r[1];
+      if (!size || !(size.width > 50)) return null;
+      return { width: size.width, height: size.height, x: pos ? pos.x : null, y: pos ? pos.y : null, maximized: !!r[2] };
+    }
+    async function setMini(on, opts){
+      opts = opts || {};
+      if (typeof on !== 'boolean') on = !mini;
+      if (on === mini || miniBusy) return;
+      miniBusy = true;
+      try {
+        if (on){
+          if (document.fullscreenElement){ try { await document.exitFullscreen(); } catch (e){} await sleep(350); }
+          if (!opts.startup){
+            const g = await readGeo();
+            if (g && g.width >= NORMAL.minWidth - 10) setJ(K.normalGeo, g);
+            if (g && g.maximized) await safe(function (){ return W.unmaximize(); });
+          }
+          mini = true; setB(K.mini, true);
+          document.documentElement.classList.add('nl-mini');
+          const mg = getJ(K.miniGeo) || {};
+          await safe(function (){ return W.setSize({ width: mg.width || MINI.width, height: mg.height || MINI.height, minWidth: MINI.minWidth, minHeight: MINI.minHeight }); });
+          if (mg.x != null && mg.y != null) await safe(function (){ return W.move(mg.x, mg.y); });
+        } else {
+          const g = await readGeo();
+          if (g) setJ(K.miniGeo, { width: g.width, height: g.height, x: g.x, y: g.y });
+          mini = false; setB(K.mini, false);
+          document.documentElement.classList.remove('nl-mini');
+          const n = getJ(K.normalGeo) || {};
+          await safe(function (){ return W.setSize({
+            width: Math.max(NORMAL.minWidth, n.width || NORMAL.width), height: Math.max(NORMAL.minHeight, n.height || NORMAL.height),
+            minWidth: NORMAL.minWidth, minHeight: NORMAL.minHeight
+          }); });
+          if (n.x != null && n.y != null) await safe(function (){ return W.move(n.x, n.y); });
+          else await safe(function (){ return W.center(); });
+          if (n.maximized) await safe(function (){ return W.maximize(); });
+        }
+        await applyOnTop();
+      } finally {
+        miniBusy = false;
+      }
+      try { document.dispatchEvent(new CustomEvent('pulsar:mini', { detail: { on: mini } })); } catch (e){}
+      try { window.dispatchEvent(new Event('resize')); } catch (e){} // przelicz płótna/wizualizacje
+      syncSettingsUI(); scheduleRefresh();
+    }
+
+    /* ---- menu ustawień (sekcja „Windows” w index.html) ---- */
+    function syncSettingsUI(){
+      const a = document.getElementById('smOnTop'); if (a) a.checked = onTop;
+      const b = document.getElementById('smCloseToTray'); if (b) b.checked = getB(K.closeToTray, false);
+      const c = document.getElementById('smNotify'); if (c) c.checked = getB(K.notify, false);
+    }
+    function wireSettingsUI(){
+      const miniBtn = document.getElementById('smMiniBtn');
+      if (miniBtn) miniBtn.addEventListener('click', function (){
+        const menu = document.getElementById('settingsMenu'); if (menu) menu.hidden = true;
+        setMini(true);
+      });
+      const a = document.getElementById('smOnTop');
+      if (a) a.addEventListener('change', function (){ onTop = a.checked; setB(K.onTop, onTop); if (!mini) applyOnTop(); toast(tr(onTop ? 'Zawsze na wierzchu: wł.' : 'Zawsze na wierzchu: wył.')); scheduleRefresh(); });
+      const b = document.getElementById('smCloseToTray');
+      if (b) b.addEventListener('change', function (){ setB(K.closeToTray, b.checked); scheduleRefresh(); });
+      const c = document.getElementById('smNotify');
+      if (c) c.addEventListener('change', function (){ setB(K.notify, c.checked); });
+      syncSettingsUI();
+    }
+
+    /* ---- zdarzenia natywne ---- */
+    function onTrayClick(evt){
+      const id = evt && evt.detail && evt.detail.id;
+      const h = host();
+      switch (id){
+        case 'toggle': if (h) h.toggle(); break;
+        case 'prev': if (h) h.prev(); break;
+        case 'next': if (h) h.next(); break;
+        case 'show': if (hidden) showWindow(); else hideWindow(); break;
+        case 'mini': if (hidden) showWindow(); setMini(!mini); break;
+        case 'ontop': toggleOnTop(); break;
+        case 'closetray': setB(K.closeToTray, !getB(K.closeToTray, false)); syncSettingsUI(); scheduleRefresh(); break;
+        case 'quit': quit(); break;
+      }
+      setTimeout(scheduleRefresh, 250);
+    }
+
+    // Rejestrujemy od razu (przed połączeniem), żeby ✕ zawsze miał obsługę.
+    try {
+      Neutralino.events.on('windowClose', function (){
+        if (!quitting && getB(K.closeToTray, false) && trayOk) hideWindow();
+        else quit();
+      });
+      Neutralino.events.on('trayMenuItemClicked', onTrayClick);
+      Neutralino.events.on('windowFocus', function (){ focused = true; });
+      Neutralino.events.on('windowBlur', function (){ focused = false; });
+      Neutralino.events.on('ready', function (){
+        if (started) return;
+        onDom(async function (){
+          started = true;
+          document.documentElement.classList.add('nl-desktop');
+          window.__pulsarDesktop = {
+            setMini: setMini,
+            isMini: function (){ return mini; },
+            toggleOnTop: toggleOnTop,
+            isOnTop: effectiveOnTop,
+            show: showWindow,
+            hide: hideWindow,
+            quit: quit
+          };
+          const bt = await safe(function (){ return W.getTitle(); });
+          if (bt) baseTitle = bt;
+          wireSettingsUI();
+          document.addEventListener('pulsar:state', scheduleRefresh);
+          document.addEventListener('pulsar:lang', function (){ lastTrayJson = ''; scheduleRefresh(); });
+          await applyOnTop();
+          if (getB(K.mini, false)) await setMini(true, { startup: true });
+          refresh();
+        });
+      });
+    } catch (e){}
+  })();
 
   /* ---- okno: domknięcie zamyka proces ---- */
   try {
