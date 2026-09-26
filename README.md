@@ -4,7 +4,7 @@ A free, portable music player for **Windows 10/11** with a pulsar-nebula soul: s
 
 **⬇ [Download the latest ZIP](https://ursusel.github.io/Pulsar-Desktop/)** *(or grab [`Pulsar-Desktop.zip`](../../raw/main/Pulsar-Desktop.zip) straight from this repo)*
 
-![version](https://img.shields.io/badge/version-0.09.25-4de3ff) ![platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-a06bff) ![size](https://img.shields.io/badge/size-%7E20%20MB-ff5fd0)
+![version](https://img.shields.io/badge/version-0.19.26-4de3ff) ![platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011-a06bff) ![size](https://img.shields.io/badge/size-%7E20%20MB-ff5fd0)
 
 ## ✨ Features
 
@@ -14,7 +14,7 @@ A free, portable music player for **Windows 10/11** with a pulsar-nebula soul: s
 - 🎤 **Synced lyrics** — elegant column, buttery-smooth in fullscreen
 - ⏱️ **Sleep timer & stats** — gentle fade-out, favorites, play counts, smart sorting
 - 🔌 **Truly portable** — keep it on any drive, even a USB stick
-- 🪟 **Windows integration** — tray icon with playback menu, optional close-to-tray, always-on-top, compact mini mode, now-playing in the window/taskbar title, track-change notifications
+- 🪟 **Windows integration** — tray icon with a Pulsar-styled panel (cover, progress, playback controls, toggles), optional close-to-tray, always-on-top, compact mini mode, now-playing in the window/taskbar title, track-change notifications
 - ⏯️ **Resume where you left off** — last track and position are restored on start
 - 📡 **OBS / streaming** — Pulsar's audio (with EQ & effects) goes straight into an OBS *Browser* source, plus an optional now-playing overlay. No virtual audio cables needed
 - 🎨 **Overlay themes** — card, full-width bar, big cover or minimal text; five positions; accent from the cover or your own colour, with a live preview
@@ -23,6 +23,7 @@ A free, portable music player for **Windows 10/11** with a pulsar-nebula soul: s
 - 📂 **Watched folder** — pick a music folder and new files (including subfolders) show up in the library automatically
 - 💾 **Library backup** — one `.pulsarlib` file with tracks, covers, albums, favourites, play counts and (optionally) settings; restore merges, never deletes
 - ⬆️ **yt-dlp auto-update** — one-click update in Settings, a daily check against the latest release, and an automatic retry after an update if a download fails
+- 🔔 **Pulsar update check** — on every start Pulsar compares its Build number with the one on the `main` branch and offers a one-click download when a newer version is out (can be turned off in Settings)
 
 ## 📸 Screenshots
 

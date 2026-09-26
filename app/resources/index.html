@@ -1494,7 +1494,7 @@
       <div class="sm-pane" data-pane="net">
         <h2 class="sm-pane-title">Pobieranie</h2>
         <div class="sm-card"><h3 class="sm-cap">Zapis utworów z sieci</h3><button type="button" class="sm-btn" id="smNetFolderBtn" title="Gdzie zapisują się utwory pobrane z sieci (podfolder = źródło)">Folder zapisu z sieci</button><button type="button" class="sm-btn" id="smNetMoveBtn" title="Zmienia folder już pobranych utworów na wybrany powyżej">Przenieś pobrane</button><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zapisuj MP3 na dysku (mostek)</span><span class="sm-desc">Kopia każdego pobranego utworu w prawdziwym folderze</span></div><label class="switch"><input type="checkbox" id="smNetDiskToggle"><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smNetDiskBtn" title="Prawdziwy folder na dysku, do którego mostek zapisuje pobrane MP3">Folder na dysku</button></div>
-        <div class="sm-card sm-desktop-only"><h3 class="sm-cap">yt-dlp</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Automatyczne aktualizacje yt-dlp</span><span class="sm-desc">Raz na dobę sprawdza nowe wydanie; przy błędzie pobierania próbuje aktualizacji</span></div><label class="switch"><input type="checkbox" id="smYtdlpAuto" checked><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smYtdlpBtn" title="Pobiera najnowszą wersję yt-dlp — naprawia pobieranie, gdy YouTube coś zmieni">Aktualizuj yt-dlp</button></div>
+        <div class="sm-card sm-desktop-only"><h3 class="sm-cap">Aktualizacje Pulsara</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Sprawdzaj aktualizacje przy uruchomieniu</span><span class="sm-desc" id="smUpdVer">Zainstalowana wersja: Build 0.19.26</span></div><label class="switch"><input type="checkbox" id="smUpdAuto" checked><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smUpdBtn" title="Porównuje wersję z najnowszą na GitHubie (gałąź main)">Sprawdź teraz</button></div><div class="sm-card sm-desktop-only"><h3 class="sm-cap">yt-dlp</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Automatyczne aktualizacje yt-dlp</span><span class="sm-desc">Raz na dobę sprawdza nowe wydanie; przy błędzie pobierania próbuje aktualizacji</span></div><label class="switch"><input type="checkbox" id="smYtdlpAuto" checked><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smYtdlpBtn" title="Pobiera najnowszą wersję yt-dlp — naprawia pobieranie, gdy YouTube coś zmieni">Aktualizuj yt-dlp</button></div>
       </div>
       <div class="sm-pane sm-desktop-only" data-pane="win">
         <h2 class="sm-pane-title">Windows</h2>
@@ -1536,6 +1536,23 @@
     if (!_savedLang){ try { localStorage.setItem('playerLang', CUR_LANG); } catch(e){} }
   } catch(e){ CUR_LANG = 'pl'; }
   var I18N_DICT = {
+    'Aktualizacje Pulsara': { en: 'Pulsar updates', es: 'Actualizaciones de Pulsar' },
+    'Sprawdzaj aktualizacje przy uruchomieniu': { en: 'Check for updates on startup', es: 'Buscar actualizaciones al iniciar' },
+    'Zainstalowana wersja:': { en: 'Installed version:', es: 'Versión instalada:' },
+    'dostępna': { en: 'available', es: 'disponible' },
+    'Sprawdź teraz': { en: 'Check now', es: 'Comprobar ahora' },
+    'Sprawdzam…': { en: 'Checking…', es: 'Comprobando…' },
+    'Porównuje wersję z najnowszą na GitHubie (gałąź main)': { en: 'Compares your version with the latest one on GitHub (main branch)', es: 'Compara tu versión con la más reciente en GitHub (rama main)' },
+    'Dostępna aktualizacja Pulsara': { en: 'Pulsar update available', es: 'Actualización de Pulsar disponible' },
+    'Nowa wersja:': { en: 'New version:', es: 'Nueva versión:' },
+    'masz': { en: 'you have', es: 'tienes' },
+    'Pobierz': { en: 'Download', es: 'Descargar' },
+    'Później': { en: 'Later', es: 'Más tarde' },
+    'Pomiń tę wersję': { en: 'Skip this version', es: 'Omitir esta versión' },
+    'Pobieranie otwarte w przeglądarce — rozpakuj ZIP i podmień pliki Pulsara': { en: 'Download opened in your browser — unzip it and replace the Pulsar files', es: 'Descarga abierta en el navegador: descomprime el ZIP y reemplaza los archivos de Pulsar' },
+    'Sprawdzam aktualizacje Pulsara…': { en: 'Checking for Pulsar updates…', es: 'Buscando actualizaciones de Pulsar…' },
+    'Nie udało się sprawdzić aktualizacji (brak połączenia z GitHubem?)': { en: 'Could not check for updates (no connection to GitHub?)', es: 'No se pudo comprobar (¿sin conexión con GitHub?)' },
+    'Masz najnowszą wersję Pulsara': { en: 'You have the latest version of Pulsar', es: 'Tienes la última versión de Pulsar' },
     'Panel zasobnika w stylu Pulsara': { en: 'Pulsar-style tray panel', es: 'Panel de bandeja al estilo de Pulsar' },
     'Ikona w zasobniku otwiera ciemny panel z okładką i przyciskami zamiast zwykłego menu Windows': { en: 'The tray icon opens a dark panel with the cover and buttons instead of the plain Windows menu', es: 'El icono de la bandeja abre un panel oscuro con la portada y botones en lugar del menú normal de Windows' },
     'Zmiana wyglądu zasobnika zadziała w pełni po ponownym uruchomieniu Pulsara': { en: 'The tray change fully applies after restarting Pulsar', es: 'El cambio de la bandeja se aplicará por completo al reiniciar Pulsar' },

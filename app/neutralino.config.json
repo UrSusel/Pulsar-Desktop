@@ -1,7 +1,7 @@
 {
   "$schema": "https://raw.githubusercontent.com/neutralinojs/neutralinojs/main/schemas/neutralino.config.schema.json",
   "applicationId": "pl.pulsar.app",
-  "version": "1.0.0",
+  "version": "0.19.26",
   "defaultMode": "window",
   "port": 47329,
   "documentRoot": "/resources/",
@@ -35,7 +35,7 @@
   },
   "modes": {
     "window": {
-      "title": "Pulsar \u2014 Build 0.09.25",
+      "title": "Pulsar \u2014 Build 0.19.26",
       "width": 1280,
       "height": 840,
       "minWidth": 760,

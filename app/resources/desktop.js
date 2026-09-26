@@ -452,6 +452,127 @@
     return { update: update, manual: manual, autoFix: autoFix, version: version, autoCheck: autoCheck, newer: newer };
   })();
 
+  /* ================= Aktualizacje Pulsara =================
+   * Przy każdym uruchomieniu (można wyłączyć) porównuje zainstalowany numer Build z tym na gałęzi main
+   * repozytorium (strona pobierania index.html → „Build X.Y.Z”, zapasowo odznaka w README.md).
+   * Nowsza wersja → karta „Dostępna aktualizacja” z przyciskiem Pobierz (ZIP z gałęzi main).
+   */
+  const appUpdater = (function (){
+    const REPO = 'UrSusel/Pulsar-Desktop', BRANCH = 'main';
+    const RAW = 'https://raw.githubusercontent.com/' + REPO + '/' + BRANCH + '/';
+    const DOWNLOAD_URL = 'https://github.com/' + REPO + '/raw/' + BRANCH + '/Pulsar-Desktop.zip';
+    const PAGE_URL = 'https://github.com/' + REPO + '/tree/' + BRANCH;
+    const K_AUTO = 'pulsarUpdateAuto', K_SKIP = 'pulsarUpdateSkip';
+    const FALLBACK_BUILD = '0.19.26';
+    let busy = null, dismissed = false, lastRemote = '';
+    function current(){
+      const v = (typeof NL_APPVERSION === 'string' && /^\d+(\.\d+)+$/.test(NL_APPVERSION)) ? NL_APPVERSION : FALLBACK_BUILD;
+      return v;
+    }
+    function autoOn(){ try { return localStorage.getItem(K_AUTO) !== '0'; } catch (e){ return true; } }
+    function newer(a, b){ return ytdlpUpdater.newer(a, b); }
+    async function getText(url){
+      const u = url + '?t=' + Date.now();
+      try {
+        const r = await fetch(u, { cache: 'no-store' });
+        if (r.ok) return await r.text();
+      } catch (e){}
+      try { return new TextDecoder().decode(await httpGet(u, 15000)); } catch (e){ return ''; } // curl.exe, gdy fetch zablokowany
+    }
+    async function remote(){
+      const page = await getText(RAW + 'index.html');
+      let m = page.match(/Build\s+(\d+(?:\.\d+)+)/i);
+      if (m) return m[1];
+      const rd = await getText(RAW + 'README.md');
+      m = rd.match(/badge\/version-(\d+(?:\.\d+)+)-/i) || rd.match(/Build\s+(\d+(?:\.\d+)+)/i);
+      return m ? m[1] : '';
+    }
+    function check(opts){
+      opts = opts || {};
+      if (busy) return busy;
+      busy = (async function (){
+        const cur = current();
+        const rem = await remote();
+        lastRemote = rem;
+        if (!rem) return { ok: false, current: cur };
+        return { ok: true, current: cur, remote: rem, update: newer(rem, cur) };
+      })();
+      const p = busy;
+      p.then(function (){ busy = null; updateUi(); }, function (){ busy = null; updateUi(); });
+      updateUi();
+      return p;
+    }
+    function openUrl(u){ try { Neutralino.os.open(u); } catch (e){ try { window.open(u, '_blank'); } catch (x){} } }
+    function css(){
+      if (document.getElementById('pulsarUpdStyle')) return;
+      const st = document.createElement('style'); st.id = 'pulsarUpdStyle';
+      st.textContent = '#pulsarUpd{position:fixed;right:18px;bottom:18px;z-index:99999;width:330px;max-width:calc(100vw - 36px);box-sizing:border-box;padding:16px 16px 14px;' +
+        'border-radius:14px;background:rgba(22,22,26,.96);color:#f0f0f0;border:1px solid rgba(255,255,255,.1);box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 0 1px rgba(var(--accent-rgb,160,107,255),.18);' +
+        'font:13px/1.4 "Segoe UI",system-ui,sans-serif;backdrop-filter:blur(14px);animation:pulsarUpdIn .35s cubic-bezier(.2,.9,.3,1.2)}' +
+        '@keyframes pulsarUpdIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}' +
+        '#pulsarUpd .u-h{display:flex;align-items:center;gap:10px;margin-bottom:6px}' +
+        '#pulsarUpd .u-dot{width:10px;height:10px;border-radius:50%;background:rgb(var(--accent-rgb,160,107,255));box-shadow:0 0 12px rgb(var(--accent-rgb,160,107,255));flex:none}' +
+        '#pulsarUpd .u-t{font-weight:600;font-size:14px;flex:1}' +
+        '#pulsarUpd .u-x{background:none;border:0;color:#999;font-size:18px;line-height:1;cursor:pointer;padding:0 2px}#pulsarUpd .u-x:hover{color:#fff}' +
+        '#pulsarUpd .u-d{color:#b5b5b5;margin:0 0 12px 20px}#pulsarUpd .u-d b{color:#fff;font-weight:600}' +
+        '#pulsarUpd .u-b{display:flex;gap:8px;margin-left:20px;flex-wrap:wrap}' +
+        '#pulsarUpd button.u-btn{border:0;border-radius:999px;padding:7px 16px;font:600 12.5px "Segoe UI",system-ui,sans-serif;cursor:pointer;background:rgba(255,255,255,.08);color:#eee}' +
+        '#pulsarUpd button.u-btn:hover{background:rgba(255,255,255,.15)}' +
+        '#pulsarUpd button.u-go{background:rgb(var(--accent-rgb,160,107,255));color:#0b0b0f}#pulsarUpd button.u-go:hover{filter:brightness(1.12);background:rgb(var(--accent-rgb,160,107,255))}';
+      document.head.appendChild(st);
+    }
+    function hideCard(){ const c = document.getElementById('pulsarUpd'); if (c) c.remove(); }
+    function showCard(r){
+      css(); hideCard();
+      const c = document.createElement('div'); c.id = 'pulsarUpd'; c.setAttribute('role', 'dialog');
+      c.innerHTML = '<div class="u-h"><span class="u-dot"></span><span class="u-t"></span><button type="button" class="u-x" aria-label="×">×</button></div>' +
+        '<p class="u-d"></p><div class="u-b"><button type="button" class="u-btn u-go"></button><button type="button" class="u-btn u-later"></button><button type="button" class="u-btn u-skip"></button></div>';
+      c.querySelector('.u-t').textContent = dTr('Dostępna aktualizacja Pulsara');
+      const d = c.querySelector('.u-d');
+      d.appendChild(document.createTextNode(dTr('Nowa wersja:') + ' '));
+      const b = document.createElement('b'); b.textContent = 'Build ' + r.remote; d.appendChild(b);
+      d.appendChild(document.createTextNode(' · ' + dTr('masz') + ' Build ' + r.current));
+      c.querySelector('.u-go').textContent = dTr('Pobierz');
+      c.querySelector('.u-later').textContent = dTr('Później');
+      c.querySelector('.u-skip').textContent = dTr('Pomiń tę wersję');
+      c.querySelector('.u-go').addEventListener('click', function (){ openUrl(DOWNLOAD_URL); hideCard(); dismissed = true;
+        dToast(dTr('Pobieranie otwarte w przeglądarce — rozpakuj ZIP i podmień pliki Pulsara')); });
+      c.querySelector('.u-later').addEventListener('click', function (){ hideCard(); dismissed = true; });
+      c.querySelector('.u-x').addEventListener('click', function (){ hideCard(); dismissed = true; });
+      c.querySelector('.u-skip').addEventListener('click', function (){ try { localStorage.setItem(K_SKIP, r.remote); } catch (e){} hideCard(); dismissed = true; });
+      document.body.appendChild(c);
+    }
+    async function autoCheck(){
+      if (!autoOn() || dismissed) return;
+      const r = await check();
+      let skip = ''; try { skip = localStorage.getItem(K_SKIP) || ''; } catch (e){}
+      if (r.ok && r.update && r.remote !== skip && !dismissed) showCard(r);
+    }
+    async function manual(){
+      dToast(dTr('Sprawdzam aktualizacje Pulsara…'));
+      const r = await check();
+      if (!r.ok) dToast(dTr('Nie udało się sprawdzić aktualizacji (brak połączenia z GitHubem?)'));
+      else if (r.update) showCard(r);
+      else { hideCard(); dToast(dTr('Masz najnowszą wersję Pulsara') + ' (Build ' + r.current + ')'); }
+    }
+    function updateUi(){
+      const b = document.getElementById('smUpdBtn');
+      if (b){ b.disabled = !!busy; b.textContent = busy ? dTr('Sprawdzam…') : dTr('Sprawdź teraz'); }
+      const v = document.getElementById('smUpdVer');
+      if (v) v.textContent = dTr('Zainstalowana wersja:') + ' Build ' + current() + (lastRemote && newer(lastRemote, current()) ? ' · ' + dTr('dostępna') + ' Build ' + lastRemote : '');
+      const a = document.getElementById('smUpdAuto'); if (a) a.checked = autoOn();
+    }
+    onReadyDom(function (){
+      const b = document.getElementById('smUpdBtn'); if (b) b.addEventListener('click', manual);
+      const a = document.getElementById('smUpdAuto');
+      if (a) a.addEventListener('change', function (){ try { localStorage.setItem(K_AUTO, a.checked ? '1' : '0'); } catch (e){} if (a.checked) autoCheck(); });
+      document.addEventListener('pulsar:lang', updateUi);
+      updateUi();
+      setTimeout(autoCheck, 4000); // chwilę po starcie
+    });
+    return { check: check, manual: manual, autoCheck: autoCheck, current: current, remote: remote, downloadUrl: DOWNLOAD_URL, pageUrl: PAGE_URL };
+  })();
+
   /* ================= Obserwowany folder =================
    * Nowe pliki audio z wybranego folderu (z podfolderami) same trafiają do biblioteki.
    * Nic nie jest usuwane; plik raz zauważony nie wraca, jeśli usuniesz go z biblioteki.
@@ -1635,5 +1756,5 @@
   } catch (e){}
 
   // pomocnik do testów poza webviewem (node): mapowanie wpisów yt-dlp
-  window.__desktopBridge = { http: httpGet, mapEntry: mapEntry, isBridgeUrl: isBridgeUrl, mp4Embed: mp4EmbedBytes, ytdlp: ytdlpUpdater, watch: watchFolder };
+  window.__desktopBridge = { http: httpGet, mapEntry: mapEntry, isBridgeUrl: isBridgeUrl, mp4Embed: mp4EmbedBytes, ytdlp: ytdlpUpdater, watch: watchFolder, updates: appUpdater };
 })();
