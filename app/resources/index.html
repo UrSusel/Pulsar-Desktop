@@ -1498,7 +1498,7 @@
       </div>
       <div class="sm-pane sm-desktop-only" data-pane="win">
         <h2 class="sm-pane-title">Windows</h2>
-        <div class="sm-card"><h3 class="sm-cap">Okno</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Tryb mini (kompaktowe okno)</span><span class="sm-desc">Małe okno z okładką i przyciskami — zawsze na wierzchu</span></div><button type="button" class="sm-act" id="smMiniBtn" title="Małe okno z okładką i przyciskami — zawsze na wierzchu">Włącz</button></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zawsze na wierzchu</span></div><label class="switch"><input type="checkbox" id="smOnTop"><span class="slider"></span></label></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zamykanie chowa okno do zasobnika</span><span class="sm-desc">Zamknięcie okna chowa je do zasobnika — muzyka gra dalej</span></div><label class="switch"><input type="checkbox" id="smCloseToTray"><span class="slider"></span></label></div></div>
+        <div class="sm-card"><h3 class="sm-cap">Okno</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Tryb mini (kompaktowe okno)</span><span class="sm-desc">Małe okno z okładką i przyciskami — zawsze na wierzchu</span></div><button type="button" class="sm-act" id="smMiniBtn" title="Małe okno z okładką i przyciskami — zawsze na wierzchu">Włącz</button></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zawsze na wierzchu</span></div><label class="switch"><input type="checkbox" id="smOnTop"><span class="slider"></span></label></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zamykanie chowa okno do zasobnika</span><span class="sm-desc">Zamknięcie okna chowa je do zasobnika — muzyka gra dalej</span></div><label class="switch"><input type="checkbox" id="smCloseToTray"><span class="slider"></span></label></div><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Panel zasobnika w stylu Pulsara</span><span class="sm-desc">Ikona w zasobniku otwiera ciemny panel z okładką i przyciskami zamiast zwykłego menu Windows</span></div><label class="switch"><input type="checkbox" id="smTrayPanel" checked><span class="slider"></span></label></div></div>
         <div class="sm-card"><h3 class="sm-cap">Powiadomienia</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Powiadomienie o nowym utworze</span></div><label class="switch"><input type="checkbox" id="smNotify"><span class="slider"></span></label></div></div>
       </div>
       <div class="sm-pane sm-desktop-only" data-pane="obs">
@@ -1536,6 +1536,9 @@
     if (!_savedLang){ try { localStorage.setItem('playerLang', CUR_LANG); } catch(e){} }
   } catch(e){ CUR_LANG = 'pl'; }
   var I18N_DICT = {
+    'Panel zasobnika w stylu Pulsara': { en: 'Pulsar-style tray panel', es: 'Panel de bandeja al estilo de Pulsar' },
+    'Ikona w zasobniku otwiera ciemny panel z okładką i przyciskami zamiast zwykłego menu Windows': { en: 'The tray icon opens a dark panel with the cover and buttons instead of the plain Windows menu', es: 'El icono de la bandeja abre un panel oscuro con la portada y botones en lugar del menú normal de Windows' },
+    'Zmiana wyglądu zasobnika zadziała w pełni po ponownym uruchomieniu Pulsara': { en: 'The tray change fully applies after restarting Pulsar', es: 'El cambio de la bandeja se aplicará por completo al reiniciar Pulsar' },
     'Szkło (jasna tafla)': { en: 'Glass (light pane)', es: 'Cristal (panel claro)' },
     'Terminal (retro konsola)': { en: 'Terminal (retro console)', es: 'Terminal (consola retro)' },
     'Belka TV': { en: 'TV lower third', es: 'Rótulo de TV' },

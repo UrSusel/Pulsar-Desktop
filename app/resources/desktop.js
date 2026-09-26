@@ -795,7 +795,7 @@
     const NORMAL = { width: 1280, height: 840, minWidth: 760, minHeight: 560 };
     const K = {
       onTop: 'pulsarOnTop', miniOnTop: 'pulsarMiniOnTop', closeToTray: 'pulsarCloseToTray', notify: 'pulsarNotify',
-      mini: 'pulsarMini', miniGeo: 'pulsarMiniGeo', normalGeo: 'pulsarNormalGeo', trayHint: 'pulsarTrayHintShown'
+      mini: 'pulsarMini', miniGeo: 'pulsarMiniGeo', normalGeo: 'pulsarNormalGeo', trayHint: 'pulsarTrayHintShown', trayPanel: 'pulsarTrayPanel'
     };
     const W = Neutralino.window;
 
@@ -851,6 +851,7 @@
     }
     function buildTray(np){
       if (!started) return;
+      if (helperActive()){ if (helper.ready) sendHelperState(np); return; } // własny panel zamiast menu Win32
       const can = !!(np && np.hasTracks);
       const label = np && np.hasTrack && np.title ? '♪  ' + clip(np.title + (np.artist ? ' — ' + np.artist : ''), 60) : tr('Nic nie gra');
       const items = [
@@ -876,6 +877,141 @@
       });
     }
 
+    /* ---- własny panel zasobnika (Windows) ----
+     * Neutralino ma w zasobniku tylko surowe menu Win32 (bez stylu i bez zdarzenia kliknięcia ikony), więc ikonę
+     * i panel w stylu Pulsara pokazuje mały pomocnik: tray/pulsar-tray.ps1 + PulsarTray.cs (WinForms, Windows PowerShell).
+     * Rozmowa przez stdin/stdout procesu (os.spawnProcess) — bez sieci. Gdy pomocnik nie wystartuje (np. zablokowany
+     * PowerShell) albo padnie, wracamy do zwykłego menu Neutralino. Wyłączane w Ustawienia → Okno. */
+    const TRAY_DIR = joinPath(APP_DIR, 'tray');
+    const helper = { proc: null, ready: false, failed: false, buf: '', last: '', coverUrl: null, coverPath: '', coverKey: '', coverN: 0, timer: 0 };
+    function isWindows(){ return (typeof NL_OS === 'string' && NL_OS === 'Windows') || !!window.__pulsarTrayForce; }
+    function helperWanted(){ return isWindows() && getB(K.trayPanel, true); }
+    function helperActive(){ return helperWanted() && !helper.failed; }
+    function wpath(p){ return String(p).replace(/\//g, '\\'); }
+    function helperWrite(line){
+      if (!helper.proc) return Promise.resolve(null);
+      return safe(function (){ return Neutralino.os.updateSpawnedProcess(helper.proc.id, 'stdIn', line + '\n'); });
+    }
+    async function startHelper(){
+      if (!helperWanted() || helper.proc) return;
+      try {
+        try { await Neutralino.filesystem.createDirectory(TRAY_DIR); } catch (e){}
+        const files = [['PulsarTray.cs', '/tray/PulsarTray.cs'], ['pulsar-tray.ps1', '/tray/pulsar-tray.ps1']];
+        for (const f of files){
+          const r = await fetch(f[1], { cache: 'no-store' });
+          if (!r.ok) throw new Error(f[1] + ' ' + r.status);
+          await Neutralino.filesystem.writeFile(joinPath(TRAY_DIR, f[0]), await r.text());
+        }
+        try { const ic = await fetch('/icons/trayIcon.png'); if (ic.ok) await Neutralino.filesystem.writeBinaryFile(joinPath(TRAY_DIR, 'tray-icon.png'), await ic.arrayBuffer()); } catch (e){}
+        const dir = wpath(TRAY_DIR);
+        const cmd = 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -InputFormat None -WindowStyle Hidden -File "' + dir + '\\pulsar-tray.ps1" -Dir "' + dir + '" -ParentPid ' + (Number(window.NL_PID) || 0);
+        helper.proc = await Neutralino.os.spawnProcess(cmd, { cwd: dir });
+        if (!helper.proc || helper.proc.id == null) throw new Error('spawn');
+        // pierwsza kompilacja C# trwa kilka sekund; potem DLL jest zapamiętany
+        helper.timer = setTimeout(function (){ if (!helper.ready) helperFail('timeout'); }, 25000);
+      } catch (e){ helperFail(e && e.message); }
+    }
+    function helperFail(reason){
+      if (helper.failed) return;
+      helper.failed = true; helper.ready = false;
+      clearTimeout(helper.timer);
+      try { console.warn('Pulsar: panel zasobnika niedostępny (' + (reason || '?') + ') — zwykłe menu'); } catch (e){}
+      const p = helper.proc; helper.proc = null;
+      if (p) safe(function (){ return Neutralino.os.updateSpawnedProcess(p.id, 'exit'); });
+      lastTrayJson = ''; trayOk = false;
+      scheduleRefresh(); // → natywne menu Neutralino
+    }
+    function onHelperLine(line){
+      line = String(line).replace(/\r$/, '');
+      if (!line) return;
+      if (line === 'ready'){
+        helper.ready = true; clearTimeout(helper.timer); trayOk = true; helper.last = '';
+        scheduleRefresh();
+      } else if (line.indexOf('cmd:') === 0){
+        onTrayClick({ detail: { id: line.slice(4) } });
+      } else if (line === 'panel:open'){
+        helper.last = ''; refresh(); // świeża pozycja utworu
+      } else if (line.indexOf('error:') === 0){
+        helperFail(line.slice(6));
+      }
+    }
+    function onHelperEvent(evt){
+      const d = evt && evt.detail;
+      if (!d || !helper.proc || d.id !== helper.proc.id) return;
+      if (d.action === 'stdOut'){
+        helper.buf += String(d.data || '');
+        let i;
+        while ((i = helper.buf.indexOf('\n')) >= 0){ const l = helper.buf.slice(0, i); helper.buf = helper.buf.slice(i + 1); onHelperLine(l); }
+      } else if (d.action === 'exit'){
+        helper.proc = null;
+        if (!quitting) helperFail('exit ' + d.data);
+      }
+    }
+    function coverToFile(url){
+      // okładka dla panelu: mały JPEG w folderze tray (na zmianę 2 nazwy — pomocnik nie czyta pliku w trakcie zapisu)
+      return new Promise(function (resolve){
+        const img = new Image();
+        img.onload = function (){
+          try {
+            const n = 144, c = document.createElement('canvas'); c.width = n; c.height = n;
+            const g = c.getContext('2d');
+            const sc = Math.max(n / img.naturalWidth, n / img.naturalHeight);
+            const w = img.naturalWidth * sc, h = img.naturalHeight * sc;
+            g.drawImage(img, (n - w) / 2, (n - h) / 2, w, h);
+            c.toBlob(function (b){
+              if (!b){ resolve(''); return; }
+              b.arrayBuffer().then(function (buf){
+                helper.coverN = (helper.coverN + 1) % 2;
+                const path = joinPath(TRAY_DIR, 'cover-' + helper.coverN + '.jpg');
+                return Neutralino.filesystem.writeBinaryFile(path, buf).then(function (){ resolve(wpath(path)); });
+              }).catch(function (){ resolve(''); });
+            }, 'image/jpeg', 0.88);
+          } catch (e){ resolve(''); } // obraz z innej domeny bez CORS — panel pokaże zastępczą okładkę
+        };
+        img.onerror = function (){ resolve(''); };
+        img.src = url;
+      });
+    }
+    function sendHelperState(np){
+      const cov = (np && np.hasTrack && np.cover) || '';
+      if (cov !== helper.coverUrl){
+        helper.coverUrl = cov;
+        if (!cov){ helper.coverPath = ''; helper.coverKey = ''; }
+        else coverToFile(cov).then(function (p){
+          if (helper.coverUrl !== cov) return;
+          helper.coverPath = p; helper.coverKey = p ? String(Date.now()) : '';
+          helper.last = ''; scheduleRefresh();
+        });
+      }
+      const f = {
+        title: np && np.hasTrack ? (np.title || '') : '',
+        artist: np && np.hasTrack ? (np.artist || '') : '',
+        playing: np && np.playing ? 1 : 0, hasTracks: np && np.hasTracks ? 1 : 0,
+        hidden: hidden ? 1 : 0, mini: mini ? 1 : 0, onTop: effectiveOnTop() ? 1 : 0, closeToTray: getB(K.closeToTray, false) ? 1 : 0,
+        pos: np && np.pos ? (+np.pos).toFixed(2) : 0, dur: np && np.dur ? (+np.dur).toFixed(2) : 0,
+        accent: (np && np.accent) || '', cover: helper.coverPath, coverKey: helper.coverKey,
+        l_nothing: tr('Nic nie gra'), l_show: tr('Pokaż okno'), l_hide: tr('Ukryj okno'), l_mini: tr('Tryb mini'),
+        l_ontop: tr('Zawsze na wierzchu'), l_closetray: tr('Zamykaj do zasobnika'), l_quit: tr('Zakończ'),
+        l_play: tr('Odtwórz'), l_pause: tr('Pauza'), l_prev: tr('Poprzedni'), l_next: tr('Następny')
+      };
+      const line = 'state|' + Object.keys(f).map(function (k){ return k + '=' + String(f[k]).replace(/[\r\n\x1f]/g, ' '); }).join('\x1f');
+      if (line === helper.last) return;
+      helper.last = line;
+      helperWrite(line);
+    }
+    function setTrayPanel(on){
+      setB(K.trayPanel, !!on);
+      if (!isWindows()) return;
+      if (on){
+        if (!helper.proc){ helper.failed = false; helper.ready = false; startHelper(); }
+      } else {
+        const p = helper.proc; helper.proc = null; helper.ready = false; helper.failed = true;
+        if (p){ Neutralino.os.updateSpawnedProcess(p.id, 'stdIn', 'quit\n').catch(function (){}); }
+        lastTrayJson = ''; trayOk = false; scheduleRefresh();
+      }
+      toast(tr('Zmiana wyglądu zasobnika zadziała w pełni po ponownym uruchomieniu Pulsara'));
+    }
+
     /* ---- pokaż / ukryj / zakończ ---- */
     function hideWindow(){
       if (!trayOk){ quit(); return; }
@@ -898,7 +1034,9 @@
       if (quitting) return;
       quitting = true;
       try { const h = host(); if (h && h.saveState) h.saveState(); } catch (e){}
-      try { Neutralino.app.exit(); } catch (e){}
+      const exit = function (){ try { Neutralino.app.exit(); } catch (e){} };
+      if (helper.proc){ Promise.race([helperWrite('quit'), sleep(400)]).then(exit, exit); }
+      else exit();
     }
 
     /* ---- zawsze na wierzchu ---- */
@@ -969,6 +1107,7 @@
       const a = document.getElementById('smOnTop'); if (a) a.checked = onTop;
       const b = document.getElementById('smCloseToTray'); if (b) b.checked = getB(K.closeToTray, false);
       const c = document.getElementById('smNotify'); if (c) c.checked = getB(K.notify, false);
+      const tp = document.getElementById('smTrayPanel'); if (tp) tp.checked = getB(K.trayPanel, true);
     }
     function wireSettingsUI(){
       const miniBtn = document.getElementById('smMiniBtn');
@@ -982,6 +1121,8 @@
       if (b) b.addEventListener('change', function (){ setB(K.closeToTray, b.checked); scheduleRefresh(); });
       const c = document.getElementById('smNotify');
       if (c) c.addEventListener('change', function (){ setB(K.notify, c.checked); });
+      const tp = document.getElementById('smTrayPanel');
+      if (tp) tp.addEventListener('change', function (){ setTrayPanel(tp.checked); });
       syncSettingsUI();
     }
 
@@ -1009,6 +1150,7 @@
         else quit();
       });
       Neutralino.events.on('trayMenuItemClicked', onTrayClick);
+      Neutralino.events.on('spawnedProcess', onHelperEvent);
       Neutralino.events.on('windowFocus', function (){ focused = true; });
       Neutralino.events.on('windowBlur', function (){ focused = false; });
       Neutralino.events.on('ready', function (){
@@ -1023,7 +1165,8 @@
             isOnTop: effectiveOnTop,
             show: showWindow,
             hide: hideWindow,
-            quit: quit
+            quit: quit,
+            trayHelper: function (){ return { ready: helper.ready, failed: helper.failed, running: !!helper.proc, last: helper.last }; }
           };
           const bt = await safe(function (){ return W.getTitle(); });
           if (bt) baseTitle = bt;
@@ -1032,6 +1175,7 @@
           document.addEventListener('pulsar:lang', function (){ lastTrayJson = ''; scheduleRefresh(); });
           await applyOnTop();
           if (getB(K.mini, false)) await setMini(true, { startup: true });
+          if (helperWanted()) startHelper();
           refresh();
         });
       });

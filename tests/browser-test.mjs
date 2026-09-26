@@ -61,7 +61,10 @@ const STUB = String.raw`
       execCommand: function(c){ return call('execCommand', c); },
       getEnv: function(){ return Promise.resolve(window.__NL_TMP); },
       showFolderDialog: function(t, o){ return call('showFolderDialog', t, o); },
-      showSaveDialog: function(t, o){ return call('showSaveDialog', t, o); }
+      showSaveDialog: function(t, o){ return call('showSaveDialog', t, o); },
+      spawnProcess: function(c, o){ var l = window.__spawned = window.__spawned || []; var p = { id: l.length + 1, pid: 4242, cmd: c, opts: o, io: [] }; l.push(p); return Promise.resolve({ id: p.id, pid: p.pid }); },
+      updateSpawnedProcess: function(id, a, d){ var p = (window.__spawned || [])[id - 1]; if (p) p.io.push([a, d]); return Promise.resolve(); },
+      setTray: function(o){ (window.__setTray = window.__setTray || []).push(o); return Promise.resolve({}); }
     }),
     window: anyNs({ getTitle: function(){ return Promise.resolve('Pulsar'); } }),
     app: anyNs({}),
@@ -150,6 +153,7 @@ async function openApp(browser, opts = {}){
   await page.evaluateOnNewDocument((ls, np, tmp, slow) => {
     if (!sessionStorage.getItem('__lsInit')){ sessionStorage.setItem('__lsInit', '1'); Object.keys(ls).forEach(k => localStorage.setItem(k, ls[k])); }
     window.__NL_PATH = np; window.__NL_TMP = tmp;
+    if (ls.__trayForce) window.__pulsarTrayForce = true;
     // piaskownica nie ma GPU: animowane tło zjada CPU i spowalnia odtwarzacz mediów — w testach czasu audio ograniczamy rAF
     if (slow) window.requestAnimationFrame = cb => setTimeout(() => cb(performance.now()), 250);
   }, Object.assign({ playerLang: 'pl', playerSkipSilence: '0', playerNorm: '0', pulsarYtdlpAuto: '1' }, opts.ls || {}), opts.nlPath || '', path.join(OUT, 'tmp'), !!opts.slowRaf);
@@ -397,6 +401,52 @@ async function testBackup(browser){
 }
 
 /* ---------------- DESKTOP (stub): yt-dlp, obserwowany folder, tagi na dysku, kopia na dysk ---------------- */
+/* ---- panel zasobnika (pomocnik PowerShell/WinForms udawany przez stub spawnProcess) ---- */
+async function testTray(browser){
+  const base = path.join(OUT, 'tray'); fs.rmSync(base, { recursive: true, force: true });
+  const state = { writes: [], exec: [], watchers: new Map(), watchSeq: 0, ytVer: '2025.01.15', ytLatest: '2025.01.15' };
+  const page = await openApp(browser, { desktop: true, state, nlPath: path.join(base, 'app'), ls: { __trayForce: '1', pulsarYtdlpAuto: '0' } });
+  const sp = await poll(() => page.evaluate(() => window.__spawned && window.__spawned[0]), 10000);
+  check('tray: pomocnik uruchomiony', !!sp && /^powershell\.exe .*-File ".*\\tray\\pulsar-tray\.ps1" -Dir ".*\\tray" -ParentPid \d+$/.test(sp.cmd), sp && sp.cmd);
+  const dir = path.join(base, 'app', 'tray');
+  const csOk = fs.existsSync(path.join(dir, 'PulsarTray.cs')) && fs.readFileSync(path.join(dir, 'PulsarTray.cs'), 'utf8') === fs.readFileSync(path.join(RES, 'tray', 'PulsarTray.cs'), 'utf8');
+  check('tray: pliki pomocnika zapisane', csOk && fs.existsSync(path.join(dir, 'pulsar-tray.ps1')) && fs.statSync(path.join(dir, 'tray-icon.png')).size > 100);
+  check('tray: bez natywnego menu, gdy pomocnik startuje', !(await page.evaluate(() => (window.__setTray || []).length)));
+  await page.evaluate(() => window.__nlEmit('spawnedProcess', { id: 1, action: 'stdOut', data: 're' }));
+  await page.evaluate(() => window.__nlEmit('spawnedProcess', { id: 1, action: 'stdOut', data: 'ady\r\n' }));
+  const st0 = await poll(() => page.evaluate(() => (window.__spawned[0].io.map(x => x[1]).filter(l => /^state\|/.test(l)).pop()) || null), 5000);
+  check('tray: po „ready” wysłany stan', !!st0 && /\x1fl_quit=Zakończ\x1f/.test(st0) && /hasTracks=0/.test(st0), st0 && st0.slice(0, 160));
+  await loadFiles(page, [path.join(MEDIA, 't_v23.mp3'), path.join(MEDIA, 'cover.jpg')]);
+  await page.evaluate(() => window.__player.loadIndex(0));
+  await page.evaluate(() => { const a = document.querySelector('audio'); if (a && a.paused) a.play().catch(() => {}); });
+  const st1 = await poll(() => page.evaluate(() => { const l = window.__spawned[0].io.map(x => x[1]).filter(l => /^state\|/.test(l)).pop(); return l && /playing=1/.test(l) && /title=[^\x1f]+/.test(l) ? l : null; }), 10000);
+  check('tray: stan z utworem (tytuł, odtwarzanie, akcent)', !!st1 && /accent=\d+, ?\d+, ?\d+/.test(st1) && /dur=\d/.test(st1), st1 && st1.slice(0, 200));
+  const stC = await poll(() => page.evaluate(() => { const l = window.__spawned[0].io.map(x => x[1]).filter(l => /^state\|/.test(l)).pop(); const m = l && l.match(/\x1fcover=([^\x1f]*)/); return m && m[1] ? m[1] : null; }), 10000);
+  const coverFile = stC && stC.replace(/\\/g, '/');
+  check('tray: okładka zapisana jako JPEG dla panelu', !!coverFile && fs.existsSync(coverFile) && fs.statSync(coverFile).size > 500, stC);
+  // polecenia z panelu
+  const wasPlaying = await page.evaluate(() => !document.querySelector('audio').paused);
+  await page.evaluate(() => window.__nlEmit('spawnedProcess', { id: 1, action: 'stdOut', data: 'cmd:toggle\n' }));
+  const toggled = await poll(() => page.evaluate(w => document.querySelector('audio').paused === w, wasPlaying), 4000);
+  check('tray: cmd:toggle przełącza odtwarzanie', !!toggled);
+  await page.evaluate(() => window.__nlEmit('spawnedProcess', { id: 1, action: 'stdOut', data: 'cmd:closetray\n' }));
+  await sleep(300);
+  check('tray: cmd:closetray zmienia ustawienie', await page.evaluate(() => localStorage.getItem('pulsarCloseToTray') === '1' && document.getElementById('smCloseToTray').checked));
+  const stCt = await poll(() => page.evaluate(() => { const l = window.__spawned[0].io.map(x => x[1]).filter(l => /^state\|/.test(l)).pop(); return /closeToTray=1/.test(l) ? l : null; }), 3000);
+  check('tray: nowy stan wysłany do panelu', !!stCt);
+  check('tray: przełącznik w ustawieniach', await page.evaluate(() => { const e = document.getElementById('smTrayPanel'); return !!e && e.checked; }));
+  // pomocnik padł → natywne menu
+  await page.evaluate(() => window.__nlEmit('spawnedProcess', { id: 1, action: 'stdOut', data: 'error:Add-Type failed\n' }));
+  const nat = await poll(() => page.evaluate(() => (window.__setTray || []).length > 0 && window.__setTray[window.__setTray.length - 1]), 4000);
+  check('tray: błąd pomocnika → zwykłe menu Neutralino', !!nat && nat.menuItems.some(i => i.id === 'quit'), nat && nat.menuItems.map(i => i.id));
+  // wyłączony w ustawieniach → nie startuje
+  const page2 = await openApp(browser, { desktop: true, state: Object.assign({}, state, { writes: [], exec: [], watchers: new Map() }), nlPath: path.join(base, 'app2'), ls: { __trayForce: '1', pulsarYtdlpAuto: '0', pulsarTrayPanel: '0' } });
+  const nat2 = await poll(() => page2.evaluate(() => (window.__setTray || []).length > 0), 6000);
+  check('tray: wyłączony → od razu zwykłe menu, bez pomocnika', !!nat2 && !(await page2.evaluate(() => (window.__spawned || []).length)));
+  await page2.__ctx.close();
+  await page.__ctx.close();
+}
+
 async function testDesktop(browser){
   const base = path.join(OUT, 'desk'); fs.rmSync(base, { recursive: true, force: true });
   const watch = path.join(base, 'Muzyka Test'); fs.mkdirSync(path.join(watch, 'sub'), { recursive: true });
@@ -858,6 +908,7 @@ try {
   if (WHICH === 'all' || WHICH === 'covers'){ await testCovers(browser); await testCoversDesktop(browser); }
   if (WHICH === 'all' || WHICH === 'net') await testNet(browser);
   if (WHICH === 'all' || WHICH === 'settings') await testSettings(browser);
+  if (WHICH === 'all' || WHICH === 'tray') await testTray(browser);
   if (WHICH === 'all' || WHICH === 'gapless') await testGapless(browser);
 } catch (e){ console.log('FAIL wyjątek:', e && e.stack || e); failures++; }
 await browser.close();
