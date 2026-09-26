@@ -506,7 +506,7 @@
     function css(){
       if (document.getElementById('pulsarUpdStyle')) return;
       const st = document.createElement('style'); st.id = 'pulsarUpdStyle';
-      st.textContent = '#pulsarUpd{position:fixed;right:18px;bottom:18px;z-index:99999;width:330px;max-width:calc(100vw - 36px);box-sizing:border-box;padding:16px 16px 14px;' +
+      st.textContent = '#pulsarUpd{position:fixed;right:18px;bottom:112px;z-index:99999;width:372px;max-width:calc(100vw - 36px);box-sizing:border-box;padding:16px 16px 14px;' +
         'border-radius:14px;background:rgba(22,22,26,.96);color:#f0f0f0;border:1px solid rgba(255,255,255,.1);box-shadow:0 18px 50px rgba(0,0,0,.55),0 0 0 1px rgba(var(--accent-rgb,160,107,255),.18);' +
         'font:13px/1.4 "Segoe UI",system-ui,sans-serif;backdrop-filter:blur(14px);animation:pulsarUpdIn .35s cubic-bezier(.2,.9,.3,1.2)}' +
         '@keyframes pulsarUpdIn{from{opacity:0;transform:translateY(16px) scale(.97)}to{opacity:1;transform:none}}' +

@@ -64,6 +64,7 @@ const STUB = String.raw`
       showSaveDialog: function(t, o){ return call('showSaveDialog', t, o); },
       spawnProcess: function(c, o){ var l = window.__spawned = window.__spawned || []; var p = { id: l.length + 1, pid: 4242, cmd: c, opts: o, io: [] }; l.push(p); return Promise.resolve({ id: p.id, pid: p.pid }); },
       updateSpawnedProcess: function(id, a, d){ var p = (window.__spawned || [])[id - 1]; if (p) p.io.push([a, d]); return Promise.resolve(); },
+      open: function(u){ (window.__opened = window.__opened || []).push(u); return Promise.resolve(); },
       setTray: function(o){ (window.__setTray = window.__setTray || []).push(o); return Promise.resolve({}); }
     }),
     window: anyNs({ getTitle: function(){ return Promise.resolve('Pulsar'); } }),
@@ -401,6 +402,53 @@ async function testBackup(browser){
 }
 
 /* ---------------- DESKTOP (stub): yt-dlp, obserwowany folder, tagi na dysku, kopia na dysk ---------------- */
+/* ---- aktualizacje Pulsara: porównanie z gałęzią main ---- */
+async function testUpdate(browser){
+  const mk = (build, hits) => (u) => {
+    if (u.hostname !== 'raw.githubusercontent.com') return null;
+    hits.push(u.pathname);
+    if (u.pathname === '/UrSusel/Pulsar-Desktop/main/index.html') return { status: 200, contentType: 'text/html', headers: { 'Access-Control-Allow-Origin': '*' }, body: '<div class="build"><i></i> Build ' + build + ' · Windows</div>' };
+    return { status: 404, headers: { 'Access-Control-Allow-Origin': '*' }, body: 'nf' };
+  };
+  const st = () => ({ writes: [], exec: [], watchers: new Map(), watchSeq: 0, ytVer: '2025.01.15', ytLatest: '2025.01.15' });
+  // nowsza wersja na main → karta z przyciskiem Pobierz
+  let hits = [];
+  let page = await openApp(browser, { desktop: true, state: st(), netMock: mk('0.20.1', hits), nlPath: path.join(OUT, 'upd', 'a'), ls: { pulsarYtdlpAuto: '0' } });
+  const card = await poll(() => page.evaluate(() => { const c = document.getElementById('pulsarUpd'); return c ? c.textContent : null; }), 12000);
+  check('update: karta przy starcie (main ma nowszy Build)', !!card && /Build 0\.20\.1/.test(card) && /Build 0\.19\.26/.test(card), card);
+  check('update: sprawdzana gałąź main', hits.some(h => h.startsWith('/UrSusel/Pulsar-Desktop/main/')), hits);
+  await page.screenshot({ path: path.join(OUT, 'update-card.png') });
+  await page.evaluate(() => document.querySelector('#pulsarUpd .u-go').click());
+  const op = await page.evaluate(() => window.__opened || []);
+  check('update: Pobierz otwiera ZIP z main', op[0] === 'https://github.com/UrSusel/Pulsar-Desktop/raw/main/Pulsar-Desktop.zip' && !(await page.evaluate(() => !!document.getElementById('pulsarUpd'))), op);
+  const ver = await page.evaluate(() => document.getElementById('smUpdVer').textContent);
+  check('update: wersja w ustawieniach', /Build 0\.19\.26/.test(ver) && /0\.20\.1/.test(ver), ver);
+  // „Pomiń tę wersję” → przy kolejnym starcie brak karty; ręczne sprawdzenie i tak pokazuje
+  await page.evaluate(() => window.__desktopBridge.updates.manual());
+  await poll(() => page.evaluate(() => !!document.getElementById('pulsarUpd')), 5000);
+  await page.evaluate(() => document.querySelector('#pulsarUpd .u-skip').click());
+  check('update: pominięta wersja zapamiętana', await page.evaluate(() => localStorage.getItem('pulsarUpdateSkip') === '0.20.1'));
+  await page.reload({ waitUntil: 'load' });
+  await sleep(6500);
+  check('update: pominięta wersja nie wyskakuje ponownie', !(await page.evaluate(() => !!document.getElementById('pulsarUpd'))));
+  await page.__ctx.close();
+  // ta sama wersja → nic; ręcznie → komunikat „masz najnowszą”
+  hits = [];
+  page = await openApp(browser, { desktop: true, state: st(), netMock: mk('0.19.26', hits), nlPath: path.join(OUT, 'upd', 'b'), ls: { pulsarYtdlpAuto: '0' } });
+  await poll(() => hits.length > 0, 10000); await sleep(800);
+  check('update: aktualna wersja → brak karty', !(await page.evaluate(() => !!document.getElementById('pulsarUpd'))));
+  await page.evaluate(() => document.getElementById('smUpdBtn').click());
+  const t = await poll(() => page.evaluate(() => { const e = document.getElementById('styleToast'); return e && /najnowszą/.test(e.textContent) ? e.textContent : null; }), 5000);
+  check('update: „Sprawdź teraz” → masz najnowszą', !!t, t);
+  await page.__ctx.close();
+  // wyłączone → brak zapytań
+  hits = [];
+  page = await openApp(browser, { desktop: true, state: st(), netMock: mk('9.0.0', hits), nlPath: path.join(OUT, 'upd', 'c'), ls: { pulsarYtdlpAuto: '0', pulsarUpdateAuto: '0' } });
+  await sleep(6000);
+  check('update: wyłączone w ustawieniach → bez sprawdzania', hits.length === 0 && !(await page.evaluate(() => document.getElementById('smUpdAuto').checked)), hits);
+  await page.__ctx.close();
+}
+
 /* ---- panel zasobnika (pomocnik PowerShell/WinForms udawany przez stub spawnProcess) ---- */
 async function testTray(browser){
   const base = path.join(OUT, 'tray'); fs.rmSync(base, { recursive: true, force: true });
@@ -909,6 +957,7 @@ try {
   if (WHICH === 'all' || WHICH === 'net') await testNet(browser);
   if (WHICH === 'all' || WHICH === 'settings') await testSettings(browser);
   if (WHICH === 'all' || WHICH === 'tray') await testTray(browser);
+  if (WHICH === 'all' || WHICH === 'update') await testUpdate(browser);
   if (WHICH === 'all' || WHICH === 'gapless') await testGapless(browser);
 } catch (e){ console.log('FAIL wyjątek:', e && e.stack || e); failures++; }
 await browser.close();
