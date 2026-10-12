@@ -211,11 +211,11 @@
     <div class="step" style="border-bottom:0"><div><b>Double-click <span style="color:var(--cy)">pulsar.exe</span></b>If SmartScreen appears: <i>More info → Run anyway</i>. That prompt appears only once.</div></div>
     <div class="step" style="border-bottom:0"><div><b>Play &amp; save</b>Drop your local files in, or open the <i>Net</i> tab, paste a YouTube link — songs arrive with cover art, ready to keep or save to any folder on disk.</div></div>
   </div>
-  <p class="sub" style="margin-top:18px">🐧 On <b>Linux</b> the steps are just as short: unpack <span style="color:var(--cy)">Pulsar-Linux.zip</span> into its own folder, <span style="color:var(--cy)">chmod +x pulsar &amp;&amp; ./pulsar</span>. It needs only your distro's system WebKitGTK — <span style="color:var(--cy)">sudo pacman -S gtk3 webkit2gtk-4.1</span> on Arch / CachyOS, <span style="color:var(--cy)">sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0</span> on Debian / Ubuntu. ffmpeg is optional, for a few extra formats.</p>
+  <p class="sub" style="margin-top:18px">🐧 On <b>Linux</b> the steps are just as short: unpack <span style="color:var(--cy)">Pulsar-Linux.zip</span> into its own folder, <span style="color:var(--cy)">chmod +x pulsar &amp;&amp; ./pulsar</span>. It needs only your distro's system WebKitGTK — <span style="color:var(--cy)">sudo pacman -S gtk3 webkit2gtk-4.1</span> on Arch / CachyOS, <span style="color:var(--cy)">sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0</span> on Debian / Ubuntu. If the player runs but is <b>silent</b>, add the GStreamer codec packages — <span style="color:var(--cy)">sudo pacman -S gst-libav gst-plugins-ugly gst-plugins-good</span> / <span style="color:var(--cy)">sudo apt install gstreamer1.0-libav gstreamer1.0-plugins-ugly gstreamer1.0-plugins-good</span> — then MP3/AAC files play right away. ffmpeg is optional, for a few extra formats.</p>
 </section>
 
 <footer class="wrap">
-  Pulsar Build 0.20.12 · site rev 5 · free, portable, made with <span class="heart">♥</span> for music<br>
+  Pulsar Build 0.20.12 · site rev 6 · free, portable, made with <span class="heart">♥</span> for music<br>
   <span style="opacity:.65">Downloads from YouTube are provided by the bundled yt-dlp — please respect the artists you love.</span>
 </footer>
 

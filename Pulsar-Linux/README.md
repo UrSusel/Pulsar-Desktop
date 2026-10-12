@@ -44,6 +44,10 @@ sudo pacman -S ffmpeg     # or place an ffmpeg binary in this folder
 
 ## Troubleshooting
 
+- **No sound** (the usual one): WebKitGTK decodes MP3/AAC through GStreamer codecs that minimal
+  installs skip. Add them: `sudo pacman -S gst-libav gst-plugins-ugly gst-plugins-good`
+  (Debian/Ubuntu: `sudo apt install gstreamer1.0-libav gstreamer1.0-plugins-ugly gstreamer1.0-plugins-good`).
+  Verify outside the app with `gst-play-1.0 some-track.mp3`.
 - **Black or blank window** (usually NVIDIA + Wayland):
   `WEBKIT_DISABLE_DMABUF_RENDERER=1 ./pulsar` or `WEBKIT_DISABLE_COMPOSITING_MODE=1 ./pulsar`
 - **No tray icon on GNOME**: enable an AppIndicator/TopIcons extension (app still works without it).

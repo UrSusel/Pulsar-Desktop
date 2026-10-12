@@ -16,7 +16,8 @@ The project page — [ursusel.github.io/Pulsar-Desktop](https://ursusel.github.i
 > **Windows:** if SmartScreen appears, click *More info → Run anyway* (only once) — the app just isn't code-signed.
 
 > **Linux:** the only system dependency is WebKitGTK, and the download manager (`yt-dlp`) is bundled.
-> Arch / CachyOS: `sudo pacman -S gtk3 webkit2gtk-4.1` · Debian / Ubuntu: `sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0`
+> Arch / CachyOS: `sudo pacman -S gtk3 webkit2gtk-4.1 gst-libav gst-plugins-ugly gst-plugins-good` · Debian / Ubuntu: `sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0 gstreamer1.0-libav gstreamer1.0-plugins-ugly gstreamer1.0-plugins-good`
+> (the GStreamer packages are what actually decode MP3/AAC — without them the player stays silent)
 > `ffmpeg` is optional and unlocks a few extra audio formats. On Wayland everything works through XWayland out of the box.
 
 ## ✨ Features
