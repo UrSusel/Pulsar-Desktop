@@ -1,0 +1,33 @@
+/* Pulsar — Auto-DJ 2.0 i automatyczne kopie. */
+.padj-card, .pab-card { border-color: color-mix(in srgb, var(--accent, #8b7cf6) 25%, var(--line, #ffffff18)); }
+.padj-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; padding: 10px 0; }
+.padj-actions .sm-btn { flex: 1 1 190px; }
+.padj-choice { display: grid; gap: 4px; padding: 11px 12px; border: 1px solid var(--line, #ffffff18); border-radius: 12px; background: color-mix(in srgb, var(--accent, #8b7cf6) 7%, transparent); }
+.padj-choice strong { font-size: 12px; line-height: 1.4; }
+.padj-choice span { color: var(--muted, #a8a8b8); font-size: 11px; line-height: 1.45; }
+.padj-history { margin-top: 10px; color: var(--muted, #a8a8b8); font-size: 11px; }
+.padj-history summary { cursor: pointer; user-select: none; padding: 4px 0; }
+.padj-history > div { display: grid; gap: 4px; padding-top: 7px; line-height: 1.5; }
+.padj-history button { border: 0; border-radius: 8px; background: var(--surface2, #ffffff0b); color: var(--text, #eee); text-align: left; padding: 7px 9px; cursor: pointer; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.padj-history button:hover, .padj-history button:focus-visible { background: color-mix(in srgb, var(--accent, #8b7cf6) 18%, transparent); }
+.pab-grid { display: grid; grid-template-columns: minmax(0, 1fr) 110px; gap: 10px; padding: 10px 0; }
+.pab-grid label { display: grid; gap: 6px; color: var(--muted, #a8a8b8); font-size: 11px; }
+.pab-grid .sm-select { width: 100%; }
+.pab-folder { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 0; }
+.pab-folder > span { min-width: 0; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted, #a8a8b8); font-size: 11px; }
+.pab-folder > div { display: flex; gap: 5px; flex: none; }
+.pab-status { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--muted, #a8a8b8); font-size: 11px; line-height: 1.5; padding-top: 8px; }
+.pab-status.pab-error { color: #ff9b9b; }
+@media (max-width: 600px) {
+  .pab-grid { grid-template-columns: 1fr 90px; }
+  .pab-folder { align-items: flex-start; flex-direction: column; }
+  .pab-folder > span { width: 100%; }
+}
+
+/* Informacja o wydaniu aplikacji; link otwiera GitHub, nic nie jest instalowane. */
+.pupdate-actions { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.pupdate-actions .sm-btn { text-decoration: none; text-align: center; }
+.pupdate-actions .sm-btn[hidden] { display: none; }
+.pupdate-status { margin-top: 10px; color: var(--muted, #9ca3af); font-size: 12px; line-height: 1.45; }
+.pupdate-status.pupdate-new { color: #8ed8ae; }
+.pupdate-status.pupdate-error { color: #e4a0a0; }

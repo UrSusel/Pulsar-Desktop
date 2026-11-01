@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pl" data-mode="audio" data-style="glass" data-pos="br" data-viz="0">
+<html lang="pl" data-mode="audio" data-style="terminal" data-pos="br" data-viz="1">
 <head>
 <meta charset="utf-8">
 <title>Pulsar → OBS</title>
@@ -254,7 +254,7 @@
   var MODE = document.documentElement.getAttribute('data-mode') || 'overlay';
   var PREVIEW = /[?&]preview\b/.test(location.search); // podgląd w ustawieniach Pulsara — dane przez postMessage, bez połączenia
   var themeAccent = ''; // własny kolor akcentu z motywu ('' = z okładki)
-  var BAKED_THEME = {"style":"glass","pos":"br","viz":false,"accent":"","scale":100,"bg":100,"margin":120,"font":"sans","anim":"fade","autohide":0,"cover":true,"progress":true,"label":true,"art":true,"marquee":true,"text":"","tsize":105,"radius":26,"cshape":"auto","vizStyle":"bars"}; // motyw zapisany przez Pulsara w pliku dla OBS (działa od razu, jeszcze przed połączeniem)
+  var BAKED_THEME = {"style":"terminal","pos":"br","viz":true,"accent":"","scale":100,"bg":100,"margin":120,"font":"sans","anim":"slide","autohide":0,"cover":true,"progress":true,"label":true,"art":true,"marquee":true,"text":"","tsize":105,"radius":14,"cshape":"auto","vizStyle":"bars"}; // motyw zapisany przez Pulsara w pliku dla OBS (działa od razu, jeszcze przed połączeniem)
   var vizStyle = 'bars', autoHide = 0, changedAt = performance.now(), marquee = false, curTitle = '';
   var TARGET = 0.12;   // docelowy bufor [s] — małe opóźnienie względem Pulsara
   var MAX_LEAD = 0.3;  // powyżej tego nadmiarowe paczki są odrzucane
