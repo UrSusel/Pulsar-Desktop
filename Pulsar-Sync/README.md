@@ -120,10 +120,11 @@ and works with the folder instead (`supportsGoogle()` returns `false`).
 
 ## Rebuilding the desktop packages
 
-The app itself is closed-source: `resources.neu` is a packed archive and its `index.html`
-and `desktop.js` are never unpacked into the repository. The script does that in a scratch
-directory, injects the layer and packs the archive back, so both platforms keep working
-without touching the source of the app.
+The readable application sources live in `Pulsar-Core` under Apache-2.0. For incremental
+development this script can patch an existing `resources.neu` in a scratch directory and pack
+it back with fresh integrity hashes. For a complete build starting from the readable core,
+use `python Pulsar-Editor/tools/build_desktop_editor.py --from-source`; it applies this
+synchronization layer together with the editor and extras.
 
 ```bash
 # inject into both packages (idempotent — running it again changes nothing)

@@ -3,9 +3,10 @@
 
 Paczki w repo to to, co ludzie ściągają z GitHuba, więc muszą mieć tę samą
 warstwę synchronizacji, co foldery Pulsar-Linux/ i Pulsar-Windows/. Skrypt
-podmienia w archiwum tylko pliki, które się zmieniły (`resources.neu`, stronę
-`index.html` w paczce Windows, a na Linuksie także README.md), zostawiając
-wszystkie pozostałe wpisy — łącznie z prawami dostępu i datami — bez zmian.
+podmienia w archiwum pliki, które się zmieniły (`resources.neu`, stronę
+`index.html` w paczce Windows, a na Linuksie także README.md), oraz dodaje brakujące
+LICENSE/NOTICE i pozostałe wymagane dokumenty. Wszystkie pozostałe wpisy —
+łącznie z prawami dostępu i datami — zostają bez zmian.
 
   python Pulsar-Sync/tools/refresh_download_zips.py           # odśwież
   python Pulsar-Sync/tools/refresh_download_zips.py --check   # tylko sprawdź
@@ -32,11 +33,23 @@ TARGETS = {
     },
 }
 
+DISTRIBUTION_NOTICES = {
+    name: REPO / name
+    for name in ("LICENSE", "NOTICE", "PRIVACY.md", "THIRD_PARTY_NOTICES.md")
+}
+DISTRIBUTION_NOTICES.update({
+    source.relative_to(REPO).as_posix(): source
+    for source in sorted((REPO / "licenses").glob("*.txt"))
+})
+for replacements in TARGETS.values():
+    replacements.update(DISTRIBUTION_NOTICES)
+
 
 def stale_names(archive: Path, replacements: dict[str, Path]) -> list[str]:
     with zipfile.ZipFile(archive) as zip_file:
+        names = zip_file.namelist()
         return [name for name, source in replacements.items()
-                if name in zip_file.namelist() and zip_file.read(name) != source.read_bytes()]
+                if name not in names or zip_file.read(name) != source.read_bytes()]
 
 
 def refresh(archive: Path, replacements: dict[str, Path], check_only: bool) -> bool:
@@ -64,19 +77,26 @@ def refresh(archive: Path, replacements: dict[str, Path], check_only: bool) -> b
                 fresh.compress_type = info.compress_type
                 fresh.create_system = info.create_system
                 target.writestr(fresh, data)
+            existing = set(source.namelist())
+            for name, source_path in replacements.items():
+                if name not in existing:
+                    target.write(source_path, arcname=name)
 
-        # Kontrola przed podmianą: te same wpisy, w tej samej kolejności, tryby
-        # zachowane, a poza podmienionymi plikami nic się nie zmieniło.
+        # Kontrola przed podmianą: stare wpisy zostają w tej samej kolejności,
+        # nowe dokumenty są dopisane na końcu, a tryby pozostałych plików się
+        # nie zmieniają.
         with zipfile.ZipFile(archive) as before, zipfile.ZipFile(rebuilt) as after:
-            if [i.filename for i in before.infolist()] != [i.filename for i in after.infolist()]:
-                raise ValueError(f"{archive.name}: lista plików się zmieniła")
+            before_names = [i.filename for i in before.infolist()]
+            expected_names = before_names + [name for name in replacements if name not in before_names]
+            if expected_names != [i.filename for i in after.infolist()]:
+                raise ValueError(f"{archive.name}: nieoczekiwana lista plików po odświeżeniu")
             for old, new in zip(before.infolist(), after.infolist()):
                 if old.external_attr != new.external_attr or old.date_time != new.date_time:
                     raise ValueError(f"{archive.name}: {old.filename} zgubił prawa dostępu")
                 if old.filename not in stale and before.read(old.filename) != after.read(new.filename):
                     raise ValueError(f"{archive.name}: {old.filename} zmienił się niepotrzebnie")
             for name in replacements:
-                if name in after.namelist() and after.read(name) != replacements[name].read_bytes():
+                if after.read(name) != replacements[name].read_bytes():
                     raise ValueError(f"{archive.name}: {name} nie zgadza się z plikiem w repo")
         shutil.copy2(rebuilt, archive)
 

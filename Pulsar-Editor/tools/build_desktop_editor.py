@@ -4,7 +4,10 @@
   python Pulsar-Editor/tools/build_desktop_editor.py
   python Pulsar-Editor/tools/build_desktop_editor.py --check
   python Pulsar-Editor/tools/build_desktop_editor.py --platform windows
+  python Pulsar-Editor/tools/build_desktop_editor.py --from-source
 
+Tryb --from-source używa czytelnych źródeł Pulsar-Core zamiast istniejącego
+archiwum i wykonuje pełny build rdzenia, synchronizacji, edytora i rozszerzeń.
 Skrypt współpracuje z warstwą Pulsar-Sync: zmienia tylko zaczepy rozszerzeń,
 dodaje własne zasoby edytora/Auto-DJ/kopii i przelicza integralność resources.neu.
 """
@@ -33,12 +36,20 @@ _EXTRAS_SPEC.loader.exec_module(_EXTRAS_PATCHES)
 apply_extras_runtime_patches = _EXTRAS_PATCHES.apply_extras_runtime_patches
 extras_runtime_patched = _EXTRAS_PATCHES.extras_runtime_patched
 import neu  # noqa: E402
+from cloud_runtime_patches import apply_cloud_runtime_patches  # noqa: E402
+from build_desktop_sync import patch_index as patch_sync_asset_tags  # noqa: E402
 
 INDEX = "resources/index.html"
 CONFIG = "neutralino.config.json"
 VERSION_MANIFEST = EXTRAS_DIR / "app-version.json"
 APP_VERSION = json.loads(VERSION_MANIFEST.read_text(encoding="utf-8"))["version"]
+SYNC_ASSETS = {
+    "resources/cloud-sync.js": REPO / "Pulsar-Sync" / "desktop-cloud-sync.js",
+    "resources/drive-sync.js": REPO / "Pulsar-Sync" / "drive-sync.js",
+}
 ASSETS = {
+    **SYNC_ASSETS,
+    "resources/i18n.js": EXTRAS_DIR / "i18n.js",
     "resources/app-version.json": VERSION_MANIFEST,
     "resources/app-updates.js": EXTRAS_DIR / "app-updates.js",
     "resources/editor-core.js": EDITOR_DIR / "editor-core.js",
@@ -62,6 +73,7 @@ CSS_TAG = (
     '  <link rel="stylesheet" href="extras.css">\n'
 )
 SCRIPT_TAGS = (
+    '  <script src="i18n.js"></script>\n'
     '  <script src="editor-core.js"></script>\n'
     '  <script src="dj-core.js"></script>\n'
     '  <script src="backup-core.js"></script>\n'
@@ -75,13 +87,18 @@ PLATFORMS = {
     "windows": REPO / "Pulsar-Windows" / "resources.neu",
     "linux": REPO / "Pulsar-Linux" / "resources.neu",
 }
+CORE_SOURCES = {
+    "windows": REPO / "Pulsar-Core" / "Windows",
+    "linux": REPO / "Pulsar-Core" / "Linux",
+}
 
 
 def patch_asset_tags(html: str) -> str:
     for tag in (CSS_TAG, SCRIPT_TAGS):
         html = html.replace(tag, "")
     # Usuń także znaczniki z innym wcięciem po starszych buildach.
-    asset_names = tuple(Path(rel).name for rel in (*ASSETS.keys(), *LEGACY_ASSETS))
+    asset_names = tuple(Path(rel).name for rel in (*ASSETS.keys(), *LEGACY_ASSETS)
+                        if rel not in SYNC_ASSETS)
     lines = [line for line in html.splitlines(keepends=True)
              if not any(name in line and ("<script" in line or "<link" in line)
                         for name in asset_names)]
@@ -96,6 +113,8 @@ def patch_asset_tags(html: str) -> str:
 def expected_index(original: bytes) -> bytes:
     html = original.decode("utf-8")
     html = re.sub(r"Build \d+\.\d+\.\d+", f"Build {APP_VERSION}", html)
+    html = apply_cloud_runtime_patches(html)
+    html, _ = patch_sync_asset_tags(html)
     return patch_asset_tags(apply_extras_runtime_patches(apply_editor_runtime_patches(html))).encode("utf-8")
 
 
@@ -108,8 +127,8 @@ def expected_config(original: bytes) -> bytes:
     return json.dumps(config, indent=2).encode("utf-8")
 
 
-def run(platform: str, archive: Path, check_only: bool) -> bool:
-    if not archive.is_file():
+def run(platform: str, archive: Path, check_only: bool, from_source: bool = False) -> bool:
+    if not from_source and not archive.is_file():
         print(f"[{platform}] brak {archive}")
         return False
     for source in ASSETS.values():
@@ -118,10 +137,19 @@ def run(platform: str, archive: Path, check_only: bool) -> bool:
 
     with tempfile.TemporaryDirectory(prefix=f"pulsar-editor-{platform}-") as tmp:
         work = Path(tmp) / "src"
-        data, header, base = neu.read_archive(str(archive))
-        files = {rel: neu.file_bytes(data, base, entry) for rel, entry in neu.iter_files(header)}
+        if from_source:
+            source_root = CORE_SOURCES[platform]
+            if not (source_root / INDEX).is_file() or not (source_root / CONFIG).is_file():
+                raise ValueError(f"brak kompletnych źródeł rdzenia w {source_root}")
+            files = {
+                source.relative_to(source_root).as_posix(): source.read_bytes()
+                for source in sorted(source_root.rglob("*")) if source.is_file()
+            }
+        else:
+            data, header, base = neu.read_archive(str(archive))
+            files = {rel: neu.file_bytes(data, base, entry) for rel, entry in neu.iter_files(header)}
         if INDEX not in files or CONFIG not in files:
-            raise ValueError("w archiwum brak resources/index.html lub neutralino.config.json")
+            raise ValueError("w źródłach brak resources/index.html lub neutralino.config.json")
         for rel, blob in files.items():
             target = work / rel
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -130,7 +158,7 @@ def run(platform: str, archive: Path, check_only: bool) -> bool:
         patched = expected_index(files[INDEX])
         patched_config = expected_config(files[CONFIG])
         sources_match = all(files.get(rel) == source.read_bytes() for rel, source in ASSETS.items())
-        ready = (files[INDEX] == patched and files[CONFIG] == patched_config and sources_match
+        ready = (not from_source and files[INDEX] == patched and files[CONFIG] == patched_config and sources_match
                  and not any(rel in files for rel in LEGACY_ASSETS)
                  and editor_runtime_patched(patched.decode("utf-8"))
                  and extras_runtime_patched(patched.decode("utf-8")))
@@ -183,12 +211,15 @@ def main(argv: list[str]) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--platform", choices=sorted(PLATFORMS))
     parser.add_argument("--check", action="store_true", help="sprawdź bez zapisywania")
+    parser.add_argument("--from-source", action="store_true", help="pełny build z czytelnych źródeł Pulsar-Core")
     args = parser.parse_args(argv)
+    if args.from_source and args.check:
+        parser.error("--from-source służy do budowania; po buildzie uruchom osobno --check")
     targets = [args.platform] if args.platform else sorted(PLATFORMS)
     ok = True
     for platform in targets:
         try:
-            ok &= run(platform, PLATFORMS[platform], args.check)
+            ok &= run(platform, PLATFORMS[platform], args.check, args.from_source)
         except (OSError, ValueError, KeyError) as exc:
             print(f"[{platform}] błąd: {exc}", file=sys.stderr)
             return 1

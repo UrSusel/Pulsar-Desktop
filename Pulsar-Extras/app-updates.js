@@ -8,6 +8,8 @@
   }
 })(typeof window !== 'undefined' ? window : {}, function (root) {
   'use strict';
+  const tr = root.PulsarI18n ? root.PulsarI18n.t : function (text) { return text; };
+  const trMessage = root.PulsarI18n ? root.PulsarI18n.message : tr;
 
   const AUTO_KEY = 'pulsarAppUpdateAuto';
   const CHECKED_KEY = 'pulsarAppUpdateCheckedAt';
@@ -59,13 +61,13 @@
   function loadConfig() {
     if (!configPromise) {
       configPromise = Promise.resolve().then(function () {
-        if (!root.fetch) throw new Error('Brak fetch');
+        if (!root.fetch) throw new Error(tr('Brak fetch'));
         return root.fetch('app-version.json', { cache: 'no-store' });
       }).then(function (response) {
-        if (!response || !response.ok) throw new Error('Nie można odczytać wersji aplikacji');
+        if (!response || !response.ok) throw new Error(tr('Nie można odczytać wersji aplikacji'));
         return response.json();
       }).then(function (config) {
-        if (!parseVersion(config && config.version) || !/^[\w.-]+\/[\w.-]+$/.test(String(config.repo || ''))) throw new Error('Niepoprawny manifest wersji');
+        if (!parseVersion(config && config.version) || !/^[\w.-]+\/[\w.-]+$/.test(String(config.repo || ''))) throw new Error(tr('Niepoprawny manifest wersji'));
         return { version: parseVersion(config.version).text, repo: String(config.repo) };
       });
     }
@@ -79,7 +81,7 @@
     if (storageGet(NOTICE_KEY) === key) return;
     storageSet(NOTICE_KEY, key);
     try {
-      if (root.__pulsarHost) root.__pulsarHost.toast('Dostępna jest nowa wersja Pulsara: ' + result.latest + '. Otwórz Ustawienia → Pobieranie.');
+      if (root.__pulsarHost) root.__pulsarHost.toast(tr('Dostępna jest nowa wersja Pulsara: ') + result.latest + tr('. Otwórz Ustawienia → Pobieranie.'));
     } catch (e) {}
   }
 
@@ -93,17 +95,17 @@
     ui.status.classList.toggle('pupdate-error', !!value.error);
     ui.status.classList.toggle('pupdate-new', !!value.updateAvailable);
     if (value.pending) {
-      ui.status.textContent = 'Sprawdzanie GitHub Releases…';
+      ui.status.textContent = tr('Sprawdzanie GitHub Releases…');
     } else if (value.error === 'invalid-tag') {
-      ui.status.textContent = 'Najnowszy release nie ma tagu wersji, np. v' + value.current + '. Nie udało się porównać wersji.';
+      ui.status.textContent = tr('Najnowszy release nie ma tagu wersji, np. v') + value.current + tr('. Nie udało się porównać wersji.');
     } else if (value.error) {
-      ui.status.textContent = 'Nie udało się sprawdzić aktualizacji: ' + value.error;
+      ui.status.textContent = tr('Nie udało się sprawdzić aktualizacji: ') + trMessage(value.error);
     } else if (value.updateAvailable) {
-      ui.status.textContent = 'Dostępna wersja ' + value.latest + ' · zainstalowana ' + value.current + '. Pobieranie nie uruchamia się automatycznie.';
+      ui.status.textContent = tr('Dostępna wersja ') + value.latest + tr(' · zainstalowana ') + value.current + tr('. Pobieranie nie uruchamia się automatycznie.');
       ui.download.href = value.releaseUrl;
       notify(value);
     } else {
-      ui.status.textContent = 'Masz najnowszą wersję: ' + value.current + '.';
+      ui.status.textContent = tr('Masz najnowszą wersję: ') + value.current + '.';
     }
   }
 
@@ -116,15 +118,15 @@
       if (!localVersion || !options.repo) config = await loadConfig();
       const currentVersion = localVersion || parseVersion(config.version);
       const repo = options.repo || config.repo;
-      if (!currentVersion) return { current: '', latest: null, updateAvailable: false, error: 'Niepoprawna wersja lokalna' };
+      if (!currentVersion) return { current: '', latest: null, updateAvailable: false, error: tr('Niepoprawna wersja lokalna') };
       const base = { current: currentVersion.text, latest: null, updateAvailable: false, releaseUrl: 'https://github.com/' + repo + '/releases/latest' };
       try {
         const fetcher = options.fetchImpl || (root.fetch && root.fetch.bind(root));
-        if (!fetcher) throw new Error('Brak dostępu do sieci');
+        if (!fetcher) throw new Error(tr('Brak dostępu do sieci'));
         const response = await fetcher('https://api.github.com/repos/' + repo + '/releases/latest', {
           cache: 'no-store', headers: { Accept: 'application/vnd.github+json' }
         });
-        if (!response || !response.ok) throw new Error('GitHub HTTP ' + (response && response.status || 'brak odpowiedzi'));
+        if (!response || !response.ok) throw new Error('GitHub HTTP ' + (response && response.status || tr('brak odpowiedzi')));
         const release = await response.json();
         const latest = parseVersion(release && release.tag_name);
         const result = Object.assign(base, {
@@ -191,9 +193,10 @@
       }
     });
     current().then(function (version) { if (ui.version) ui.version.textContent = version + ' · GitHub Releases'; }).catch(function (error) {
-      if (ui.version) ui.version.textContent = 'Nieznana';
-      if (ui.status) ui.status.textContent = String(error && error.message || error);
+      if (ui.version) ui.version.textContent = tr('Nieznana');
+      if (ui.status) ui.status.textContent = trMessage(String(error && error.message || error));
     });
+    document.addEventListener('pulsar:lang', function () { render(); });
     setTimeout(maybeAutoCheck, 5000);
     setInterval(maybeAutoCheck, 60 * 60 * 1000);
   }

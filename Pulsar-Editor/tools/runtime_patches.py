@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Idempotentne zaczepy edytora w zamkniętym runtime index.html."""
+"""Idempotentne zaczepy edytora w czytelnym runtime index.html."""
 from __future__ import annotations
 
 import re
@@ -49,12 +49,12 @@ LYRICS_HELPER = r'''  /* ---- Pulsar editor: lyrics offset ---- */
   }
   function applyGeneratedLyrics(id, data, allowSourceWordSync){
     const tr = tracks.find(function(x){ return x.id === id; });
-    if (!tr || !data || !data.generated || !Array.isArray(data.synced) || !data.synced.length) throw new Error('Niepoprawny wynik AI');
-    if (!data.synced.some(function(line){ return Array.isArray(line.words) && line.words.length; })) throw new Error('Wynik AI nie zawiera czasów słów');
+    if (!tr || !data || !data.generated || !Array.isArray(data.synced) || !data.synced.length) throw new Error(t('Niepoprawny wynik AI'));
+    if (!data.synced.some(function(line){ return Array.isArray(line.words) && line.words.length; })) throw new Error(t('Wynik AI nie zawiera czasów słów'));
     let previous = lyricsCache.has(id) ? lyricsCache.get(id) : tr.lyricsData;
     if (!previous){ try { previous = JSON.parse(localStorage.getItem('playerLyricsV2:' + id) || 'null'); } catch(e){} }
     if (!allowSourceWordSync && previous && !previous.generated && Array.isArray(previous.synced) && previous.synced.some(function(line){ return Array.isArray(line.words) && line.words.length; })){
-      throw new Error('Zastąpienie źródłowych czasów słów wymaga ręcznego potwierdzenia');
+      throw new Error(t('Zastąpienie źródłowych czasów słów wymaga ręcznego potwierdzenia'));
     }
     data = Object.assign({}, data);
     delete data.previousLyrics;
@@ -116,7 +116,7 @@ LYRICS_RENDERER = r'''  /* Pulsar editor: word lyrics renderer */
     if (document.body.classList) document.body.classList.toggle('lyrics-side', !!lyricsOn);
     lyricsBox.innerHTML = '';
     lyricsCurIdx = -1;
-    if (!lyricsData){ lyricsBox.innerHTML = '<div class="lyrics-empty">Brak tekstu</div>'; return; }
+    if (!lyricsData){ lyricsBox.innerHTML = '<div class="lyrics-empty">' + t('Brak tekstu') + '</div>'; return; }
     if (lyricsData.synced){
       lyricsData.synced.forEach(function(l, i){
         const d = document.createElement('div');
@@ -267,7 +267,7 @@ EDITOR_API = r'''    /* ---- Pulsar editor: library bridge ---- */
         addFilesToLibrary(files);
         const imported = tracks.find(function(x){ return !before.has(x.id) && x.file && x.file.name === file.name && x.file.size === file.size; });
         if (!imported) return null;
-        imported.title = String(opts.title || ((source.title || file.name.replace(/\.[^.]+$/, '')) + ' (edycja)'));
+        imported.title = String(opts.title || ((source.title || file.name.replace(/\.[^.]+$/, '')) + t(' (edycja)')));
         imported.artist = source.artist || imported.artist;
         imported.album = source.album || '';
         imported.year = source.year || '';
@@ -442,6 +442,11 @@ def apply_editor_runtime_patches(html: str) -> str:
         "localStorage.setItem('playerLyrics:' + track.id, ser)",
         "localStorage.setItem('playerLyricsV2:' + track.id, ser)",
     )
+    html = _replace_once(
+        html,
+        "    'Zamknij modal': { en: 'Close dialog', es: 'Cerrar diálogo' }",
+        "    'Brak tekstu': { en: 'No lyrics', es: 'Sin letra' }, /* Pulsar editor: missing lyrics translation */\n    'Zamknij modal': { en: 'Close dialog', es: 'Cerrar diálogo' }",
+    )
     return html
 
 
@@ -472,5 +477,6 @@ def editor_runtime_patched(html: str) -> bool:
         WORD_STYLE_END,
         "parseWords: parseLyricsfile",
         "parsePlus: parseLyricsPlus",
+        "Pulsar editor: missing lyrics translation",
     ]
     return all(html.count(needle) == 1 for needle in needles) and html.count("playerLyricsV2:") >= 2

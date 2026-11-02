@@ -1,6 +1,8 @@
 /* Pulsar Desktop — edytor audio i przesuwanie napisów. */
 (function () {
   'use strict';
+  const tr = window.PulsarI18n ? window.PulsarI18n.t : function (text) { return text; };
+  const trMessage = window.PulsarI18n ? window.PulsarI18n.message : tr;
   if (typeof document === 'undefined' || !window.PulsarEditorCore) return;
 
   const core = window.PulsarEditorCore;
@@ -26,6 +28,7 @@
   let lyricsLoadedId = '';
   let aiBusy = false;
   let aiBusyId = '';
+  let aiStage = 'check';
   let aiCaps = null;
   let aiCandidate = null;
   let aiPreviewVariant = '';
@@ -50,7 +53,7 @@
   const LARGE_FILE_BYTES = 80 * 1024 * 1024;
 
   function byId(id) { return document.getElementById(id); }
-  function toast(text) { try { host.toast(text); } catch (e) {} }
+  function toast(text) { try { host.toast(trMessage(text)); } catch (e) {} }
   function round3(value) { return Math.round((Number(value) || 0) * 1000) / 1000; }
   function numberValue(value) { return Number(String(value == null ? '' : value).replace(',', '.')); }
   function formatTime(seconds, milliseconds) {
@@ -87,7 +90,7 @@
       spin.setAttribute('aria-hidden', 'true');
       element.appendChild(spin);
     }
-    element.appendChild(document.createTextNode(String(text || '')));
+    element.appendChild(document.createTextNode(trMessage(String(text || ''))));
   }
 
   function sessionKey() { return track ? 'pulsarEditorSession:' + track.id : ''; }
@@ -96,8 +99,8 @@
     if (!track || !sessionEnabled || (!manual && !hasEditWork())) return;
     try {
       localStorage.setItem(sessionKey(), JSON.stringify({ version: 2, updatedAt: Date.now(), fileName: track.file.name, fileSize: track.file.size, cuts: cuts, fadeInMs: fadeInMs, fadeOutMs: fadeOutMs, joinFadeMs: joinFadeMs, silenceDb: silenceDb, silenceMin: silenceMin, outputFormat: outputFormat, zoom: zoom, viewStart: viewStart }));
-      if (manual) setStatus(ui.audioStatus, 'Sesja zapisana. Możesz zamknąć edytor i wrócić do niej później.', 'success');
-    } catch (e) { if (manual) setStatus(ui.audioStatus, 'Nie udało się zapisać sesji: ' + (e.message || e), 'error'); }
+      if (manual) setStatus(ui.audioStatus, tr('Sesja zapisana. Możesz zamknąć edytor i wrócić do niej później.'), 'success');
+    } catch (e) { if (manual) setStatus(ui.audioStatus, tr('Nie udało się zapisać sesji: ') + (e.message || e), 'error'); }
   }
   function restoreSession() {
     sessionNotice = '';
@@ -114,7 +117,7 @@
       outputFormat = /^(wav|mp3|flac)$/.test(data.outputFormat) ? data.outputFormat : 'wav';
       zoom = Math.max(1, Math.min(32, Number(data.zoom) || 1));
       viewStart = Math.max(0, Math.min(duration, Number(data.viewStart) || 0));
-      sessionNotice = ' Wznowiono zapisaną sesję.';
+      sessionNotice = tr(' Wznowiono zapisaną sesję.');
     } catch (e) {}
   }
   function deleteSession() {
@@ -122,7 +125,7 @@
     try { localStorage.removeItem(sessionKey()); } catch (e) {}
     sessionEnabled = false; cuts = []; history = []; fadeInMs = 0; fadeOutMs = 0; joinFadeMs = 5; silenceDb = -45; silenceMin = 0.6; zoom = 1; viewStart = 0; sessionNotice = '';
     syncOptionInputs(); updateAudioUi(); drawWave();
-    setStatus(ui.audioStatus, 'Usunięto zapisaną sesję i wyczyszczono decyzje edycji. Oryginał pozostał bez zmian.', 'success');
+    setStatus(ui.audioStatus, tr('Usunięto zapisaną sesję i wyczyszczono decyzje edycji. Oryginał pozostał bez zmian.'), 'success');
   }
   function viewDuration() { return duration > 0 ? duration / zoom : 0; }
   function clampView() { if (!duration || zoom <= 1) viewStart = 0; else viewStart = Math.max(0, Math.min(duration - viewDuration(), viewStart)); }
@@ -158,8 +161,8 @@
     editButton.className = 'icon-btn';
     editButton.dataset.ic = 'stroke';
     editButton.id = 'audioEditorBtn';
-    editButton.title = 'Edytuj audio i napisy';
-    editButton.setAttribute('aria-label', 'Edytuj audio i napisy');
+    editButton.title = tr('Edytuj audio i napisy');
+    editButton.setAttribute('aria-label', tr('Edytuj audio i napisy'));
     editButton.innerHTML = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="6" cy="7" r="3"/><circle cx="6" cy="17" r="3"/><path d="M8.5 8.5L20 19M8.5 15.5L20 5M13.2 12l2.1 2"/></svg>';
     editButton.addEventListener('click', function () { openEditor('audio'); });
     lyricsButton.parentNode.insertBefore(editButton, lyricsButton);
@@ -412,7 +415,7 @@
 
   async function decodeFile(file) {
     const AudioCtor = window.AudioContext || window.webkitAudioContext;
-    if (!AudioCtor) throw new Error('Ta wersja WebView nie obsługuje dekodowania audio.');
+    if (!AudioCtor) throw new Error(tr('Ta wersja WebView nie obsługuje dekodowania audio.'));
     let context = null;
     try { const tap = host.audioTap && host.audioTap(); if (tap && tap.ctx) context = tap.ctx; } catch (e) {}
     const ownContext = context ? null : new AudioCtor();
@@ -443,7 +446,7 @@
     if (!Number.isFinite(duration) || duration < 0) duration = 0;
     ui.waveEmpty.hidden = true;
     ui.start.max = ui.end.max = String(duration || 0);
-    setStatus(ui.audioStatus, message + (peaks ? ' Używam zapisanej fali analizy.' : ' Fala jest uproszczona; granice ustawisz czasem i przeciąganiem.'), 'success');
+    setStatus(ui.audioStatus, message + (peaks ? tr(' Używam zapisanej fali analizy.') : tr(' Fala jest uproszczona; granice ustawisz czasem i przeciąganiem.')), 'success');
     restoreSession(); syncOptionInputs(); updateAudioUi(); drawWave();
   }
   async function loadAudioBuffer(token) {
@@ -451,19 +454,19 @@
     peaks = null;
     nativeMode = false;
     ui.waveEmpty.hidden = false;
-    ui.waveEmpty.textContent = 'Wczytywanie fali dźwiękowej…';
-    setStatus(ui.audioStatus, 'Sprawdzanie najlepszego trybu edycji…', '', true);
+    ui.waveEmpty.textContent = tr('Wczytywanie fali dźwiękowej…');
+    setStatus(ui.audioStatus, tr('Sprawdzanie najlepszego trybu edycji…'), '', true);
     updateAudioUi();
     await mediaReady;
     if (!open || token !== decodeToken) return;
     const needsNative = track.file.size > LARGE_FILE_BYTES || duration > 1800;
     if (needsNative) {
-      if (ffmpegAvailable) { activateNative('Tryb dużych plików: cięcie wykona FFmpeg bez dekodowania całości w WebView.'); return; }
-      ui.waveEmpty.textContent = 'Duży plik — bez dekodowania całości';
-      setStatus(ui.audioStatus, 'Dla tego dużego pliku włączono ochronę pamięci. Dołącz FFmpeg, aby edytować strumieniowo i eksportować MP3/FLAC.', 'error');
+      if (ffmpegAvailable) { activateNative(tr('Tryb dużych plików: cięcie wykona FFmpeg bez dekodowania całości w WebView.')); return; }
+      ui.waveEmpty.textContent = tr('Duży plik — bez dekodowania całości');
+      setStatus(ui.audioStatus, tr('Dla tego dużego pliku włączono ochronę pamięci. Dołącz FFmpeg, aby edytować strumieniowo i eksportować MP3/FLAC.'), 'error');
       updateAudioUi(); drawWave(); return;
     }
-    setStatus(ui.audioStatus, 'Dekodowanie audio do edycji…', '', true);
+    setStatus(ui.audioStatus, tr('Dekodowanie audio do edycji…'), '', true);
     try {
       const decoded = await decodeFile(track.file);
       if (!open || token !== decodeToken) return;
@@ -475,15 +478,15 @@
       ui.end.max = String(duration);
       ui.end.value = String(round3(Math.min(duration, Math.max(1, (mainAudio.currentTime || 0) + 1))));
       restoreSession(); syncOptionInputs();
-      setStatus(ui.audioStatus, 'Fala gotowa. Zaznacz fragment albo użyj wykrywania ciszy.' + sessionNotice, 'success');
+      setStatus(ui.audioStatus, tr('Fala gotowa. Zaznacz fragment albo użyj wykrywania ciszy.') + sessionNotice, 'success');
       updateAudioUi();
       drawWave();
     } catch (error) {
       if (!open || token !== decodeToken) return;
-      console.warn('Pulsar Editor: dekodowanie nie powiodło się', error);
-      if (ffmpegAvailable) { activateNative('WebView nie zdekodowało źródła; eksport i cięcie wykona FFmpeg.'); return; }
-      ui.waveEmpty.textContent = 'Nie udało się zdekodować tego pliku.';
-      setStatus(ui.audioStatus, 'Nie można edytować tego formatu w tej wersji WebView. Napisy nadal możesz przesuwać.', 'error');
+      console.warn(tr('Pulsar Editor: dekodowanie nie powiodło się'), error);
+      if (ffmpegAvailable) { activateNative(tr('WebView nie zdekodowało źródła; eksport i cięcie wykona FFmpeg.')); return; }
+      ui.waveEmpty.textContent = tr('Nie udało się zdekodować tego pliku.');
+      setStatus(ui.audioStatus, tr('Nie można edytować tego formatu w tej wersji WebView. Napisy nadal możesz przesuwać.'), 'error');
       updateAudioUi();
       drawWave();
     }
@@ -491,7 +494,7 @@
 
   function openEditor(tab) {
     const current = player.__editor.current();
-    if (!current || !current.file) { toast('Najpierw wybierz utwór do edycji'); return; }
+    if (!current || !current.file) { toast(tr('Najpierw wybierz utwór do edycji')); return; }
     if (open) { setTab(tab || activeTab); return; }
     buildPanel();
     track = current;
@@ -561,7 +564,7 @@
     ui.removedDuration.textContent = formatTime(removed, false);
     ui.finalDuration.textContent = formatTime(finalDuration, false);
     ui.detect.disabled = !buffer || saveBusy;
-    ui.detect.title = buffer ? 'Próg ' + silenceDb + ' dB, minimum ' + silenceMin + ' s' : 'Wykrywanie ciszy wymaga zdekodowanego audio; w trybie dużych plików ustaw zakresy czasem';
+    ui.detect.title = buffer ? tr('Próg ') + silenceDb + ' dB, minimum ' + silenceMin + ' s' : tr('Wykrywanie ciszy wymaga zdekodowanego audio; w trybie dużych plików ustaw zakresy czasem');
     ui.preview.disabled = !cuts.length || saveBusy;
     ui.preview.classList.toggle('active', preview);
     ui.preview.setAttribute('aria-pressed', String(preview));
@@ -570,8 +573,8 @@
     ui.saveSession.disabled = saveBusy; ui.deleteSession.disabled = saveBusy;
     const formatReady = outputFormat === 'wav' || ffmpegAvailable;
     ui.save.disabled = !(buffer || nativeMode) || !duration || finalDuration < 0.1 || saveBusy || !formatReady;
-    ui.save.textContent = saveBusy ? 'Zapisywanie…' : 'Eksportuj jako nowy utwór ' + outputFormat.toUpperCase();
-    ui.save.title = formatReady ? 'Oryginał nie zostanie nadpisany' : 'Ten format wymaga FFmpeg obok aplikacji lub w PATH';
+    ui.save.textContent = saveBusy ? tr('Zapisywanie…') : tr('Eksportuj jako nowy utwór ') + outputFormat.toUpperCase();
+    ui.save.title = formatReady ? tr('Oryginał nie zostanie nadpisany') : tr('Ten format wymaga FFmpeg obok aplikacji lub w PATH');
     ui.format.disabled = saveBusy;
     Array.prototype.forEach.call(ui.format.options, function (option) { if (option.value !== 'wav') option.disabled = !ffmpegAvailable; });
     ui.addCut.disabled = saveBusy || !(buffer || nativeMode) || !duration;
@@ -584,7 +587,7 @@
     if (!cuts.length) {
       const empty = document.createElement('div');
       empty.className = 'pae-empty-cuts';
-      empty.textContent = 'Brak wycinków — cały utwór zostanie zachowany.';
+      empty.textContent = tr('Brak wycinków — cały utwór zostanie zachowany.');
       ui.cuts.appendChild(empty);
       return;
     }
@@ -592,25 +595,25 @@
       const row = document.createElement('div');
       row.className = 'pae-cut-row';
       const num = document.createElement('span'); num.className = 'pae-cut-num'; num.textContent = String(index + 1) + '.';
-      const startInput = document.createElement('input'); startInput.className = 'pae-input pae-cut-input'; startInput.type = 'number'; startInput.min = '0'; startInput.max = String(duration); startInput.step = '0.001'; startInput.value = String(round3(cut.start)); startInput.setAttribute('aria-label', 'Początek wycinka ' + (index + 1) + ' w sekundach');
+      const startInput = document.createElement('input'); startInput.className = 'pae-input pae-cut-input'; startInput.type = 'number'; startInput.min = '0'; startInput.max = String(duration); startInput.step = '0.001'; startInput.value = String(round3(cut.start)); startInput.setAttribute('aria-label', tr('Początek wycinka ') + (index + 1) + tr(' w sekundach'));
       const arrow = document.createElement('span'); arrow.className = 'pae-cut-arrow'; arrow.textContent = '→';
-      const endInput = document.createElement('input'); endInput.className = 'pae-input pae-cut-input'; endInput.type = 'number'; endInput.min = '0'; endInput.max = String(duration); endInput.step = '0.001'; endInput.value = String(round3(cut.end)); endInput.setAttribute('aria-label', 'Koniec wycinka ' + (index + 1) + ' w sekundach');
+      const endInput = document.createElement('input'); endInput.className = 'pae-input pae-cut-input'; endInput.type = 'number'; endInput.min = '0'; endInput.max = String(duration); endInput.step = '0.001'; endInput.value = String(round3(cut.end)); endInput.setAttribute('aria-label', tr('Koniec wycinka ') + (index + 1) + tr(' w sekundach'));
       const updateBoundary = function (side, input) {
         const value = numberValue(input.value);
         if (!Number.isFinite(value)) { updateAudioUi(); return; }
         const next = cuts.map(function (item) { return { start: item.start, end: item.end }; });
         next[index][side] = value;
-        if (!mutateCuts(next, 'Przesunięto granicę wycinka.')) updateAudioUi();
+        if (!mutateCuts(next, tr('Przesunięto granicę wycinka.'))) updateAudioUi();
       };
       startInput.addEventListener('change', function () { updateBoundary('start', startInput); });
       endInput.addEventListener('change', function () { updateBoundary('end', endInput); });
       startInput.disabled = endInput.disabled = saveBusy;
       const length = document.createElement('span'); length.className = 'pae-cut-len'; length.textContent = '−' + formatTime(cut.end - cut.start, false);
-      const seek = document.createElement('button'); seek.type = 'button'; seek.className = 'pae-btn icon'; seek.textContent = '▶'; seek.title = 'Przewiń do początku wycinka'; seek.setAttribute('aria-label', seek.title);
+      const seek = document.createElement('button'); seek.type = 'button'; seek.className = 'pae-btn icon'; seek.textContent = '▶'; seek.title = tr('Przewiń do początku wycinka'); seek.setAttribute('aria-label', seek.title);
       seek.addEventListener('click', function () { try { mainAudio.currentTime = cut.start; } catch (e) {} });
-      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'pae-btn icon danger'; remove.textContent = '×'; remove.title = 'Przywróć ten fragment'; remove.setAttribute('aria-label', remove.title); remove.disabled = saveBusy;
+      const remove = document.createElement('button'); remove.type = 'button'; remove.className = 'pae-btn icon danger'; remove.textContent = '×'; remove.title = tr('Przywróć ten fragment'); remove.setAttribute('aria-label', remove.title); remove.disabled = saveBusy;
       remove.addEventListener('click', function () {
-        mutateCuts(cuts.filter(function (_, i) { return i !== index; }), 'Przywrócono fragment.');
+        mutateCuts(cuts.filter(function (_, i) { return i !== index; }), tr('Przywrócono fragment.'));
       });
       row.appendChild(num); row.appendChild(startInput); row.appendChild(arrow); row.appendChild(endInput); row.appendChild(length); row.appendChild(seek); row.appendChild(remove);
       ui.cuts.appendChild(row);
@@ -621,7 +624,7 @@
     let normalized;
     try { normalized = core.normalizeCuts(next, duration); } catch (e) { return false; }
     if (duration - core.editedDuration(duration, normalized) >= duration - 0.05 || core.editedDuration(duration, normalized) < 0.1) {
-      setStatus(ui.audioStatus, 'Nie można usunąć całego utworu — zostaw co najmniej 0,1 s dźwięku.', 'error');
+      setStatus(ui.audioStatus, tr('Nie można usunąć całego utworu — zostaw co najmniej 0,1 s dźwięku.'), 'error');
       return false;
     }
     history.push(cuts.map(function (cut) { return { start: cut.start, end: cut.end }; }));
@@ -639,10 +642,10 @@
   function addCutFromInputs() {
     const start = numberValue(ui.start.value), end = numberValue(ui.end.value);
     if (!Number.isFinite(start) || !Number.isFinite(end) || end - start < 0.01 || start < 0 || end > duration) {
-      setStatus(ui.audioStatus, 'Podaj poprawny zakres: koniec musi być później niż początek i mieścić się w utworze.', 'error');
+      setStatus(ui.audioStatus, tr('Podaj poprawny zakres: koniec musi być później niż początek i mieścić się w utworze.'), 'error');
       return;
     }
-    if (mutateCuts(cuts.concat([{ start: start, end: end }]), 'Dodano wycinek ' + formatTime(start, true) + ' → ' + formatTime(end, true) + '.')) {
+    if (mutateCuts(cuts.concat([{ start: start, end: end }]), tr('Dodano wycinek ') + formatTime(start, true) + ' → ' + formatTime(end, true) + '.')) {
       ui.start.value = String(round3(end));
       ui.end.value = String(round3(Math.min(duration, end + 1)));
     }
@@ -653,30 +656,30 @@
     cuts = history.pop();
     sessionEnabled = true; saveSession(false);
     setPreview(false);
-    setStatus(ui.audioStatus, 'Cofnięto ostatnią zmianę.', 'success');
+    setStatus(ui.audioStatus, tr('Cofnięto ostatnią zmianę.'), 'success');
     updateAudioUi();
     drawWave();
   }
 
   function clearCuts() {
     if (!cuts.length || saveBusy) return;
-    mutateCuts([], 'Wyczyszczono wszystkie wycinki.');
+    mutateCuts([], tr('Wyczyszczono wszystkie wycinki.'));
   }
 
   function detectSilence() {
     if (!buffer || saveBusy) return;
-    setStatus(ui.audioStatus, 'Analizowanie cichych fragmentów…', '', true);
+    setStatus(ui.audioStatus, tr('Analizowanie cichych fragmentów…'), '', true);
     setTimeout(function () {
       if (!open || !buffer) return;
       try {
         const found = core.detectSilence(buffer, { db: silenceDb, minDuration: silenceMin, padding: 0.03 });
-        if (!found.length) { setStatus(ui.audioStatus, 'Nie znaleziono ciszy dłuższej niż ' + silenceMin + ' s przy progu ' + silenceDb + ' dB.', ''); return; }
+        if (!found.length) { setStatus(ui.audioStatus, tr('Nie znaleziono ciszy dłuższej niż ') + silenceMin + tr(' s przy progu ') + silenceDb + ' dB.', ''); return; }
         const before = JSON.stringify(cuts);
         const combined = core.normalizeCuts(cuts.concat(found), duration);
-        if (JSON.stringify(combined) === before) { setStatus(ui.audioStatus, 'Wykryte ciche fragmenty są już zaznaczone.', ''); return; }
-        mutateCuts(combined, 'Dodano ciszę: ' + found.length + (found.length === 1 ? ' zakres.' : ' zakresy.') + ' Sprawdź je przed zapisem.');
+        if (JSON.stringify(combined) === before) { setStatus(ui.audioStatus, tr('Wykryte ciche fragmenty są już zaznaczone.'), ''); return; }
+        mutateCuts(combined, tr('Dodano ciszę: ') + found.length + (found.length === 1 ? tr(' zakres.') : tr(' zakresy.')) + tr(' Sprawdź je przed zapisem.'));
       } catch (error) {
-        setStatus(ui.audioStatus, 'Nie udało się przeanalizować ciszy: ' + (error.message || error), 'error');
+        setStatus(ui.audioStatus, tr('Nie udało się przeanalizować ciszy: ') + (error.message || error), 'error');
       }
     }, 30);
   }
@@ -830,7 +833,7 @@
         const drag = boundaryDrag; boundaryDrag = null;
         const next = cuts.map(function (cut) { return { start: cut.start, end: cut.end }; });
         cuts = drag.before;
-        mutateCuts(next, 'Przesunięto granicę wycinka.'); drawWave(); return;
+        mutateCuts(next, tr('Przesunięto granicę wycinka.')); drawWave(); return;
       }
       if (!draft || draft.pointerId !== event.pointerId) return;
       const selection = draft;
@@ -838,7 +841,7 @@
       const start = Math.min(selection.start, selection.end), end = Math.max(selection.start, selection.end);
       if (end - start >= 0.08) {
         ui.start.value = String(round3(start)); ui.end.value = String(round3(end));
-        mutateCuts(cuts.concat([{ start: start, end: end }]), 'Dodano wycinek ' + formatTime(start, true) + ' → ' + formatTime(end, true) + '.');
+        mutateCuts(cuts.concat([{ start: start, end: end }]), tr('Dodano wycinek ') + formatTime(start, true) + ' → ' + formatTime(end, true) + '.');
       } else {
         try { mainAudio.currentTime = start; } catch (e) {}
         drawWave();
@@ -869,7 +872,7 @@
     const fs = window.__pulsarFs;
     if (!fs || !fs.writeBinary) { downloadBlob(blob, fileNameFromPath(path, 'edycja.wav')); return; }
     const chunkSize = 8 * 1024 * 1024;
-    if (!fs.appendBinary && blob.size > chunkSize) throw new Error('Zapis dużych plików nie jest obsługiwany.');
+    if (!fs.appendBinary && blob.size > chunkSize) throw new Error(tr('Zapis dużych plików nie jest obsługiwany.'));
     const first = new Uint8Array(await blob.slice(0, Math.min(chunkSize, blob.size)).arrayBuffer());
     await fs.writeBinary(path, first);
     for (let offset = chunkSize; offset < blob.size; offset += chunkSize) {
@@ -896,28 +899,28 @@
     if (!(buffer || nativeMode) || !duration || saveBusy) return;
     const useNative = nativeMode || outputFormat !== 'wav';
     const tools = window.__pulsarDesktopTools;
-    if (useNative && (!tools || !tools.available || !ffmpegAvailable)) { setStatus(ui.audioStatus, 'Ten eksport wymaga dostępnego FFmpeg.', 'error'); return; }
+    if (useNative && (!tools || !tools.available || !ffmpegAvailable)) { setStatus(ui.audioStatus, tr('Ten eksport wymaga dostępnego FFmpeg.'), 'error'); return; }
     saveBusy = true;
     let completed = false;
     saveSession(false);
     updateAudioUi();
-    setStatus(ui.audioStatus, useNative ? 'FFmpeg przygotowuje eksport bez dekodowania w WebView…' : 'Sklejanie audio i zapisywanie WAV…', '', true);
+    setStatus(ui.audioStatus, useNative ? tr('FFmpeg przygotowuje eksport bez dekodowania w WebView…') : tr('Sklejanie audio i zapisywanie WAV…'), '', true);
     try {
-      const defaultName = core.editedFileName(track.file.name, ' (edycja)', outputFormat);
+      const defaultName = core.editedFileName(track.file.name, tr(' (edycja)'), outputFormat);
       const fs = window.__pulsarFs;
       const saveDialog = fs && fs.saveDialog ? fs.saveDialog : tools && tools.available ? tools.fs.saveDialog : null;
       let path = '';
       if (saveDialog) {
-        path = await saveDialog('Zapisz przycięty utwór', defaultName, outputFormat, outputFormat.toUpperCase());
-        if (!path) { setStatus(ui.audioStatus, 'Anulowano zapis — zmiany nadal są w edytorze.', ''); return; }
-        if (track.srcPath && samePath(path, track.srcPath)) throw new Error('Wybierz inną nazwę lub folder. Edytor nie nadpisuje oryginalnego pliku.');
+        path = await saveDialog(tr('Zapisz przycięty utwór'), defaultName, outputFormat, outputFormat.toUpperCase());
+        if (!path) { setStatus(ui.audioStatus, tr('Anulowano zapis — zmiany nadal są w edytorze.'), ''); return; }
+        if (track.srcPath && samePath(path, track.srcPath)) throw new Error(tr('Wybierz inną nazwę lub folder. Edytor nie nadpisuje oryginalnego pliku.'));
       }
       const outputName = fileNameFromPath(path, defaultName);
-      const outputTitle = (track.title || outputName.replace(/\.[^.]+$/, '')) + ' (edycja)';
+      const outputTitle = (track.title || outputName.replace(/\.[^.]+$/, '')) + tr(' (edycja)');
       const mime = outputFormat === 'mp3' ? 'audio/mpeg' : outputFormat === 'flac' ? 'audio/flac' : 'audio/wav';
       let blob = null;
       let importSkipped = false;
-      setStatus(ui.audioStatus, 'Zapisywanie ' + outputName + '…', '', true);
+      setStatus(ui.audioStatus, tr('Zapisywanie ') + outputName + '…', '', true);
       if (useNative) {
         const result = await tools.exportAudio({ inputPath: track.srcPath || '', inputBlob: track.file, inputName: track.file.name, outputPath: path, format: outputFormat, duration: duration, segments: core.keptSegments(duration, cuts), fadeInMs: fadeInMs, fadeOutMs: fadeOutMs, joinFadeMs: joinFadeMs, title: outputTitle, artist: track.artist || '' });
         path = result.path;
@@ -953,13 +956,13 @@
         imported = !!id;
         alreadyThere = !id;
       }
-      const message = importSkipped ? 'Plik zapisany. Import do biblioteki pominięto dla pliku powyżej 256 MB, aby oszczędzić pamięć.' : imported ? 'Zapisano i dodano nowy utwór do biblioteki.' : alreadyThere ? 'Plik zapisany. Identyczna wersja jest już w bibliotece.' : 'Zapisano przycięty plik ' + outputFormat.toUpperCase() + '.';
+      const message = importSkipped ? tr('Plik zapisany. Import do biblioteki pominięto dla pliku powyżej 256 MB, aby oszczędzić pamięć.') : imported ? tr('Zapisano i dodano nowy utwór do biblioteki.') : alreadyThere ? tr('Plik zapisany. Identyczna wersja jest już w bibliotece.') : tr('Zapisano przycięty plik ') + outputFormat.toUpperCase() + '.';
       setStatus(ui.audioStatus, message, 'success');
       toast(message);
       completed = true;
     } catch (error) {
-      console.warn('Pulsar Editor: zapis nie powiódł się', error);
-      setStatus(ui.audioStatus, 'Nie udało się zapisać: ' + (error.message || error), 'error');
+      console.warn(tr('Pulsar Editor: zapis nie powiódł się'), error);
+      setStatus(ui.audioStatus, tr('Nie udało się zapisać: ') + (error.message || error), 'error');
     } finally {
       saveBusy = false;
       if (open) updateAudioUi();
@@ -981,13 +984,14 @@
   }
   function aiProgress(stage) {
     if (!open || !track || track.id !== aiBusyId) return;
+    aiStage = stage;
     const messages = {
-      check: 'Sprawdzanie lokalnego środowiska AI…',
-      prepare: 'Przygotowywanie modułu AI…',
-      python: 'Tworzenie izolowanego środowiska Python…',
-      install: 'Instalowanie Stable-TS i Faster-Whisper… To jednorazowe, duże pobranie.',
-      align: 'Analiza audio i dopasowywanie słów na CPU… Przy pierwszym użyciu trwa też pobieranie modelu base.',
-      done: 'Zapisywanie wyniku…'
+      check: tr('Sprawdzanie lokalnego środowiska AI…'),
+      prepare: tr('Przygotowywanie modułu AI…'),
+      python: tr('Tworzenie izolowanego środowiska Python…'),
+      install: tr('Instalowanie Stable-TS i Faster-Whisper… To jednorazowe, duże pobranie.'),
+      align: tr('Analiza audio i dopasowywanie słów na CPU… Przy pierwszym użyciu trwa też pobieranie modelu base.'),
+      done: tr('Zapisywanie wyniku…')
     };
     setStatus(ui.aiStatus, messages[stage] || messages.prepare, '', true);
   }
@@ -1007,10 +1011,10 @@
     if (data && !data.generated && Array.isArray(data.synced) && data.synced.length && audioDuration > 0) {
       const sourceDuration = Number(data.sourceDuration) || 0;
       if (sourceDuration > 0 && Math.abs(sourceDuration - audioDuration) > 2) {
-        warning = 'Źródło napisów ma ' + formatTime(sourceDuration, false) + ', a nagranie ' + formatTime(audioDuration, false) + '. Czasy mogą pochodzić z innej wersji, np. studyjnej zamiast teledysku.';
+        warning = tr('Źródło napisów ma ') + formatTime(sourceDuration, false) + tr(', a nagranie ') + formatTime(audioDuration, false) + tr('. Czasy mogą pochodzić z innej wersji, np. studyjnej zamiast teledysku.');
       } else {
         const last = data.synced.reduce(function (value, line) { return Math.max(value, Number(line && line.t) || 0); }, 0);
-        if (last > audioDuration + 1) warning = 'Ostatni znacznik napisów wykracza poza nagranie. Te czasy mogą należeć do innej wersji utworu.';
+        if (last > audioDuration + 1) warning = tr('Ostatni znacznik napisów wykracza poza nagranie. Te czasy mogą należeć do innej wersji utworu.');
       }
     }
     ui.versionWarning.hidden = !warning;
@@ -1019,10 +1023,10 @@
   function alignFirstWordHere() {
     const data = player.__lyrics.data && player.__lyrics.data();
     const first = data && core.firstLyricsTime(data.synced);
-    if (first == null) { setStatus(ui.lyricsStatus, 'Najpierw znajdź zsynchronizowany tekst.', 'error'); return; }
+    if (first == null) { setStatus(ui.lyricsStatus, tr('Najpierw znajdź zsynchronizowany tekst.'), 'error'); return; }
     const now = Number(mainAudio.currentTime) || 0;
     setLyricsOffset(now - first);
-    setStatus(ui.lyricsStatus, 'Ustawiono pierwsze słowo na ' + formatTime(now, true) + '. Nowe przesunięcie: ' + formatOffset(player.__lyrics.offset()) + '.', 'success');
+    setStatus(ui.lyricsStatus, tr('Ustawiono pierwsze słowo na ') + formatTime(now, true) + tr('. Nowe przesunięcie: ') + formatOffset(player.__lyrics.offset()) + '.', 'success');
   }
   function paintAiCandidateButtons() {
     if (!ui.aiPreviewSource) return;
@@ -1064,15 +1068,15 @@
       setLyricsOffset(0);
       lyricsLoadedId = candidate.id;
       updateAiUi(); renderLyricsPreview();
-      toast('Nowe dopasowanie zapisano przy utworze');
-    } catch (error) { setStatus(ui.aiStatus, 'Nie udało się zapisać wyniku: ' + (error.message || error), 'error'); }
+      toast(tr('Nowe dopasowanie zapisano przy utworze'));
+    } catch (error) { setStatus(ui.aiStatus, tr('Nie udało się zapisać wyniku: ') + (error.message || error), 'error'); }
   }
   function discardAiCandidate() {
     if (!currentAiCandidate() || aiBusy) return;
     aiCandidate = null;
     restoreSavedLyricsView();
     updateAiUi();
-    setStatus(ui.aiStatus, 'Odrzucono niezapisany wynik. Poprzednie napisy pozostały bez zmian.', 'success');
+    setStatus(ui.aiStatus, tr('Odrzucono niezapisany wynik. Poprzednie napisy pozostały bez zmian.'), 'success');
   }
   function updateAiUi(keepStatus) {
     if (!ui.aiAlign) return;
@@ -1090,25 +1094,25 @@
     ui.dim.querySelectorAll('[data-offset-step]').forEach(function (button) { button.disabled = offsetLocked; });
     ui.aiCandidate.hidden = !candidate;
     ui.aiAlign.disabled = !supported || aiBusy || !!candidate || pendingOther || !hasText;
-    ui.aiAlign.textContent = thisBusy ? 'Przetwarzanie…' : (candidate ? 'Wynik oczekuje na decyzję' : 'Dopasuj tekst do audio');
+    ui.aiAlign.textContent = thisBusy ? tr('Przetwarzanie…') : (candidate ? tr('Wynik oczekuje na decyzję') : tr('Dopasuj tekst do audio'));
     ui.aiLanguage.disabled = aiBusy || !!candidate;
     ui.aiRestore.hidden = !(data && data.generated);
     ui.aiRestore.disabled = aiBusy || !!candidate;
     updateAiRangeUi(); updateVersionWarning(data); paintAiCandidateButtons();
     if (thisBusy || keepStatus) return;
-    if (aiBusy) { setStatus(ui.aiStatus, 'Inny utwór jest teraz analizowany. Poczekaj na zakończenie.', ''); return; }
-    if (!supported) { setStatus(ui.aiStatus, 'Lokalne dopasowanie AI jest dostępne w desktopowej wersji Pulsara dla Windows i Linux.', ''); return; }
-    if (candidate) { setStatus(ui.aiStatus, 'Porównaj oba warianty na tym samym fragmencie. Zmiana zostanie zapisana dopiero po kliknięciu „Zapisz nowe dopasowanie”.', 'success'); return; }
-    if (pendingOther) { setStatus(ui.aiStatus, 'Inny utwór ma niezapisany wynik AI. Otwórz go i zapisz albo odrzuć wynik przed nową analizą.', ''); return; }
-    if (sourceWords) { setStatus(ui.aiStatus, 'Źródło ma już czasy słów. Jeśli nie pasują do tego nagrania, możesz ręcznie wykonać nowe dopasowanie. Poprzednie napisy zostaną zachowane do przywrócenia.', ''); return; }
+    if (aiBusy) { setStatus(ui.aiStatus, tr('Inny utwór jest teraz analizowany. Poczekaj na zakończenie.'), ''); return; }
+    if (!supported) { setStatus(ui.aiStatus, tr('Lokalne dopasowanie AI jest dostępne w desktopowej wersji Pulsara dla Windows i Linux.'), ''); return; }
+    if (candidate) { setStatus(ui.aiStatus, tr('Porównaj oba warianty na tym samym fragmencie. Zmiana zostanie zapisana dopiero po kliknięciu „Zapisz nowe dopasowanie”.'), 'success'); return; }
+    if (pendingOther) { setStatus(ui.aiStatus, tr('Inny utwór ma niezapisany wynik AI. Otwórz go i zapisz albo odrzuć wynik przed nową analizą.'), ''); return; }
+    if (sourceWords) { setStatus(ui.aiStatus, tr('Źródło ma już czasy słów. Jeśli nie pasują do tego nagrania, możesz ręcznie wykonać nowe dopasowanie. Poprzednie napisy zostaną zachowane do przywrócenia.'), ''); return; }
     if (data && data.generated) {
-      const coverage = Number.isFinite(Number(data.coverage)) ? ' Pokrycie tekstu: ' + Math.round(Number(data.coverage) * 100) + '%.' : '';
-      setStatus(ui.aiStatus, 'Eksperymentalny wynik AI · model ' + String(data.model || 'base') + '.' + coverage + ' Możesz przywrócić napisy źródłowe.', 'success');
+      const coverage = Number.isFinite(Number(data.coverage)) ? tr(' Pokrycie tekstu: ') + Math.round(Number(data.coverage) * 100) + '%.' : '';
+      setStatus(ui.aiStatus, tr('Eksperymentalny wynik AI · model ') + String(data.model || 'base') + '.' + coverage + tr(' Możesz przywrócić napisy źródłowe.'), 'success');
       return;
     }
-    if (!hasText) { setStatus(ui.aiStatus, 'Najpierw znajdź tekst utworu. AI dopasowuje istniejące napisy, a nie zgaduje ich treść.', ''); return; }
-    if (aiCaps && aiCaps.ready) setStatus(ui.aiStatus, 'Środowisko i model base są gotowe. Analiza rozpocznie się dopiero po kliknięciu.', 'success');
-    else setStatus(ui.aiStatus, 'Gotowe do ręcznego uruchomienia. Przed pierwszym pobraniem zobaczysz potwierdzenie.', '');
+    if (!hasText) { setStatus(ui.aiStatus, tr('Najpierw znajdź tekst utworu. AI dopasowuje istniejące napisy, a nie zgaduje ich treść.'), ''); return; }
+    if (aiCaps && aiCaps.ready) setStatus(ui.aiStatus, tr('Środowisko i model base są gotowe. Analiza rozpocznie się dopiero po kliknięciu.'), 'success');
+    else setStatus(ui.aiStatus, tr('Gotowe do ręcznego uruchomienia. Przed pierwszym pobraniem zobaczysz potwierdzenie.'), '');
   }
   async function refreshAiCapabilities() {
     const tools = window.__pulsarDesktopTools;
@@ -1121,18 +1125,18 @@
   }
   async function runAiAlignment() {
     if (aiBusy || !track) return;
-    if (aiCandidate) { setStatus(ui.aiStatus, 'Najpierw zapisz albo odrzuć oczekujący wynik AI.', ''); return; }
+    if (aiCandidate) { setStatus(ui.aiStatus, tr('Najpierw zapisz albo odrzuć oczekujący wynik AI.'), ''); return; }
     const tools = window.__pulsarDesktopTools;
     const data = editorLyricsData();
-    if (!tools || !tools.available || typeof tools.alignLyrics !== 'function') { setStatus(ui.aiStatus, 'Ta funkcja wymaga desktopowej wersji Pulsara.', 'error'); return; }
+    if (!tools || !tools.available || typeof tools.alignLyrics !== 'function') { setStatus(ui.aiStatus, tr('Ta funkcja wymaga desktopowej wersji Pulsara.'), 'error'); return; }
     const sourceWords = !!(data && !data.generated && lyricsHaveWords(data));
     const partial = ui.aiScope.value === 'range';
     const rangeStart = numberValue(ui.aiRangeStart.value), rangeEnd = numberValue(ui.aiRangeEnd.value);
     const offset = player.__lyrics.offset ? player.__lyrics.offset() : 0;
-    if (partial && (!(rangeStart >= 0) || !(rangeEnd > rangeStart) || (duration > 0 && rangeEnd > duration))) { setStatus(ui.aiStatus, 'Ustaw poprawny zakres wewnątrz nagrania.', 'error'); return; }
-    if (partial && (!data || !Array.isArray(data.synced))) { setStatus(ui.aiStatus, 'Dopasowanie zakresu wymaga zsynchronizowanych linii. Dla zwykłego tekstu użyj całego utworu.', 'error'); return; }
+    if (partial && (!(rangeStart >= 0) || !(rangeEnd > rangeStart) || (duration > 0 && rangeEnd > duration))) { setStatus(ui.aiStatus, tr('Ustaw poprawny zakres wewnątrz nagrania.'), 'error'); return; }
+    if (partial && (!data || !Array.isArray(data.synced))) { setStatus(ui.aiStatus, tr('Dopasowanie zakresu wymaga zsynchronizowanych linii. Dla zwykłego tekstu użyj całego utworu.'), 'error'); return; }
     const lines = partial ? core.lyricsTextsInRange(data.synced, rangeStart, rangeEnd, offset) : lyricsSourceLines(data);
-    if (!lines.length) { setStatus(ui.aiStatus, partial ? 'W tym zakresie nie ma linii do dopasowania.' : 'Brak tekstu do dopasowania.', 'error'); return; }
+    if (!lines.length) { setStatus(ui.aiStatus, partial ? tr('W tym zakresie nie ma linii do dopasowania.') : tr('Brak tekstu do dopasowania.'), 'error'); return; }
     const jobTrack = track;
     const id = jobTrack.id;
     aiBusy = true; aiBusyId = id; updateAiUi(); aiProgress('check');
@@ -1143,11 +1147,11 @@
       if (!open || !track || track.id !== id) return;
       const ready = !!(aiCaps && aiCaps.ready);
       const download = ready
-        ? 'Lokalne środowisko AI jest gotowe. Jeśli model base nie był jeszcze pobrany, pierwsza analiza pobierze ok. 150 MB.'
-        : 'Przed analizą Pulsar pobierze izolowane środowisko Python (od ok. 2 GB, zależnie od platformy) oraz model base (ok. 150 MB). Wymagany jest Python 3.10+ i dostęp do internetu.';
-      const replacement = sourceWords ? '\n\nTen utwór ma już word-sync. Po porównaniu możesz zastąpić go dla tego nagrania, a poprzednie napisy źródłowe zostaną zachowane do przywrócenia.' : '';
-      const rangeInfo = partial ? '\n\nAnaliza obejmie tylko zakres ' + formatTime(rangeStart, true) + '–' + formatTime(rangeEnd, true) + ' i linie: ' + lines.length + '.' : '';
-      if (!window.confirm('Eksperymentalne dopasowanie AI\n\n' + download + replacement + rangeInfo + '\n\nAnaliza na CPU może potrwać od kilku do kilkudziesięciu minut. Tekst i audio są przetwarzane lokalnie. Kontynuować?')) return;
+        ? tr('Lokalne środowisko AI jest gotowe. Jeśli model base nie był jeszcze pobrany, pierwsza analiza pobierze ok. 150 MB.')
+        : tr('Przed analizą Pulsar pobierze izolowane środowisko Python (od ok. 2 GB, zależnie od platformy) oraz model base (ok. 150 MB). Wymagany jest Python 3.10+ i dostęp do internetu.');
+      const replacement = sourceWords ? tr('\n\nTen utwór ma już word-sync. Po porównaniu możesz zastąpić go dla tego nagrania, a poprzednie napisy źródłowe zostaną zachowane do przywrócenia.') : '';
+      const rangeInfo = partial ? tr('\n\nAnaliza obejmie tylko zakres ') + formatTime(rangeStart, true) + '–' + formatTime(rangeEnd, true) + tr(' i linie: ') + lines.length + '.' : '';
+      if (!window.confirm(tr('Eksperymentalne dopasowanie AI') + '\n\n' + download + replacement + rangeInfo + tr('\n\nAnaliza na CPU może potrwać od kilku do kilkudziesięciu minut. Tekst i audio są przetwarzane lokalnie. Kontynuować?'))) return;
       aiProgress('prepare');
       const job = {
         inputPath: jobTrack.srcPath || '', inputBlob: jobTrack.file, inputName: jobTrack.file.name,
@@ -1158,7 +1162,7 @@
       const result = await tools.alignLyrics(job, aiProgress);
       let candidateData = result;
       if (partial) {
-        if (!result.synced.some(function (line) { return line.t >= rangeStart && line.t < rangeEnd; })) throw new Error('AI nie zwróciło czasów wewnątrz wybranego zakresu; poprzednie napisy pozostają bez zmian');
+        if (!result.synced.some(function (line) { return line.t >= rangeStart && line.t < rangeEnd; })) throw new Error(tr('AI nie zwróciło czasów wewnątrz wybranego zakresu; poprzednie napisy pozostają bez zmian'));
         const merged = core.mergeLyricsRange(data.synced, result.synced, rangeStart, rangeEnd, offset);
         candidateData = Object.assign({}, result, { synced: merged, partial: true, alignmentRange: { start: rangeStart, end: rangeEnd } });
         candidateData.wordSync = merged.some(function (line) { return Array.isArray(line.words) && line.words.length; });
@@ -1171,13 +1175,13 @@
       if (open && track && track.id === id) {
         lyricsLoadedId = id;
         previewAiCandidate('new', false);
-        toast('Wynik AI jest gotowy do porównania — jeszcze niezapisany');
-      } else toast('Analiza zakończona; wynik oczekuje na porównanie: ' + (jobTrack.title || jobTrack.file.name));
+        toast(tr('Wynik AI jest gotowy do porównania — jeszcze niezapisany'));
+      } else toast(tr('Analiza zakończona; wynik oczekuje na porównanie: ') + (jobTrack.title || jobTrack.file.name));
     } catch (error) {
       failed = true;
       const message = String(error && error.message || error);
-      if (open && track && track.id === id) setStatus(ui.aiStatus, 'Dopasowanie nie powiodło się: ' + message, 'error');
-      else { console.warn('Pulsar AI:', error); toast('Dopasowanie AI nie powiodło się'); }
+      if (open && track && track.id === id) setStatus(ui.aiStatus, tr('Dopasowanie nie powiodło się: ') + message, 'error');
+      else { console.warn('Pulsar AI:', error); toast(tr('Dopasowanie AI nie powiodło się')); }
     } finally {
       aiBusy = false; aiBusyId = '';
       if (open) { updateAiUi(failed); if (track && track.id === id) renderLyricsPreview(); }
@@ -1187,21 +1191,21 @@
     if (aiBusy || !track || !player.__lyrics.resetFor) return;
     const data = editorLyricsData();
     if (!data || !data.generated) return;
-    if (!window.confirm('Usunąć eksperymentalne czasy AI i ponownie użyć napisów ze źródła?')) return;
+    if (!window.confirm(tr('Usunąć eksperymentalne czasy AI i ponownie użyć napisów ze źródła?'))) return;
     const id = track.id;
     ui.aiRestore.disabled = true;
-    setStatus(ui.aiStatus, 'Przywracanie napisów źródłowych…', '', true);
+    setStatus(ui.aiStatus, tr('Przywracanie napisów źródłowych…'), '', true);
     let failed = false;
     try {
       await player.__lyrics.resetFor(id);
       if (open && track && track.id === id) {
         lyricsLoadedId = id;
         renderLyricsPreview();
-        toast('Przywrócono napisy źródłowe');
+        toast(tr('Przywrócono napisy źródłowe'));
       }
     } catch (error) {
       failed = true;
-      if (open && track && track.id === id) setStatus(ui.aiStatus, 'Nie udało się przywrócić źródła: ' + (error.message || error), 'error');
+      if (open && track && track.id === id) setStatus(ui.aiStatus, tr('Nie udało się przywrócić źródła: ') + (error.message || error), 'error');
     } finally { if (open) updateAiUi(failed); }
   }
 
@@ -1210,7 +1214,7 @@
     const token = ++lyricsToken;
     updateLyricsOffsetUi();
     if (lyricsLoadedId === track.id) { renderLyricsPreview(); updateAiUi(); return; }
-    setStatus(ui.lyricsStatus, 'Wczytywanie napisów…', '', true);
+    setStatus(ui.lyricsStatus, tr('Wczytywanie napisów…'), '', true);
     try {
       if (player.__lyrics.set) player.__lyrics.set(true);
       // fetchFor jest szybkie dla cache, a przede wszystkim gwarantuje, że
@@ -1220,14 +1224,14 @@
       lyricsLoadedId = track.id;
       renderLyricsPreview();
       const data = player.__lyrics.data();
-      if (data && data.synced) setStatus(ui.lyricsStatus, 'Przeciągnij suwak podczas odtwarzania, aby dopasować tekst.', 'success');
-      else if (data && data.plain) setStatus(ui.lyricsStatus, 'Ten tekst nie ma znaczników czasu. Przesuwać i eksportować można tylko napisy zsynchronizowane (LRC).', '');
-      else setStatus(ui.lyricsStatus, 'Nie znaleziono napisów dla tego utworu.', '');
+      if (data && data.synced) setStatus(ui.lyricsStatus, tr('Przeciągnij suwak podczas odtwarzania, aby dopasować tekst.'), 'success');
+      else if (data && data.plain) setStatus(ui.lyricsStatus, tr('Ten tekst nie ma znaczników czasu. Przesuwać i eksportować można tylko napisy zsynchronizowane (LRC).'), '');
+      else setStatus(ui.lyricsStatus, tr('Nie znaleziono napisów dla tego utworu.'), '');
       updateAiUi();
       refreshAiCapabilities();
     } catch (error) {
       if (!open || token !== lyricsToken) return;
-      setStatus(ui.lyricsStatus, 'Nie udało się wczytać napisów: ' + (error.message || error), 'error');
+      setStatus(ui.lyricsStatus, tr('Nie udało się wczytać napisów: ') + (error.message || error), 'error');
       renderLyricsPreview();
       updateAiUi();
     }
@@ -1257,7 +1261,7 @@
     if (!data || !Array.isArray(data.synced) || !data.synced.length) {
       const empty = document.createElement('div');
       empty.className = 'pae-empty-cuts';
-      empty.textContent = data && data.plain ? 'Tekst bez znaczników czasu — brak synchronizacji do regulacji.' : 'Brak zsynchronizowanych napisów do podglądu.';
+      empty.textContent = data && data.plain ? tr('Tekst bez znaczników czasu — brak synchronizacji do regulacji.') : tr('Brak zsynchronizowanych napisów do podglądu.');
       ui.lyricsPreview.appendChild(empty);
       return;
     }
@@ -1286,19 +1290,19 @@
       const offset = player.__lyrics.offset ? player.__lyrics.offset() : 0;
       const lines = core.shiftLyrics(data.synced, offset);
       const blob = new Blob([core.formatLRC(lines)], { type: 'text/plain;charset=utf-8' });
-      const base = String(track.file.name || 'napisy').replace(/\.[^.]+$/, '');
-      const name = core.safeFileName(base + ' (przesunięte)') + '.lrc';
+      const base = String(track.file.name || tr('napisy')).replace(/\.[^.]+$/, '');
+      const name = core.safeFileName(base + tr(' (przesunięte)')) + '.lrc';
       const fs = window.__pulsarFs;
       let path = '';
       if (fs && fs.saveDialog) {
-        path = await fs.saveDialog('Eksportuj przesunięte napisy', name, 'lrc', 'Napisy LRC');
+        path = await fs.saveDialog(tr('Eksportuj przesunięte napisy'), name, 'lrc', tr('Napisy LRC'));
         if (!path) return;
       }
       if (path) await writeBlob(path, blob); else downloadBlob(blob, name);
-      setStatus(ui.lyricsStatus, 'Zapisano przesunięte napisy LRC.', 'success');
-      toast('Wyeksportowano przesunięte napisy LRC');
+      setStatus(ui.lyricsStatus, tr('Zapisano przesunięte napisy LRC.'), 'success');
+      toast(tr('Wyeksportowano przesunięte napisy LRC'));
     } catch (error) {
-      setStatus(ui.lyricsStatus, 'Nie udało się wyeksportować LRC: ' + (error.message || error), 'error');
+      setStatus(ui.lyricsStatus, tr('Nie udało się wyeksportować LRC: ') + (error.message || error), 'error');
     }
   }
 
@@ -1321,6 +1325,26 @@
       if (key === 'arrowright') mainAudio.currentTime = Math.min(duration, (mainAudio.currentTime || 0) + 5);
     }
   }, true);
+
+  document.addEventListener('pulsar:lang', function () {
+    if (editButton) {
+      editButton.title = tr('Edytuj audio i napisy');
+      editButton.setAttribute('aria-label', editButton.title);
+    }
+    if (!ui.dim) return;
+    updateAudioUi();
+    if (!open || !track) return;
+    if (sessionNotice) sessionNotice = tr(' Wznowiono zapisaną sesję.');
+    if (buffer) setStatus(ui.audioStatus, tr('Fala gotowa. Zaznacz fragment albo użyj wykrywania ciszy.') + sessionNotice, 'success');
+    else if (nativeMode) setStatus(ui.audioStatus, tr('Tryb dużych plików: cięcie wykona FFmpeg bez dekodowania całości w WebView.'), 'success');
+    renderLyricsPreview();
+    updateAiUi();
+    if (aiBusy) aiProgress(aiStage);
+    const data = editorLyricsData();
+    if (data && data.synced) setStatus(ui.lyricsStatus, tr('Przeciągnij suwak podczas odtwarzania, aby dopasować tekst.'), 'success');
+    else if (data && data.plain) setStatus(ui.lyricsStatus, tr('Ten tekst nie ma znaczników czasu. Przesuwać i eksportować można tylko napisy zsynchronizowane (LRC).'), '');
+    else setStatus(ui.lyricsStatus, tr('Nie znaleziono napisów dla tego utworu.'), '');
+  });
 
   buildButton();
   buildPanel();

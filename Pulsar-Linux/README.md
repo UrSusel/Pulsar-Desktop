@@ -1,5 +1,7 @@
 # Pulsar — Linux
 
+Pulsar's original code is open source under Apache-2.0. This archive includes `LICENSE`, `NOTICE`, `THIRD_PARTY_NOTICES.md`, and the upstream license texts in `licenses/`.
+
 Everything in this folder is self-contained. No installer needed.
 
 | File | Purpose |

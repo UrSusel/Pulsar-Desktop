@@ -1,6 +1,8 @@
 /* Pulsar Auto-DJ 2.0 — nastroje, różnorodność, historia i wyjaśnienia. */
 (function () {
   'use strict';
+  const tr = window.PulsarI18n ? window.PulsarI18n.t : function (text) { return text; };
+  const trMessage = window.PulsarI18n ? window.PulsarI18n.message : tr;
   const player = window.__player;
   const core = window.PulsarDjCore;
   if (!player || !player.__dj || !core || typeof document === 'undefined') return;
@@ -19,9 +21,9 @@
   function save() {
     try { localStorage.setItem(KEY, JSON.stringify(settings)); } catch (e) {}
   }
-  function toast(text) { try { if (window.__pulsarHost) window.__pulsarHost.toast(text); } catch (e) {} }
+  function toast(text) { try { if (window.__pulsarHost) window.__pulsarHost.toast(trMessage(text)); } catch (e) {} }
   function el(id) { return document.getElementById(id); }
-  function trackLabel(track) { return String(track && track.title || 'Utwór') + (track && track.artist ? ' — ' + track.artist : ''); }
+  function trackLabel(track) { return String(track && track.title || tr('Utwór')) + (track && track.artist ? ' — ' + track.artist : ''); }
   function scheduleRefresh() { clearTimeout(refreshTimer); refreshTimer = setTimeout(refresh, 80); }
 
   function build() {
@@ -69,10 +71,10 @@
     const context = player.__dj.context();
     const choice = core.select(context, settings);
     if (choice) {
-      ui.next.textContent = 'Następny: ' + trackLabel(choice.track);
-      ui.reason.textContent = choice.reason;
+      ui.next.textContent = tr('Następny: ') + trackLabel(choice.track);
+      ui.reason.textContent = trMessage(choice.reason);
     } else {
-      ui.next.textContent = 'Dodaj więcej utworów, aby Auto-DJ miał wybór';
+      ui.next.textContent = tr('Dodaj więcej utworów, aby Auto-DJ miał wybór');
       ui.reason.textContent = '';
     }
     const history = (context.history || []).slice(-8).reverse();
@@ -85,19 +87,19 @@
       button.type = 'button'; button.dataset.index = String(index); button.textContent = trackLabel(track);
       ui.history.appendChild(button);
     });
-    if (!history.length) ui.history.textContent = 'Historia pojawi się po pierwszym automatycznym przejściu.';
+    if (!history.length) ui.history.textContent = tr('Historia pojawi się po pierwszym automatycznym przejściu.');
   }
 
   function playSimilar() {
     const context = player.__dj.context();
-    if (context.currentIndex < 0 || context.tracks.length < 2) { toast('Najpierw wybierz utwór i dodaj do biblioteki podobne pozycje'); return null; }
+    if (context.currentIndex < 0 || context.tracks.length < 2) { toast(tr('Najpierw wybierz utwór i dodaj do biblioteki podobne pozycje')); return null; }
     const choice = core.select(context, settings, { similar: true });
-    if (!choice) { toast('Nie ma kandydata do podobnego odtwarzania'); return null; }
+    if (!choice) { toast(tr('Nie ma kandydata do podobnego odtwarzania')); return null; }
     if (!player.__dj.on()) player.__dj.set(true);
     if (player.__dj.play) {
       lastChoice = choice;
       player.__dj.play(choice.index);
-      if (ui.next) { ui.next.textContent = 'Wybrano: ' + trackLabel(choice.track); ui.reason.textContent = choice.reason; }
+      if (ui.next) { ui.next.textContent = tr('Wybrano: ') + trackLabel(choice.track); ui.reason.textContent = trMessage(choice.reason); }
     } else {
       oneShotSimilar = true;
       player.nextTrack();
@@ -113,8 +115,8 @@
     const choice = core.select(player.__dj.context(), settings, { similar: similar });
     lastChoice = choice;
     if (choice && ui.next) {
-      ui.next.textContent = 'Wybrano: ' + trackLabel(choice.track);
-      ui.reason.textContent = choice.reason;
+      ui.next.textContent = tr('Wybrano: ') + trackLabel(choice.track);
+      ui.reason.textContent = trMessage(choice.reason);
     }
     return choice ? choice.index : null;
   };
@@ -122,6 +124,7 @@
   build();
   refresh();
   document.addEventListener('pulsar:state', scheduleRefresh);
+  document.addEventListener('pulsar:lang', refresh);
   window.PulsarAutoDj = {
     settings: function () { return Object.assign({}, settings); },
     set: function (value) { settings = core.settingsOf(Object.assign({}, settings, value)); save(); build(); syncValues(); if (ui.mood) { ui.mood.value = settings.mood; ui.artists.value = settings.artistDiversity; ui.genres.value = settings.genreDiversity; } refresh(); },

@@ -2,7 +2,7 @@
 
 A free, **portable** music player for **Windows and Linux** with a pulsar-nebula soul: search YouTube, save full tracks **with cover art and tags embedded**, sing along with synced lyrics, and watch audio-reactive visualizers. No installer, no command line — one folder that just runs.
 
-![version](https://img.shields.io/badge/version-0.21.0-4de3ff) ![platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20%C2%B7%20Linux%20x64-a06bff) ![size](https://img.shields.io/badge/size-%7E20%20MB%20(Win)%20%2F%20%7E7%20MB%20(Linux)-ff5fd0)
+![version](https://img.shields.io/badge/version-0.21.0-4de3ff) ![license](https://img.shields.io/badge/license-Apache--2.0-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20%C2%B7%20Linux%20x64-a06bff) ![size](https://img.shields.io/badge/size-%7E20%20MB%20(Win)%20%2F%20%7E7%20MB%20(Linux)-ff5fd0)
 
 ## ⬇️ Download
 
@@ -35,6 +35,7 @@ The project page — [ursusel.github.io/Pulsar-Desktop](https://ursusel.github.i
 - 📻 **Auto-DJ 2.0** — calm/focus/workout/party/discovery moods, “more like this”, artist/genre diversity, undoable history and a short reason for every pick
 - 🔌 **Truly portable** — keep it on any drive, even a USB stick; identical experience on Windows and Linux
 - 🔄 **App update checks** — automatic checks every 12 hours and a manual button compare the installed version with GitHub Releases; Pulsar only shows a download link and never installs an update by itself
+- 🌍 **PL / EN / ES localization** — all newly added editor, AI, Auto-DJ, backup and update UI follows the selected language without a restart
 - 🪟 **Windows integration** — tray icon with playback menu, optional close-to-tray, always-on-top, compact mini mode
 - ⏯️ **Resume where you left off** — last track and position are restored on start
 - 🔁 **Gapless playback** — live albums and DJ mixes flow on without a gap
@@ -71,6 +72,7 @@ asks for the synced folder instead.
 ```
 Pulsar-Windows/     the runnable Windows build   (pulsar.exe · resources.neu · yt-dlp.exe)
 Pulsar-Linux/       the runnable Linux build     (pulsar · resources.neu · yt-dlp · README.md)
+Pulsar-Core/        complete readable core      (Windows/Linux UI, runtime + resources)
 Pulsar-Sync/        shared cloud library layer  (engine, adapters, build + tests)
 Pulsar-Editor/      desktop audio/LRC editor    (UI, audio engine, build + tests)
 Pulsar-Extras/      Auto-DJ, backups, updates  (native bridge, UI + tests)
@@ -79,7 +81,22 @@ Pulsar-Desktop.zip  packaged Windows release
 Pulsar-Linux.zip    packaged Linux release
 ```
 
-Each app folder is the whole app: exactly the files needed to run it, nothing else. The core player is closed-source — `resources.neu` is a packed runtime bundle. Open extension layers such as `Pulsar-Sync/`, `Pulsar-Editor/` and `Pulsar-Extras/` have readable sources and reproducible build scripts that patch the bundle without replacing its other files.
+Each app folder contains the files needed to run that build. The complete original source is available under Apache-2.0: `Pulsar-Core/` holds the readable core, while `Pulsar-Sync/`, `Pulsar-Editor/`, and `Pulsar-Extras/` hold the extension layers. Packed `resources.neu` files are reproducible build outputs, not the preferred form for editing.
+
+## 🔨 Build from source
+
+```bash
+python Pulsar-Editor/tools/build_desktop_editor.py --from-source
+python Pulsar-Editor/tools/build_desktop_editor.py --check
+python Pulsar-Editor/tools/test_desktop_editor.py
+python Pulsar-Sync/tools/test_desktop_bundle.py
+```
+
+The source-build test independently rebuilds both desktop archives from `Pulsar-Core` and requires byte-for-byte identical output. See [CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow and development data rules.
+
+## 🔐 License, ownership and privacy
+
+Pulsar is an independent personal project owned and maintained by **UrSusel**. Original project code is licensed under [Apache-2.0](LICENSE); third-party components keep their own [licenses and notices](THIRD_PARTY_NOTICES.md). The application is local-first and has no project-operated telemetry backend; see [PRIVACY.md](PRIVACY.md).
 
 ## 🛠️ Tech
 

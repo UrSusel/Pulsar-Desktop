@@ -1,6 +1,6 @@
 # Pulsar Extras — Auto-DJ 2.0, kopie i aktualizacje
 
-Otwarte rozszerzenia wspólnej paczki desktopowej Windows/Linux. Są dołączane do `resources.neu` przez `Pulsar-Editor/tools/build_desktop_editor.py`; Android usuwa ich znaczniki i zasoby.
+Rozszerzenia na licencji Apache-2.0 dla wspólnej paczki desktopowej Windows/Linux. Są dołączane do `resources.neu` przez `Pulsar-Editor/tools/build_desktop_editor.py`; Android usuwa ich znaczniki i zasoby.
 
 ## Auto-DJ 2.0
 
@@ -47,8 +47,13 @@ Endpoint `/releases/latest` wymaga opublikowanego, stabilnego GitHub Release. Sa
 
 Dla ręcznego eksperymentu napisów mostek udostępnia ograniczone `lyricsAiCapabilities()` i `alignLyrics()`. Helper jest kopiowany z zasobów do katalogu użytkownika; ścieżki są cytowane, a żądanie i wynik przechodzą przez tymczasowy JSON. Izolowane `venv` i przypięte pakiety `stable-ts[fw]==2.19.1` / `faster-whisper==1.2.1` oraz zgodny dekoder `av>=12,<19` są instalowane dopiero po potwierdzeniu w UI. Ograniczenie PyAV jest konieczne, ponieważ wersja 19 usunęła `metadata_errors`, którego używa Faster-Whisper 1.2.1; kontrolne dekodowanie PCM wykrywa ten problem także w istniejącym środowisku. Instalator używa `python -m pip`; jeżeli przerwana konfiguracja zostawiła środowisko bez działającego pip, najpierw wykonuje `python -m ensurepip --upgrade`. Model jest pobierany do tego samego katalogu cache, nie do repo ani `resources.neu`. Mostek odrzuca wynik bez rzeczywistych, zgodnych czasów słów. Źródłowy word-sync może zastąpić wyłącznie żądanie z jawnym `allowSourceWordSync`, wystawiane po potwierdzeniu w UI; bez tej zgody mostek i zapis wyniku odrzucają operację.
 
+## Tłumaczenia
+
+`i18n.js` zawiera polskie klucze oraz pełne tłumaczenia **angielskie i hiszpańskie** dla nowych kart, edytora, komunikatów AI, błędów mostka, Auto-DJ i kopii. Runtime rozszerza swoje `t()`/`sweepI18n()` o ten słownik, a zdarzenie `pulsar:lang` odświeża dynamiczne komunikaty bez restartu. Zapisany język EN/ES jest też stosowany ponownie po zakończeniu budowania wszystkich paneli.
+
 ## Pliki i testy
 
+- `i18n.js` — wspólny słownik PL/EN/ES i tłumaczenie komunikatów złożonych;
 - `dj-core.js`, `auto-dj.js` — czysty selektor oraz UI/historia;
 - `backup-core.js`, `library-backup.js` — harmonogram, nazwy, rotacja, UI i strażnicy operacji;
 - `desktop-bridge.js` — Neutralino/FFmpeg/system plików;
@@ -56,11 +61,13 @@ Dla ręcznego eksperymentu napisów mostek udostępnia ograniczone `lyricsAiCapa
 - `extras.css` — wspólny wygląd kart;
 - `tools/runtime_patches.py` — idempotentne zaczepy wyboru DJ, backupu, usuwania i analizy fali;
 - `tools/test_extras.js` — testy nastrojów, podobieństwa, różnorodności, historii, harmonogramu i rotacji;
-- `tools/test_app_updates.js` — testy SemVer, odpowiedzi GitHub, błędów i harmonogramu aktualizacji.
+- `tools/test_app_updates.js` — testy SemVer, odpowiedzi GitHub, błędów i harmonogramu aktualizacji;
+- `tools/test_i18n.js` — kompletność słownika, komunikaty złożone i zgodność wszystkich odwołań `tr()`.
 
 ```bash
 node Pulsar-Extras/tools/test_extras.js
 node Pulsar-Extras/tools/test_app_updates.js
+node Pulsar-Extras/tools/test_i18n.js
 python Pulsar-Editor/tools/build_desktop_editor.py --check
 python Pulsar-Editor/tools/test_desktop_editor.py
 ```

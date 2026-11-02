@@ -1,6 +1,8 @@
 /* Pulsar — zaplanowane kopie, rotacja i migawki przed ryzykownymi zmianami. */
 (function () {
   'use strict';
+  const tr = window.PulsarI18n ? window.PulsarI18n.t : function (text) { return text; };
+  const trMessage = window.PulsarI18n ? window.PulsarI18n.message : tr;
   const player = window.__player;
   const core = window.PulsarBackupCore;
   const tools = window.__pulsarDesktopTools;
@@ -10,13 +12,14 @@
   let config = load();
   let busy = null;
   let lastError = '';
+  let defaultFolder = '';
   let ui = {};
 
   function load() { try { return core.settingsOf(JSON.parse(localStorage.getItem(KEY) || '{}')); } catch (e) { return core.settingsOf(); } }
   function save() { try { localStorage.setItem(KEY, JSON.stringify(config)); } catch (e) {} }
-  function toast(text) { try { if (window.__pulsarHost) window.__pulsarHost.toast(text); } catch (e) {} }
+  function toast(text) { try { if (window.__pulsarHost) window.__pulsarHost.toast(trMessage(text)); } catch (e) {} }
   function el(id) { return document.getElementById(id); }
-  function dateText(value) { try { return value ? new Date(value).toLocaleString() : 'jeszcze nie utworzono'; } catch (e) { return ''; } }
+  function dateText(value) { try { return value ? new Date(value).toLocaleString(window.PulsarI18n ? window.PulsarI18n.locale() : undefined) : tr('jeszcze nie utworzono'); } catch (e) { return ''; } }
   function entryName(entry) { return String(entry && (entry.entry != null ? entry.entry : entry.name) || ''); }
 
   function build() {
@@ -43,28 +46,28 @@
     ui.keep.addEventListener('change', function () { config.keep = Number(ui.keep.value); changed(); });
     el('pabFolderBtn').addEventListener('click', chooseFolder);
     el('pabFolderReset').addEventListener('click', function () { config.folder = ''; changed(); });
-    ui.now.addEventListener('click', function () { snapshot('manual').then(function (result) { if (result && !result.skipped) toast('Migawka zapisana: ' + result.name); }).catch(showError); });
+    ui.now.addEventListener('click', function () { snapshot('manual').then(function (result) { if (result && !result.skipped) toast(tr('Migawka zapisana: ') + result.name); }).catch(showError); });
     refresh();
-    if (tools && tools.available && !config.folder) tools.defaultBackupDirectory().then(function (path) { if (ui.folder && !config.folder) ui.folder.textContent = path + ' (domyślny)'; }).catch(function () {});
+    if (tools && tools.available && !config.folder) tools.defaultBackupDirectory().then(function (path) { defaultFolder = String(path || ''); if (ui.folder && !config.folder) refresh(); }).catch(function () {});
   }
   function changed() { config = core.settingsOf(config); save(); refresh(); }
   function refresh() {
     if (!ui.enabled) return;
     ui.enabled.checked = config.enabled; ui.safety.checked = config.safety;
     ui.interval.value = String(config.intervalDays); ui.keep.value = String(config.keep);
-    ui.folder.textContent = config.folder || ui.folder.textContent || 'Folder domyślny';
-    ui.folder.title = config.lastPath || config.folder;
+    ui.folder.textContent = config.folder || (defaultFolder ? defaultFolder + tr(' (domyślny)') : tr('Folder domyślny'));
+    ui.folder.title = config.lastPath || config.folder || defaultFolder;
     ui.status.classList.toggle('pab-error', !!lastError);
-    ui.status.textContent = lastError ? 'Błąd: ' + lastError : 'Ostatnia kopia: ' + dateText(config.lastRun) + (config.lastPath ? '\n' + config.lastPath : '');
+    ui.status.textContent = lastError ? tr('Błąd: ') + trMessage(lastError) : tr('Ostatnia kopia: ') + dateText(config.lastRun) + (config.lastPath ? '\n' + config.lastPath : '');
     ui.now.disabled = !!busy || !(tools && tools.available);
-    if (!(tools && tools.available)) ui.status.textContent = 'Automatyczne kopie wymagają wersji desktopowej Pulsara.';
+    if (!(tools && tools.available)) ui.status.textContent = tr('Automatyczne kopie wymagają wersji desktopowej Pulsara.');
   }
   async function chooseFolder() {
     if (!tools || !tools.available) return;
-    try { const path = await tools.fs.folderDialog('Wybierz folder automatycznych kopii Pulsara'); if (path) { config.folder = String(path); changed(); } }
+    try { const path = await tools.fs.folderDialog(tr('Wybierz folder automatycznych kopii Pulsara')); if (path) { config.folder = String(path); changed(); } }
     catch (e) { showError(e); }
   }
-  function showError(error) { lastError = String(error && error.message || error); refresh(); toast('Nie udało się utworzyć kopii: ' + lastError); }
+  function showError(error) { lastError = String(error && error.message || error); refresh(); toast(tr('Nie udało się utworzyć kopii: ') + lastError); }
 
   async function rotate(folder) {
     const entries = await tools.fs.list(folder);
@@ -81,9 +84,9 @@
     return remove;
   }
   async function writeSnapshot(reason) {
-    if (!tools || !tools.available) throw new Error('natywny system plików nie jest dostępny');
+    if (!tools || !tools.available) throw new Error(tr('natywny system plików nie jest dostępny'));
     const folder = config.folder || await tools.defaultBackupDirectory();
-    if (!await tools.fs.mkdir(folder)) throw new Error('nie mogę utworzyć folderu kopii');
+    if (!await tools.fs.mkdir(folder)) throw new Error(tr('nie mogę utworzyć folderu kopii'));
     const backup = await player.__backup.build();
     if (!backup.tracks && !backup.albums) return { skipped: true, reason: 'empty' };
     let name = core.backupName(new Date(), reason);
@@ -101,7 +104,7 @@
         }
       }
       let removed = [], rotationError = '';
-      try { removed = await rotate(folder); } catch (error) { rotationError = 'Kopia została zapisana, ale rotacja nie powiodła się: ' + String(error && error.message || error); }
+      try { removed = await rotate(folder); } catch (error) { rotationError = tr('Kopia została zapisana, ale rotacja nie powiodła się: ') + String(error && error.message || error); }
       config.lastRun = Date.now(); config.lastPath = path; config.folder = config.folder || '';
       lastError = rotationError; save(); refresh();
       return { path: path, name: name, size: backup.total, tracks: backup.tracks, albums: backup.albums, rotated: removed.length, rotationError: rotationError };
@@ -125,10 +128,10 @@
     if (!config.safety) return true;
     try {
       const result = await snapshot(reason);
-      if (result && !result.skipped) toast('Utworzono migawkę bezpieczeństwa: ' + result.name);
+      if (result && !result.skipped) toast(tr('Utworzono migawkę bezpieczeństwa: ') + result.name);
       return true;
     } catch (error) {
-      return window.confirm('Nie udało się utworzyć migawki bezpieczeństwa (' + String(error && error.message || error) + ').\n\nKontynuować operację mimo to?');
+      return window.confirm(tr('Nie udało się utworzyć migawki bezpieczeństwa (') + trMessage(String(error && error.message || error)) + tr(').\n\nKontynuować operację mimo to?'));
     }
   }
   async function uniqueTracks(removed) {
@@ -143,10 +146,10 @@
   }
   async function beforeRemove(removed, context) {
     const unique = await uniqueTracks(removed);
-    let message = 'Usunąć ' + (removed.length === 1 ? '1 utwór' : removed.length + ' utworów') + ' z biblioteki?';
+    let message = tr('Usunąć ') + (removed.length === 1 ? tr('1 utwór') : removed.length + tr(' utworów')) + tr(' z biblioteki?');
     if (unique.length) {
-      const names = unique.slice(0, 3).map(function (track) { return '• ' + (track.title || (track.file && track.file.name) || 'Utwór'); }).join('\n');
-      message = 'UWAGA: ' + (unique.length === 1 ? 'plik tego utworu istnieje tylko w bibliotece' : 'pliki ' + unique.length + ' utworów istnieją tylko w bibliotece') + '.\nUsunięcie może bezpowrotnie skasować jedyną kopię.\n\n' + names + (unique.length > 3 ? '\n…' : '') + '\n\nCzy na pewno kontynuować?';
+      const names = unique.slice(0, 3).map(function (track) { return '• ' + (track.title || (track.file && track.file.name) || tr('Utwór')); }).join('\n');
+      message = tr('UWAGA: ') + (unique.length === 1 ? tr('plik tego utworu istnieje tylko w bibliotece') : tr('pliki ') + unique.length + tr(' utworów istnieją tylko w bibliotece')) + tr('.\nUsunięcie może bezpowrotnie skasować jedyną kopię.\n\n') + names + (unique.length > 3 ? '\n…' : '') + tr('\n\nCzy na pewno kontynuować?');
     }
     if (!window.confirm(message)) return false;
     const large = core.isLargeChange(removed.length, context && context.total);
@@ -173,6 +176,7 @@
 
   build();
   refresh();
+  document.addEventListener('pulsar:lang', refresh);
   setTimeout(maybeScheduled, 15000);
   setInterval(maybeScheduled, 21600000);
 })();

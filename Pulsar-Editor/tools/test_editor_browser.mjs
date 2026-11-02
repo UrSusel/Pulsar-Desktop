@@ -668,6 +668,50 @@ try {
   check('UI odpytuje wyłącznie endpoint latest właściwego repozytorium', appUpdateRequests.length === 3 && appUpdateRequests.every(url => url === 'https://api.github.com/repos/UrSusel/Pulsar-Desktop/releases/latest'), appUpdateRequests);
   await page.evaluate(() => { document.getElementById('settingsMenu').hidden = true; });
 
+  await page.evaluate(() => PulsarAudioEditor.open('lyrics'));
+  for (const lang of ['en', 'es']) {
+    const translationAudit = await page.evaluate(async (language) => {
+      __player.__i18n.set(language);
+      await new Promise(resolve => setTimeout(resolve, 60));
+      const roots = ['audioEditor', 'pulsarDjPlus', 'pulsarAutoBackup', 'pulsarAppUpdate'].map(id => document.getElementById(id)).filter(Boolean);
+      const missed = [];
+      const inspect = (value) => {
+        const key = String(value || '').trim();
+        const entry = PulsarI18n.dictionary[key];
+        if (entry && entry[language] && entry[language] !== key) missed.push(key);
+      };
+      roots.forEach(root => {
+        const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+        for (let node = walker.nextNode(); node; node = walker.nextNode()) inspect(node.nodeValue);
+        root.querySelectorAll('[title], [aria-label], [placeholder], [alt]').forEach(el => ['title', 'aria-label', 'placeholder', 'alt'].forEach(attr => inspect(el.getAttribute(attr))));
+      });
+      return {
+        missed: Array.from(new Set(missed)),
+        editorTitle: document.getElementById('paeTitle').textContent,
+        aiTitle: document.querySelector('.pae-ai-section h3').textContent,
+        editorButton: document.getElementById('audioEditorBtn').title,
+        saveTitle: document.getElementById('paeSave').title,
+        backupTitle: document.querySelector('#pulsarAutoBackup h3').textContent,
+        updateStatus: document.getElementById('pupdateStatus').textContent,
+        djReason: document.getElementById('padjReason').textContent,
+        lyricsStatus: document.getElementById('paeLyricsStatus').textContent
+      };
+    }, lang);
+    check('nowe panele nie zostawiają polskich kluczy po zmianie na ' + lang, translationAudit.missed.length === 0, translationAudit);
+    check('edytor i przycisk są przetłumaczone na ' + lang, translationAudit.editorTitle === (lang === 'en' ? 'Edit track' : 'Editar canción') && /AI|IA/.test(translationAudit.aiTitle) && translationAudit.editorButton === (lang === 'en' ? 'Edit audio and lyrics' : 'Editar audio y letra') && !/Oryginał|nadpisany/.test(translationAudit.saveTitle), translationAudit);
+    check('aktualizacje, kopie, Auto-DJ i status napisów odświeżają język ' + lang, lang === 'en'
+      ? /latest release/.test(translationAudit.updateStatus) && /Automatic backups/.test(translationAudit.backupTitle) && /Drag the slider/.test(translationAudit.lyricsStatus) && !/Spokojnie|brzmienie/.test(translationAudit.djReason)
+      : /última versión/.test(translationAudit.updateStatus) && /Copias automáticas/.test(translationAudit.backupTitle) && /Arrastra el control/.test(translationAudit.lyricsStatus) && !/Spokojnie|brzmienie/.test(translationAudit.djReason), translationAudit);
+  }
+  check('powrót do polskiego przywraca oryginalne teksty nowych paneli', await page.evaluate(() => {
+    __player.__i18n.set('pl');
+    return document.getElementById('paeTitle').textContent === 'Edycja utworu'
+      && /Dopasowanie AI/.test(document.querySelector('.pae-ai-section h3').textContent)
+      && document.querySelector('#pulsarAutoBackup h3').textContent === 'Automatyczne kopie i bezpieczeństwo'
+      && /Najnowszy release/.test(document.getElementById('pupdateStatus').textContent);
+  }));
+  await page.evaluate(() => PulsarAudioEditor.close());
+
   if (DESKTOP) {
     const bridgeGuard = await page.evaluate(async () => {
       try { await __pulsarDesktopTools.alignLyrics({ lines: ['Take my breath'], hasSourceWordSync: true }); return ''; }

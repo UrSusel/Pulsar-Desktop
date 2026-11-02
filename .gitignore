@@ -1,3 +1,24 @@
 .tmp/
 __pycache__/
 *.log
+
+# Local credentials and signing material — never commit real secrets.
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+google-services.json
+**/secrets/
+**/credentials/
+
+# Personal application data and local AI environments.
+*.pulsarlib
+pulsar-library*.json
+.venv/
+venv/
+LyricsAI/

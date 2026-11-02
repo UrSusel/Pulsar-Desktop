@@ -1,6 +1,7 @@
 /* Pulsar Desktop — wspólny, natywny mostek FFmpeg, lokalnego AI i systemu plików. */
 (function () {
   'use strict';
+  const tr = window.PulsarI18n ? window.PulsarI18n.t : function (text) { return text; };
 
   const api = { available: false };
   window.__pulsarDesktopTools = api;
@@ -33,7 +34,7 @@
     const job = commandChain.then(function () {
       return Promise.race([
         Neutralino.os.execCommand(command),
-        new Promise(function (_, reject) { setTimeout(function () { reject(new Error('Przekroczono limit czasu polecenia')); }, limit); })
+        new Promise(function (_, reject) { setTimeout(function () { reject(new Error(tr('Przekroczono limit czasu polecenia'))); }, limit); })
       ]);
     });
     commandChain = job.catch(function () {});
@@ -80,14 +81,14 @@
     return path;
   }
   async function exportAudio(job) {
-    if (!job || !job.outputPath) throw new Error('Nie wybrano pliku docelowego');
+    if (!job || !job.outputPath) throw new Error(tr('Nie wybrano pliku docelowego'));
     const ffmpeg = await resolveFfmpeg(false);
-    if (!ffmpeg) throw new Error('FFmpeg nie jest dostępny');
-    if (!window.PulsarEditorCore) throw new Error('Brak modułu eksportu');
+    if (!ffmpeg) throw new Error(tr('FFmpeg nie jest dostępny'));
+    if (!window.PulsarEditorCore) throw new Error(tr('Brak modułu eksportu'));
     let input = String(job.inputPath || '');
     let temporary = '';
     if (!input) {
-      if (!job.inputBlob) throw new Error('Brak źródła audio');
+      if (!job.inputBlob) throw new Error(tr('Brak źródła audio'));
       input = temporary = await tempFile(extension(job.inputName) || 'audio');
       await writeBlob(input, job.inputBlob);
     }
@@ -95,9 +96,9 @@
       const args = window.PulsarEditorCore.buildFfmpegArgs(Object.assign({}, job, { inputPath: input }));
       const command = quote(ffmpeg) + ' ' + args.map(quote).join(' ');
       const result = resultOf(await run(command, Math.max(300000, Number(job.timeout) || 3600000)));
-      if (result.code !== 0) throw new Error(result.stderr.split(/\r?\n/).slice(-4).join(' ') || ('FFmpeg zakończył kodem ' + result.code));
+      if (result.code !== 0) throw new Error(result.stderr.split(/\r?\n/).slice(-4).join(' ') || (tr('FFmpeg zakończył kodem ') + result.code));
       const stat = await stats(input === job.outputPath ? '' : job.outputPath);
-      if (!stat || !stat.size) throw new Error('FFmpeg nie utworzył pliku wynikowego');
+      if (!stat || !stat.size) throw new Error(tr('FFmpeg nie utworzył pliku wynikowego'));
       return { path: job.outputPath, size: stat.size, native: true, ffmpeg: ffmpeg };
     } finally {
       if (temporary) { try { await Neutralino.filesystem.remove(temporary); } catch (e) {} }
@@ -136,7 +137,7 @@
   }
   async function materializeAiHelper(root) {
     const response = await fetch('lyrics-aligner.py', { cache: 'no-store' });
-    if (!response.ok) throw new Error('Nie można odczytać modułu AI z zasobów Pulsara');
+    if (!response.ok) throw new Error(tr('Nie można odczytać modułu AI z zasobów Pulsara'));
     const source = await response.text();
     const path = join(root, 'lyrics-aligner.py');
     await Neutralino.filesystem.writeFile(path, source);
@@ -151,15 +152,15 @@
     const helper = await materializeAiHelper(root);
     let python = aiPython(root);
     if (!await exists(python)) {
-      if (!install) throw aiError('Środowisko AI nie jest jeszcze zainstalowane', 'AI_SETUP_REQUIRED');
+      if (!install) throw aiError(tr('Środowisko AI nie jest jeszcze zainstalowane'), 'AI_SETUP_REQUIRED');
       const system = await resolveSystemPython();
       if (!system) throw new Error(WINDOWS
-        ? 'Zainstaluj Python 3.10 lub nowszy z python.org i zaznacz „Add Python to PATH”, potem spróbuj ponownie'
-        : 'Zainstaluj pakiety python3 i python3-venv, potem spróbuj ponownie');
+        ? tr('Zainstaluj Python 3.10 lub nowszy z python.org i zaznacz „Add Python to PATH”, potem spróbuj ponownie')
+        : tr('Zainstaluj pakiety python3 i python3-venv, potem spróbuj ponownie'));
       progressOf(onProgress, 'python');
       const made = resultOf(await run(quote(system) + ' -m venv ' + quote(join(root, 'env')), 180000));
       if (made.code !== 0 || !await exists(python)) {
-        throw new Error(made.stderr.split(/\r?\n/).slice(-3).join(' ') || 'Nie można utworzyć środowiska Python');
+        throw new Error(made.stderr.split(/\r?\n/).slice(-3).join(' ') || tr('Nie można utworzyć środowiska Python'));
       }
     }
     let check = await checkAiEnvironment(root, python, helper);
@@ -171,17 +172,17 @@
       if (pipReady.code !== 0) {
         const bootstrapped = resultOf(await run(quote(python) + ' -m ensurepip --upgrade', 180000));
         if (bootstrapped.code !== 0) {
-          throw new Error('Nie można przygotować pip w środowisku AI: ' + (bootstrapped.stderr.split(/\r?\n/).slice(-3).join(' ') || ('kod ' + bootstrapped.code)));
+          throw new Error(tr('Nie można przygotować pip w środowisku AI: ') + (bootstrapped.stderr.split(/\r?\n/).slice(-3).join(' ') || (tr('kod ') + bootstrapped.code)));
         }
       }
       const installed = resultOf(await run(quote(python) + ' -m pip install --disable-pip-version-check ' + AI_PACKAGES.map(quote).join(' '), 3600000));
       if (installed.code !== 0) {
-        throw new Error('Instalacja AI nie powiodła się: ' + (installed.stderr.split(/\r?\n/).slice(-4).join(' ') || ('kod ' + installed.code)));
+        throw new Error(tr('Instalacja AI nie powiodła się: ') + (installed.stderr.split(/\r?\n/).slice(-4).join(' ') || (tr('kod ') + installed.code)));
       }
       check = await checkAiEnvironment(root, python, helper);
     }
     if (!check.ok) {
-      throw aiError('Moduły AI nie są gotowe: ' + (check.result.stderr.split(/\r?\n/).slice(-2).join(' ') || 'wymagana instalacja'), 'AI_SETUP_REQUIRED');
+      throw aiError(tr('Moduły AI nie są gotowe: ') + (check.result.stderr.split(/\r?\n/).slice(-2).join(' ') || tr('wymagana instalacja')), 'AI_SETUP_REQUIRED');
     }
     return { root: root, python: python, helper: helper };
   }
@@ -205,7 +206,7 @@
   }
   function aiTextKey(value) { return String(value || '').replace(/\s+/g, ''); }
   function normalizeAiResult(raw, job) {
-    if (!raw || raw.version !== 1 || !Array.isArray(raw.lines) || !raw.lines.length) throw new Error('AI zwróciło niepoprawny wynik');
+    if (!raw || raw.version !== 1 || !Array.isArray(raw.lines) || !raw.lines.length) throw new Error(tr('AI zwróciło niepoprawny wynik'));
     const lines = [];
     for (const item of raw.lines) {
       if (!item || typeof item.t !== 'number' || !Number.isFinite(item.t) || item.t < 0 || typeof item.txt !== 'string' || !item.txt.trim()) continue;
@@ -229,8 +230,8 @@
     const wordCount = lines.reduce(function (sum, line) { return sum + (line.words ? line.words.length : 0); }, 0);
     const expected = (job.lines || []).reduce(function (sum, text) { return sum + String(text || '').trim().split(/\s+/).filter(Boolean).length; }, 0);
     const coverage = Math.min(1, wordCount / Math.max(1, expected));
-    if (!lines.length || !wordCount) throw new Error('AI nie wyznaczyło wiarygodnych czasów słów');
-    if (coverage < 0.4) throw new Error('AI dopasowało zbyt małą część tekstu — wynik odrzucono');
+    if (!lines.length || !wordCount) throw new Error(tr('AI nie wyznaczyło wiarygodnych czasów słów'));
+    if (coverage < 0.4) throw new Error(tr('AI dopasowało zbyt małą część tekstu — wynik odrzucono'));
     return {
       synced: lines, plain: null, source: 'ai', provider: 'Pulsar AI · Stable-TS',
       wordSync: true, generated: true, experimental: true,
@@ -243,10 +244,10 @@
     };
   }
   async function alignLyrics(job, onProgress) {
-    if (!job || !Array.isArray(job.lines) || !job.lines.some(function (line) { return String(line || '').trim(); })) throw new Error('Brak tekstu do dopasowania');
-    if (job.hasSourceWordSync && !job.allowSourceWordSync) throw new Error('Zastąpienie źródłowego word-sync wymaga ręcznego potwierdzenia');
+    if (!job || !Array.isArray(job.lines) || !job.lines.some(function (line) { return String(line || '').trim(); })) throw new Error(tr('Brak tekstu do dopasowania'));
+    if (job.hasSourceWordSync && !job.allowSourceWordSync) throw new Error(tr('Zastąpienie źródłowego word-sync wymaga ręcznego potwierdzenia'));
     const partial = job.audioStart != null || job.audioEnd != null;
-    if (partial && (!Number.isFinite(job.audioStart) || !Number.isFinite(job.audioEnd) || job.audioStart < 0 || job.audioEnd <= job.audioStart)) throw new Error('Niepoprawny zakres dopasowania');
+    if (partial && (!Number.isFinite(job.audioStart) || !Number.isFinite(job.audioEnd) || job.audioStart < 0 || job.audioEnd <= job.audioStart)) throw new Error(tr('Niepoprawny zakres dopasowania'));
     progressOf(onProgress, 'prepare');
     const setup = await ensureAiEnvironment(true, onProgress);
     let input = String(job.inputPath || '');
@@ -254,7 +255,7 @@
     const requestPath = await tempFile('json');
     const outputPath = await tempFile('json');
     if (!input) {
-      if (!job.inputBlob) throw new Error('Brak źródła audio');
+      if (!job.inputBlob) throw new Error(tr('Brak źródła audio'));
       input = temporary = await tempFile(extension(job.inputName) || 'audio');
       await writeBlob(input, job.inputBlob);
     }
@@ -270,7 +271,7 @@
       progressOf(onProgress, 'align');
       const command = quote(setup.python) + ' ' + quote(setup.helper) + ' --request ' + quote(requestPath) + ' --output ' + quote(outputPath);
       const result = resultOf(await run(command, Math.max(3600000, Number(job.timeout) || 7200000)));
-      if (result.code !== 0) throw new Error(result.stderr.split(/\r?\n/).slice(-4).join(' ') || ('AI zakończyło kodem ' + result.code));
+      if (result.code !== 0) throw new Error(result.stderr.split(/\r?\n/).slice(-4).join(' ') || (tr('AI zakończyło kodem ') + result.code));
       const raw = JSON.parse(await Neutralino.filesystem.readFile(outputPath));
       const data = normalizeAiResult(raw, job);
       progressOf(onProgress, 'done');
@@ -301,7 +302,7 @@
     append: function (path, data) { return Neutralino.filesystem.appendBinaryFile(path, asBuffer(data)); },
     writeBlob: writeBlob,
     list: function (path) { return Neutralino.filesystem.readDirectory(path); },
-    folderDialog: function (title) { return Neutralino.os.showFolderDialog(title || 'Wybierz folder'); },
+    folderDialog: function (title) { return Neutralino.os.showFolderDialog(title || tr('Wybierz folder')); },
     saveDialog: function (title, name, ext, label) {
       return Neutralino.os.showSaveDialog(title, { defaultPath: name, filters: [{ name: label || ext, extensions: [ext] }, { name: 'All files', extensions: ['*'] }] })
         .then(function (path) { if (!path) return ''; path = String(path); return /\.[a-z0-9]+$/i.test(path) ? path : path + '.' + ext; });

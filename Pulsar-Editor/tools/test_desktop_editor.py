@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
+import tempfile
 from pathlib import Path
 
 EDITOR_DIR = Path(__file__).resolve().parents[1]
@@ -11,7 +12,7 @@ REPO = EDITOR_DIR.parent
 sys.path.insert(0, str(REPO / "Pulsar-Editor" / "tools"))
 sys.path.insert(0, str(REPO / "Pulsar-Sync" / "tools"))
 import neu  # noqa: E402
-from build_desktop_editor import APP_VERSION, ASSETS, CONFIG, INDEX, PLATFORMS, expected_config, expected_index, extras_runtime_patched  # noqa: E402
+from build_desktop_editor import APP_VERSION, ASSETS, CONFIG, INDEX, PLATFORMS, expected_config, expected_index, extras_runtime_patched, run  # noqa: E402
 from runtime_patches import editor_runtime_patched  # noqa: E402
 
 results: list[tuple[bool, str, str]] = []
@@ -55,9 +56,20 @@ def audit(platform: str, archive: Path) -> None:
     check(f"[{platform}] istniejące API testowe pozostaje dostępne", "window.__pulsarTest" in html and "window.__pulsarHost" in html)
 
 
+def source_build_audit(platform: str, archive: Path) -> None:
+    """Pełne, czytelne źródła muszą odtworzyć dostarczaną paczkę co do bajtu."""
+    with tempfile.TemporaryDirectory(prefix=f"pulsar-source-audit-{platform}-") as tmp:
+        rebuilt = Path(tmp) / "resources.neu"
+        ok = run(platform, rebuilt, False, True)
+        check(f"[{platform}] pełny build z Pulsar-Core odtwarza resources.neu",
+              ok and archive.is_file() and rebuilt.is_file() and rebuilt.read_bytes() == archive.read_bytes(),
+              f"{rebuilt.stat().st_size if rebuilt.is_file() else 0} B")
+
+
 def main() -> int:
     for platform, archive in sorted(PLATFORMS.items()):
         audit(platform, archive)
+        source_build_audit(platform, archive)
     for ok, name, extra in results:
         print(("PASS  " if ok else "FAIL  ") + name + (f"   [{extra}]" if extra else ""))
     failed = [row for row in results if not row[0]]

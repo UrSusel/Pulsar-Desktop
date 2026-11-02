@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Idempotentne zaczepy Auto-DJ i bezpiecznych kopii w zamkniętym runtime."""
+"""Idempotentne zaczepy Auto-DJ i bezpiecznych kopii w runtime Pulsara."""
 from __future__ import annotations
 
 
@@ -12,6 +12,36 @@ def _replace_once(html: str, old: str, new: str, marker: str) -> str:
 
 
 def apply_extras_runtime_patches(html: str) -> str:
+    html = _replace_once(
+        html,
+        "    var d = I18N_DICT[String(pl)] || I18N_STATIC[String(pl)];",
+        "    var d = I18N_DICT[String(pl)] || I18N_STATIC[String(pl)] || (window.PULSAR_EXTRA_I18N && window.PULSAR_EXTRA_I18N[String(pl)]); /* Pulsar extras: dynamic translations */",
+        "Pulsar extras: dynamic translations",
+    )
+    html = _replace_once(
+        html,
+        "    var d = I18N_STATIC[String(v)] || I18N_DICT[String(v)];",
+        "    var d = I18N_STATIC[String(v)] || I18N_DICT[String(v)] || (window.PULSAR_EXTRA_I18N && window.PULSAR_EXTRA_I18N[String(v)]); /* Pulsar extras: static translations */",
+        "Pulsar extras: static translations",
+    )
+    html = _replace_once(
+        html,
+        "    try { if (typeof renderLibrary === 'function') renderLibrary(); } catch(e){}",
+        "    try { if (typeof renderLibrary === 'function') renderLibrary(); } catch(e){}\n    try { if (typeof renderLyricsLines === 'function') renderLyricsLines(); } catch(e){} /* Pulsar extras: refresh lyrics translations */",
+        "Pulsar extras: refresh lyrics translations",
+    )
+    html = _replace_once(
+        html,
+        "    __i18n: { lang: () => CUR_LANG, set: v => setLang(v), detect: detectLang, t: t },",
+        "    __i18n: { lang: () => CUR_LANG, set: v => setLang(v), detect: detectLang, t: t, apply: () => applyLang() }, /* Pulsar extras: refresh translations */",
+        "Pulsar extras: refresh translations",
+    )
+    html = _replace_once(
+        html,
+        "document.querySelectorAll('button, span, div, p, h1, h2, h3, li, label, strong, em, a, td, th, option, [title], [aria-label], [placeholder], [alt]')",
+        "document.querySelectorAll('button, span, div, p, h1, h2, h3, li, label, strong, em, a, td, th, option, summary, [title], [aria-label], [placeholder], [alt]') /* Pulsar extras: translated summaries */",
+        "Pulsar extras: translated summaries",
+    )
     html = _replace_once(
         html,
         "  function chooseAutoDjNext(){\n    if (tracks.length < 2) return -1;\n    const cur = tracks[currentIndex];",
@@ -88,6 +118,11 @@ def apply_extras_runtime_patches(html: str) -> str:
 
 def extras_runtime_patched(html: str) -> bool:
     markers = [
+        "Pulsar extras: dynamic translations",
+        "Pulsar extras: static translations",
+        "Pulsar extras: translated summaries",
+        "Pulsar extras: refresh translations",
+        "Pulsar extras: refresh lyrics translations",
         "Pulsar extras: configurable DJ selector",
         "Pulsar extras: DJ context",
         "Pulsar extras: backup bridge",
