@@ -5,7 +5,7 @@ This directory contains the original, readable runtime sources for the Pulsar de
 - `Windows/` and `Linux/` contain the platform-specific Neutralino configuration and native adapter differences.
 - `resources/index.html` contains the main player UI, styles, and application logic.
 - `resources/desktop.js` contains the Windows native integration; Linux has its corresponding adapter.
-- `resources/tags.js`, `obs/`, icons, and tray sources are the remaining application resources.
+- `resources/tags.js`, `obs/`, icons, and tray sources are the remaining application resources. The player can import per-track `.lrc`/`.txt` lyrics and read embedded M4A/MP4 cover art (`covr`) locally.
 - `resources/neutralino.js` is the third-party Neutralino client and retains its upstream license.
 
 The source baseline also contains the synchronization hooks. The full build overlays the current `Pulsar-Sync`, `Pulsar-Editor`, and `Pulsar-Extras` modules so every layer has one canonical readable source.

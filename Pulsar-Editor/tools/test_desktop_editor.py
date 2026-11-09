@@ -54,6 +54,13 @@ def audit(platform: str, archive: Path) -> None:
     check(f"[{platform}] logika ładuje się przed interfejsem", 0 < html.find(core) < html.find(ui))
     check(f"[{platform}] interfejs startuje po głównym runtime", html.find("applyLang();\n})();\n</script>") < html.find(core))
     check(f"[{platform}] istniejące API testowe pozostaje dostępne", "window.__pulsarTest" in html and "window.__pulsarHost" in html)
+    check(f"[{platform}] import napisów nie zajmuje już miejsca w pasku odtwarzacza",
+          'id="lyricsImportBtn"' not in html and 'id="lyricsImportInput"' not in html)
+    editor_js = files.get("resources/audio-editor.js", b"").decode("utf-8", "replace")
+    check(f"[{platform}] edytor ma osobną zakładkę importu i panel plików",
+          'data-tab="import"' in editor_js and 'id="paeImportPane"' in editor_js and 'id="paeLyricsFile"' in editor_js)
+    check(f"[{platform}] runtime zapisuje i przywraca import per utwór",
+          "importTextFor:" in html and "restoreImportedFor:" in html and "saveImportedLyricsFor" in html)
 
 
 def source_build_audit(platform: str, archive: Path) -> None:

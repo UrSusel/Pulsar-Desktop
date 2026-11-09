@@ -26,7 +26,7 @@
   font: inherit; font-size: 21px; line-height: 1; cursor: pointer;
 }
 .pae-close:hover { color: #fff; background: rgba(255,255,255,.12); }
-.pae-tabs { display: flex; gap: 6px; padding: 0 22px 14px; border-bottom: 1px solid rgba(255,255,255,.08); }
+.pae-tabs { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 22px 14px; border-bottom: 1px solid rgba(255,255,255,.08); }
 .pae-tab {
   border: 1px solid transparent; border-radius: 999px; padding: 8px 15px; cursor: pointer;
   background: transparent; color: rgba(255,255,255,.58); font: inherit; font-size: 13px; font-weight: 600;
@@ -128,6 +128,8 @@
 .pae-lyric-row.active { color: #fff; background: rgba(var(--accent-rgb,77,227,255),.09); }
 .pae-lyric-row.active time { color: rgb(var(--accent-rgb,77,227,255)); }
 .pae-lyrics-actions { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.pae-import-section { max-width: 620px; margin: 0 auto; }
+.pae-import-section .pae-section-title span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .pae-spin { display: inline-block; width: 12px; height: 12px; margin-right: 7px; vertical-align: -2px; border: 2px solid rgba(255,255,255,.18); border-top-color: rgb(var(--accent-rgb,77,227,255)); border-radius: 50%; animation: paeSpin .7s linear infinite; }
 @keyframes paeSpin { to { transform: rotate(360deg); } }
 @media (max-width: 650px) {

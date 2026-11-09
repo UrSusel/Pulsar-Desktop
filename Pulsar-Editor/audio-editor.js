@@ -183,6 +183,7 @@
         <nav class="pae-tabs" role="tablist" aria-label="Narzędzia edycji">
           <button type="button" class="pae-tab active" data-tab="audio" role="tab" aria-selected="true">✂ Audio</button>
           <button type="button" class="pae-tab" data-tab="lyrics" role="tab" aria-selected="false">♪ Napisy</button>
+          <button type="button" class="pae-tab" data-tab="import" role="tab" aria-selected="false">⇧ Import napisów</button>
         </nav>
         <div class="pae-body">
           <div class="pae-pane" id="paeAudioPane" role="tabpanel">
@@ -317,6 +318,18 @@
               <button type="button" class="pae-btn primary" id="paeExportLrc">Eksportuj przesunięte .lrc</button>
             </div>
           </div>
+          <div class="pae-pane" id="paeImportPane" role="tabpanel" hidden>
+            <p class="pae-note">Wczytaj plik <strong>.lrc</strong> z synchronizacją albo zwykły plik <strong>.txt</strong>. Napisy zostaną przypisane do bieżącego utworu i będą widoczne również w odtwarzaczu.</p>
+            <section class="pae-section pae-import-section">
+              <div class="pae-section-title"><h3>Importuj napisy do utworu</h3><span id="paeImportTrack"></span></div>
+              <input type="file" id="paeLyricsFile" accept=".lrc,.txt,text/plain" hidden>
+              <div class="pae-toolbar">
+                <button type="button" class="pae-btn primary" id="paeChooseLyrics">Wybierz plik .lrc lub .txt</button>
+                <button type="button" class="pae-btn" id="paeRestoreLyrics" hidden>Przywróć znalezione napisy</button>
+              </div>
+              <div class="pae-status" id="paeImportStatus" aria-live="polite"></div>
+            </section>
+          </div>
         </div>
       </section>`;
     document.body.appendChild(dim);
@@ -324,7 +337,7 @@
     ui = {
       dim: dim,
       track: byId('paeTrack'),
-      audioPane: byId('paeAudioPane'), lyricsPane: byId('paeLyricsPane'),
+      audioPane: byId('paeAudioPane'), lyricsPane: byId('paeLyricsPane'), importPane: byId('paeImportPane'),
       wave: byId('paeWave'), waveWrap: byId('paeWaveWrap'), waveEmpty: byId('paeWaveEmpty'), playhead: byId('paePlayhead'),
       axisStart: byId('paeAxisStart'), axisDuration: byId('paeAxisDuration'), originalDuration: byId('paeOriginalDuration'), removedDuration: byId('paeRemovedDuration'), finalDuration: byId('paeFinalDuration'),
       detect: byId('paeDetect'), preview: byId('paePreview'), undo: byId('paeUndo'), clear: byId('paeClear'),
@@ -335,6 +348,7 @@
       audioStatus: byId('paeAudioStatus'), import: byId('paeImport'), save: byId('paeSave'),
       offsetValue: byId('paeOffsetValue'), offsetRange: byId('paeOffsetRange'), offsetNumber: byId('paeOffsetNumber'),
       lyricsPreview: byId('paeLyricsPreview'), lyricsStatus: byId('paeLyricsStatus'), exportLrc: byId('paeExportLrc'),
+      lyricsFile: byId('paeLyricsFile'), chooseLyrics: byId('paeChooseLyrics'), restoreLyrics: byId('paeRestoreLyrics'), importStatus: byId('paeImportStatus'), importTrack: byId('paeImportTrack'),
       aiLanguage: byId('paeAiLanguage'), aiAlign: byId('paeAiAlign'), aiRestore: byId('paeAiRestore'), aiStatus: byId('paeAiStatus'),
       aiScope: byId('paeAiScope'), aiRangeStart: byId('paeAiRangeStart'), aiRangeEnd: byId('paeAiRangeEnd'),
       aiCandidate: byId('paeAiCandidate'), aiPreviewSource: byId('paeAiPreviewSource'), aiPreviewNew: byId('paeAiPreviewNew'), aiAccept: byId('paeAiAccept'), aiDiscard: byId('paeAiDiscard'),
@@ -390,6 +404,9 @@
       });
     });
     ui.exportLrc.addEventListener('click', exportShiftedLrc);
+    ui.chooseLyrics.addEventListener('click', function () { ui.lyricsFile.value = ''; ui.lyricsFile.click(); });
+    ui.lyricsFile.addEventListener('change', function () { const file = ui.lyricsFile.files && ui.lyricsFile.files[0]; if (file) importLyricsFile(file); });
+    ui.restoreLyrics.addEventListener('click', restoreImportedLyrics);
     ui.aiAlign.addEventListener('click', runAiAlignment);
     ui.aiRestore.addEventListener('click', restoreSourceLyrics);
     ui.aiPreviewSource.addEventListener('click', function () { previewAiCandidate('source', true); });
@@ -401,16 +418,18 @@
   }
 
   function setTab(name) {
-    activeTab = name === 'lyrics' ? 'lyrics' : 'audio';
+    activeTab = name === 'lyrics' || name === 'import' ? name : 'audio';
     ui.audioPane.hidden = activeTab !== 'audio';
     ui.lyricsPane.hidden = activeTab !== 'lyrics';
+    ui.importPane.hidden = activeTab !== 'import';
     ui.dim.querySelectorAll('.pae-tab').forEach(function (button) {
       const selected = button.dataset.tab === activeTab;
       button.classList.toggle('active', selected);
       button.setAttribute('aria-selected', String(selected));
     });
     if (activeTab === 'audio') requestAnimationFrame(drawWave);
-    else ensureLyrics();
+    else if (activeTab === 'lyrics') ensureLyrics();
+    else updateImportLyricsUi();
   }
 
   async function decodeFile(file) {
@@ -525,6 +544,7 @@
     ui.start.max = ui.end.max = String(duration || 0);
     setStatus(ui.audioStatus, '');
     setStatus(ui.lyricsStatus, '');
+    setStatus(ui.importStatus, '');
     setStatus(ui.aiStatus, '');
     updateAiUi();
     setPreview(false);
@@ -970,6 +990,41 @@
     if (completed && open) closeEditor();
   }
 
+  function updateImportLyricsUi() {
+    if (!ui.importStatus || !track) return;
+    ui.importTrack.textContent = track.title || track.file.name;
+    const data = editorLyricsData();
+    const isImported = !!(data && data.source === 'import');
+    ui.restoreLyrics.hidden = !isImported;
+    if (isImported) setStatus(ui.importStatus, (tr('Zaimportowano: ') + (data.sourceName || track.file.name)), 'success');
+    else setStatus(ui.importStatus, tr('Nie zaimportowano jeszcze napisów dla tego utworu.'), '');
+  }
+  async function importLyricsFile(file) {
+    if (!track || !file || !player.__lyrics.importTextFor) return;
+    const targetId = track.id;
+    setStatus(ui.importStatus, tr('Odczytywanie pliku z napisami…'), '', true);
+    try {
+      const text = await file.text();
+      if (!open || !track || track.id !== targetId) return;
+      player.__lyrics.importTextFor(targetId, text, file.name);
+      updateImportLyricsUi();
+      renderLyricsPreview();
+      setStatus(ui.importStatus, (tr('Zaimportowano: ') + file.name), 'success');
+    } catch (error) {
+      setStatus(ui.importStatus, error && error.message ? error.message : tr('Nie udało się odczytać pliku z napisami'), 'error');
+    }
+  }
+  async function restoreImportedLyrics() {
+    if (!track || !player.__lyrics.restoreImportedFor) return;
+    try {
+      await player.__lyrics.restoreImportedFor(track.id);
+      updateImportLyricsUi();
+      renderLyricsPreview();
+    } catch (error) {
+      setStatus(ui.importStatus, error && error.message ? error.message : tr('Nie udało się przywrócić napisów'), 'error');
+    }
+  }
+
   function editorLyricsData() {
     if (!track) return null;
     return player.__lyrics.forTrack ? player.__lyrics.forTrack(track.id) : (player.__lyrics.data ? player.__lyrics.data() : null);
@@ -1338,6 +1393,7 @@
     if (buffer) setStatus(ui.audioStatus, tr('Fala gotowa. Zaznacz fragment albo użyj wykrywania ciszy.') + sessionNotice, 'success');
     else if (nativeMode) setStatus(ui.audioStatus, tr('Tryb dużych plików: cięcie wykona FFmpeg bez dekodowania całości w WebView.'), 'success');
     renderLyricsPreview();
+    updateImportLyricsUi();
     updateAiUi();
     if (aiBusy) aiProgress(aiStage);
     const data = editorLyricsData();

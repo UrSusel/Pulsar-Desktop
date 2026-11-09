@@ -225,6 +225,72 @@
     return u8cat([header, body, src.subarray(audioStart)]);
   }
 
+  async function extractMp4Cover(file){
+    // Czytaj tylko nagłówki atomów i blok moov — plik audio nie jest wczytywany w całości.
+    try {
+      if (!file || typeof file.slice !== 'function' || !Number.isFinite(file.size) || file.size < 16) return null;
+      const safeAtoms = function(bytes, start, end){
+        const out = []; let off = start;
+        while (off + 8 <= end){
+          let size = u8r32(bytes, off), header = 8;
+          if (size === 1){
+            if (off + 16 > end) return [];
+            const hi = u8r32(bytes, off + 8), lo = u8r32(bytes, off + 12);
+            size = hi * 4294967296 + lo; header = 16;
+            if (!Number.isSafeInteger(size)) return [];
+          } else if (size === 0) size = end - off;
+          if (size < header || off + size > end) return [];
+          out.push({ type: u8type(bytes, off + 4), head: off, body: off + header, end: off + size });
+          off += size;
+        }
+        return out;
+      };
+      let offset = 0, moovBytes = null, moovSize = 0;
+      for (let boxesSeen = 0; boxesSeen < 4096 && offset + 8 <= file.size; boxesSeen++){
+        const head = new Uint8Array(await file.slice(offset, Math.min(file.size, offset + 16)).arrayBuffer());
+        if (head.length < 8) break;
+        let size = u8r32(head, 0), header = 8;
+        const type = u8type(head, 4);
+        if (size === 1){
+          if (head.length < 16) break;
+          size = u8r32(head, 8) * 4294967296 + u8r32(head, 12); header = 16;
+          if (!Number.isSafeInteger(size)) break;
+        } else if (size === 0) size = file.size - offset;
+        if (size < header || offset + size > file.size) break;
+        if (type === 'moov'){ if (size > 32 * 1024 * 1024) return null; moovSize = size; moovBytes = new Uint8Array(await file.slice(offset, offset + size).arrayBuffer()); break; }
+        offset += size;
+      }
+      // Metadata larger than this is almost certainly malformed; avoid allocating unbounded memory.
+      if (!moovBytes || moovSize > 32 * 1024 * 1024) return null;
+      const top = safeAtoms(moovBytes, 0, moovBytes.length);
+      const moov = top.find(x => x.type === 'moov');
+      if (!moov) return null;
+      const moovKids = safeAtoms(moovBytes, moov.body, moov.end);
+      const udta = moovKids.find(x => x.type === 'udta');
+      const metadataParents = udta ? safeAtoms(moovBytes, udta.body, udta.end) : moovKids;
+      const meta = metadataParents.find(x => x.type === 'meta');
+      if (!meta) return null;
+      const metaKids = safeAtoms(moovBytes, meta.body + 4, meta.end); // meta starts with version/flags
+      const ilst = metaKids.find(x => x.type === 'ilst');
+      if (!ilst) return null;
+      const items = safeAtoms(moovBytes, ilst.body, ilst.end);
+      const covr = items.find(x => x.type === 'covr');
+      if (!covr) return null;
+      for (const data of safeAtoms(moovBytes, covr.body, covr.end)){
+        if (data.type !== 'data' || data.end - data.body < 58) continue;
+        const image = moovBytes.subarray(data.body + 8, data.end);
+        if (image.length < 50) continue;
+        let mime = '';
+        if (image[0] === 0xff && image[1] === 0xd8) mime = 'image/jpeg';
+        else if (image[0] === 0x89 && image[1] === 0x50 && image[2] === 0x4e && image[3] === 0x47) mime = 'image/png';
+        else if (u8type(image, 0) === 'RIFF' && u8type(image, 8) === 'WEBP') mime = 'image/webp';
+        else if (u8type(image, 0) === 'GIF8') mime = 'image/gif';
+        if (mime) return new Blob([image], { type: mime });
+      }
+      return null;
+    } catch (e){ return null; }
+  }
+
   function detect(a){
     if (!a || a.length < 12) return '';
     if (a[0] === 0x49 && a[1] === 0x44 && a[2] === 0x33) return 'mp3';
@@ -245,5 +311,5 @@
     return null;
   }
 
-  root.PulsarTags = { detect: detect, embed: embed, id3Embed: id3Embed, mp4Embed: mp4EmbedBytes };
+  root.PulsarTags = { detect: detect, embed: embed, id3Embed: id3Embed, mp4Embed: mp4EmbedBytes, extractMp4Cover: extractMp4Cover };
 })(typeof window !== 'undefined' ? window : globalThis);

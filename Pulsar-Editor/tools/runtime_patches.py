@@ -17,7 +17,8 @@ API_BEGIN = "    /* ---- Pulsar editor: library bridge ---- */"
 API_END = "    /* ---- end Pulsar editor: library bridge ---- */"
 
 LYRICS_METHODS = '''      data: () => lyricsData, parse: parseLRC, parseWords: parseLyricsfile, parsePlus: parseLyricsPlus, fetchFor: i => fetchLyrics(tracks[i]),
-      forTrack: id => { const tr = tracks.find(x => x.id === id); if (!tr) return null; return lyricsCache.has(id) ? lyricsCache.get(id) : (tr.lyricsData || null); },
+      forTrack: id => { const tr = tracks.find(x => x.id === id); if (!tr) return null; if (lyricsCache.has(id)) return lyricsCache.get(id); if (tr.lyricsData) return tr.lyricsData; try { const raw = localStorage.getItem('playerLyrics:' + id); if (raw) { const data = JSON.parse(raw); lyricsCache.set(id, data); return data; } } catch(e){} return null; },
+      importTextFor: (id, text, name) => saveImportedLyricsFor(id, text, name), restoreImportedFor: id => restoreImportedLyricsFor(id),
       applyFor: (id, data, options) => applyGeneratedLyrics(id, data, !!(options && options.allowSourceWordSync)), resetFor: id => resetGeneratedLyrics(id),
       render: function(data){ if (data !== undefined) lyricsData = data; renderLyricsLines(); }, highlight: () => updateLyricsHighlight(true),
       offset: () => lyricsOffset(), setOffset: v => setLyricsOffset(v)
@@ -46,6 +47,46 @@ LYRICS_HELPER = r'''  /* ---- Pulsar editor: lyrics offset ---- */
     }
     try { document.dispatchEvent(new CustomEvent('pulsar:lyricsoffset', { detail: { trackId: tr.id, offset: next } })); } catch(e){}
     return next;
+  }
+  function saveImportedLyricsFor(id, text, name){
+    const tr = tracks.find(function(x){ return x.id === id; });
+    if (!tr) throw new Error(t('Wybierz najpierw utwór'));
+    const source = String(text || '').replace(/^\uFEFF/, '');
+    if (!source.trim()) throw new Error(t('Plik nie zawiera tekstu'));
+    if (source.length > 1024 * 1024) throw new Error(t('Plik z napisami jest zbyt duży'));
+    const synced = parseLRC(source);
+    const plain = synced.length ? null : source.split(/\r?\n/).map(function(line){ return line.replace(/^\s*\[[^\]]+\]\s*/, '').trim(); }).filter(Boolean);
+    if (!synced.length && !plain.length) throw new Error(t('Plik nie zawiera tekstu'));
+    let previous = lyricsCache.has(id) ? lyricsCache.get(id) : (tr.lyricsData || null);
+    if (!previous){ try { previous = JSON.parse(localStorage.getItem('playerLyrics:' + id) || 'null'); } catch(e){} }
+    if (previous && previous.source === 'import') previous = previous.previousLyrics || null;
+    const data = { synced: synced.length ? synced : null, plain: synced.length ? null : plain, source: 'import', sourceName: String(name || '') };
+    if (previous) data.previousLyrics = previous;
+    lyricsCache.set(id, data);
+    tr.lyricsData = data;
+    try { localStorage.setItem('playerLyrics:' + id, JSON.stringify(data)); } catch(e){}
+    if (tracks[currentIndex] === tr){ lyricsData = data; lyricsCurIdx = -1; renderLyricsLines(); }
+    return data;
+  }
+  async function restoreImportedLyricsFor(id){
+    const tr = tracks.find(function(x){ return x.id === id; });
+    if (!tr) return null;
+    let current = lyricsCache.has(id) ? lyricsCache.get(id) : (tr.lyricsData || null);
+    if (!current){ try { current = JSON.parse(localStorage.getItem('playerLyrics:' + id) || 'null'); } catch(e){} }
+    if (!current || current.source !== 'import') return null;
+    const previous = current.previousLyrics || null;
+    if (previous){
+      lyricsCache.set(id, previous);
+      tr.lyricsData = previous;
+      try { localStorage.setItem('playerLyrics:' + id, JSON.stringify(previous)); } catch(e){}
+      if (tracks[currentIndex] === tr){ lyricsData = previous; lyricsCurIdx = -1; renderLyricsLines(); }
+      return previous;
+    }
+    lyricsCache.delete(id);
+    tr.lyricsData = null;
+    try { localStorage.removeItem('playerLyrics:' + id); } catch(e){}
+    if (tracks[currentIndex] === tr){ lyricsData = null; lyricsCurIdx = -1; renderLyricsLines(); return await fetchLyrics(tr); }
+    return null;
   }
   function applyGeneratedLyrics(id, data, allowSourceWordSync){
     const tr = tracks.find(function(x){ return x.id === id; });
@@ -396,11 +437,19 @@ def apply_editor_runtime_patches(html: str) -> str:
         "        if (hit.syncedLyrics){ const sv = parseLRC(hit.syncedLyrics); if (sv.length) return { synced: sv, plain: null, source: 'lrclib' }; }",
         "        if (hit.syncedLyrics){ const sv = parseLRC(hit.syncedLyrics); if (sv.length) return { synced: sv, plain: null, source: 'lrclib', sourceDuration: Number(hit.duration) || 0 }; }",
     )
-    html = _replace_once(
-        html,
-        "        if (hit.plainLyrics){ const pl = String(hit.plainLyrics).split(/\\r?\\n/).filter(x => x.trim()); if (pl.length) return { synced: null, plain: pl, source: 'lrclib' }; }",
-        "        if (hit.plainLyrics){ const pl = String(hit.plainLyrics).split(/\\r?\\n/).filter(x => x.trim()); if (pl.length) return { synced: null, plain: pl, source: 'lrclib', sourceDuration: Number(hit.duration) || 0 }; }",
-    )
+    plain_lyrics_lines = [line for line in html.splitlines() if "if (hit.plainLyrics)" in line and "source: 'lrclib'" in line]
+    if len(plain_lyrics_lines) != 1:
+        raise ValueError(f"Zaczep plainLyrics występuje {len(plain_lyrics_lines)}x zamiast 1x")
+    plain_lyrics_line = plain_lyrics_lines[0]
+    if "sourceDuration:" not in plain_lyrics_line:
+        updated_plain_lyrics_line = plain_lyrics_line.replace(
+            "source: 'lrclib' };",
+            "source: 'lrclib', sourceDuration: Number(hit.duration) || 0 };",
+            1,
+        )
+        if updated_plain_lyrics_line == plain_lyrics_line:
+            raise ValueError("Nie udało się rozszerzyć rekordu plainLyrics")
+        html = html.replace(plain_lyrics_line, updated_plain_lyrics_line, 1)
     html = _replace_once(
         html,
         "          for (let k = 0; k < Math.min(3, rs.length); k++){\n            data = pickFrom(rs[k]);",

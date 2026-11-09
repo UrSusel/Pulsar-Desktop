@@ -97,8 +97,10 @@ await new Promise(resolve => server.listen(0, '127.0.0.1', resolve));
 const origin = `http://127.0.0.1:${server.address().port}`;
 const wavPath = path.join(TMP, 'Test Artist - Test Song.wav');
 const lrcPath = path.join(TMP, 'Test Artist - Test Song.lrc');
+const importedLrcPath = path.join(TMP, 'Imported lyrics.lrc');
 makeWav(wavPath);
 fs.writeFileSync(lrcPath, '[00:01.00] w pierwszej ciszy\n[00:02.50] druga linia\n[00:04.50] w drugiej ciszy\n[00:05.50] ostatnia linia\n');
+fs.writeFileSync(importedLrcPath, '[00:00.50] imported first line\n[00:03.00] imported second line\n');
 async function nativeFs(op, argsJson) {
   const args = JSON.parse(argsJson);
   try {
@@ -243,6 +245,21 @@ try {
   check('utwór testowy i LRC trafiają do biblioteki', await poll(() => page.evaluate(() => window.__player && __player.state().tracks === 1 && __player.state().currentIndex === 0)));
   await page.click('#audioEditorBtn');
   check('audio zostaje zdekodowane w edytorze', await poll(() => page.evaluate(() => window.PulsarAudioEditor.state().decoded)));
+  check('import napisów jest osobną zakładką, a przycisk paska zniknął', await page.evaluate(() => !!document.querySelector('[data-tab="import"]') && !document.getElementById('lyricsImportBtn')));
+  await page.click('[data-tab="import"]');
+  const importInput = await page.$('#paeLyricsFile');
+  await importInput.uploadFile(importedLrcPath);
+  check('import z zakładki zapisuje zsynchronizowane napisy dla bieżącego utworu', await poll(() => page.evaluate(() => {
+    const data = __player.__lyrics.forTrack(__player.__editor.current().id);
+    return data && data.source === 'import' && data.sourceName === 'Imported lyrics.lrc' && data.synced && data.synced[0].txt === 'imported first line';
+  })));
+  check('importowana zmiana trafia też do warstwy napisów odtwarzacza', await page.evaluate(() => __player.__lyrics.data().source === 'import'));
+  await page.click('#paeRestoreLyrics');
+  check('przywracanie cofa import i ponownie pobiera lokalne napisy źródłowe', await poll(() => page.evaluate(() => {
+    const data = __player.__lyrics.forTrack(__player.__editor.current().id);
+    return data && data.source === 'lrc' && data.synced[0].txt === 'w pierwszej ciszy';
+  })));
+  await page.click('[data-tab="audio"]');
 
   await page.click('#paeDetect');
   check('wykrywanie ciszy dodaje dwa zakresy', await poll(() => page.evaluate(() => PulsarAudioEditor.state().cuts.length === 2)));
