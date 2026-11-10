@@ -22,7 +22,7 @@ function response(release, ok = true, status = 200) {
     for (const tag of ['Linux', 'Release 0.21.0', '0.21', '0.21.0.1', '01.2.3', '']) assert.strictEqual(updates.parseVersion(tag), null, tag);
   });
   await test('porównanie jest numeryczne, nie leksykograficzne', () => {
-    assert.strictEqual(updates.compareVersions('0.21.0', '0.22.0'), -1);
+    assert.strictEqual(updates.compareVersions('0.21.0', '0.22.1'), -1);
     assert.strictEqual(updates.compareVersions('0.21.0', '0.9.0'), 1);
     assert.strictEqual(updates.compareVersions('1.10.0', '1.9.9'), 1);
     assert.strictEqual(updates.compareVersions('v0.21.0', '0.21.0'), 0);
@@ -49,13 +49,13 @@ function response(release, ok = true, status = 200) {
     let url, init;
     const result = await updates.check({
       current: '0.21.0', repo: 'UrSusel/Pulsar-Desktop',
-      fetchImpl: async (u, i) => { url = u; init = i; return response({ tag_name: 'v0.22.0', html_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.22.0', body: '<b>Fixes</b> & improvements' })(); }
+      fetchImpl: async (u, i) => { url = u; init = i; return response({ tag_name: 'v0.22.1', html_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.22.1', body: '<b>Fixes</b> & improvements' })(); }
     });
     assert.strictEqual(url, 'https://api.github.com/repos/UrSusel/Pulsar-Desktop/releases/latest');
     assert.strictEqual(init.headers.Accept, 'application/vnd.github+json');
     assert.strictEqual(result.updateAvailable, true);
-    assert.strictEqual(result.latest, '0.22.0');
-    assert.strictEqual(result.releaseUrl, 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.22.0');
+    assert.strictEqual(result.latest, '0.22.1');
+    assert.strictEqual(result.releaseUrl, 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.22.1');
     assert.strictEqual(result.releaseNotes, '<b>Fixes</b> & improvements');
     assert.strictEqual(result.downloadUrl, result.releaseUrl);
   });

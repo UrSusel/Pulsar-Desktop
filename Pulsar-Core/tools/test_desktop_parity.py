@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Regression checks for the Linux/Windows desktop parity fixes."""
 from pathlib import Path
+import re
+import subprocess
 
 ROOT = Path(__file__).resolve().parents[2]
 PLATFORMS = {
@@ -18,6 +20,17 @@ def main() -> None:
     for platform, resources in PLATFORMS.items():
         html = (resources / "index.html").read_text(encoding="utf-8")
         desktop = (resources / "desktop.js").read_text(encoding="utf-8")
+
+        inline_scripts = re.findall(r"<script\b([^>]*)>([\s\S]*?)</script\s*>", html, re.IGNORECASE)
+        runtime_scripts = [(attrs, body) for attrs, body in inline_scripts
+                           if not re.search(r"\bsrc\s*=", attrs, re.IGNORECASE)
+                           and not re.search(r"type\s*=\s*[\"\'](?:application/json|importmap)", attrs, re.IGNORECASE)]
+        require(bool(runtime_scripts), f"{platform}: inline application runtime exists")
+        for attrs, body in runtime_scripts:
+            checked = subprocess.run(["node", "--check"], input=body, text=True,
+                                     capture_output=True, check=False)
+            require(checked.returncode == 0,
+                    f"{platform}: inline application runtime parses: {checked.stderr.strip()}")
 
         require("folderDialog: function" in desktop and "Neutralino.os.showFolderDialog" in desktop,
                 f"{platform}: native folder picker is exposed to the UI")
