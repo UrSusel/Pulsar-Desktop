@@ -900,6 +900,10 @@
   .sm-btn-row { display: flex; gap: 6px; }
   .sm-btn-row .sm-btn { flex: 1; }
   .sm-btn:hover { background: rgba(var(--accent-rgb), .14); border-color: var(--accent); }
+  .sm-btn.sm-btn-danger { border-color: rgba(255,105,105,.45); color: #ffbcbc; }
+  .sm-btn.sm-btn-danger:hover { background: rgba(190,45,45,.2); border-color: rgba(255,105,105,.8); }
+  .modal.modal-danger .primary-btn { background: #8f2929; border-color: #b74343; }
+  .modal.modal-danger .primary-btn:hover { background: #aa3030; }
   /* --- Zapisz całą playlistę YT --- */
   .net-save-all { display: flex; justify-content: center; padding: 2px 0 12px; }
   .net-save-all-btn { font-size: 12.5px; padding: 8px 14px; }
@@ -1517,7 +1521,9 @@
       <div class="sm-pane" data-pane="lib">
         <h2 class="sm-pane-title">Biblioteka</h2>
         <div class="sm-card sm-desktop-only"><h3 class="sm-cap">Obserwowany folder</h3><div class="sm-row"><div class="sm-txt"><span class="sm-desc sm-desc-top">Nowe pliki audio z tego folderu (i podfolderów) same trafią do biblioteki</span><span class="sm-lab sm-path" id="smWatchPath">nie wybrano</span></div><button type="button" class="sm-mini" id="smWatchOff" hidden>Wyłącz</button></div><button type="button" class="sm-btn" id="smWatchBtn" title="Nowe pliki audio z tego folderu (i podfolderów) same trafią do biblioteki">Wybierz folder…</button></div>
+        <div class="sm-card"><h3 class="sm-cap">Okładki albumów</h3><div class="sm-row"><div class="sm-txt"><span class="sm-desc">Ponownie odczyta osadzone okładki z obsługiwanych formatów audio, a brakujące wyszuka w iTunes, Deezerze, MusicBrainz i na YouTube.</span></div></div><button type="button" class="sm-btn" id="smReloadAlbumCoversBtn" title="Ponownie wczytaj okładki z plików i źródeł online">Wczytaj okładki ponownie</button></div>
         <div class="sm-card"><h3 class="sm-cap">Kopia zapasowa</h3><div class="sm-row"><div class="sm-txt"><span class="sm-desc sm-desc-top">Jeden plik .pulsarlib: utwory, okładki, albumy, ulubione, statystyki i ustawienia</span></div></div><div class="sm-btn-row"><button type="button" class="sm-btn" id="smBackupBtn" title="Jeden plik .pulsarlib: utwory, okładki, albumy, ulubione, statystyki i ustawienia">Kopia biblioteki…</button><button type="button" class="sm-btn" id="smRestoreBtn" title="Wczytuje plik .pulsarlib — dokłada brakujące utwory i albumy">Przywróć z kopii…</button></div><input type="file" id="backupFileInput" accept=".pulsarlib" hidden></div>
+        <div class="sm-card sm-reset-card"><h3 class="sm-cap">Reset fabryczny</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Wyczyść dane Pulsara</span><span class="sm-desc">Usunie lokalną bibliotekę, ustawienia i historię. Oryginalne pliki audio oraz kopie zapasowe pozostaną na dysku.</span></div></div><button type="button" class="sm-btn sm-btn-danger" id="smFactoryResetBtn" title="Resetuj Pulsara i usuń lokalne dane">Resetuj Pulsara…</button></div>
         <div class="sm-card"><h3 class="sm-cap">Eksport</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Kolejka jako playlista M3U</span><span class="sm-desc">Do otwarcia w innych odtwarzaczach</span></div><button type="button" class="sm-act" id="smM3uBtn">Eksportuj kolejkę (M3U)</button></div></div>
       </div>
       <div class="sm-pane" data-pane="net">
@@ -1648,6 +1654,15 @@
     'Dodatkowa kopia pliku pobranego z YouTube w wybranym folderze': { en: 'An extra copy of the YouTube download in the chosen folder', es: 'Una copia adicional de la descarga de YouTube en la carpeta elegida' },
     'Folder na dysku, do którego zapisywana jest kopia pobranego pliku': { en: 'Disk folder where a copy of the downloaded file is saved', es: 'Carpeta de disco donde se guarda una copia del archivo descargado' },
     'Kopia zapasowa': { en: 'Backup', es: 'Copia de seguridad' },
+    'Reset fabryczny': { en: 'Factory reset', es: 'Restablecimiento de fábrica' },
+    'Wyczyść dane Pulsara': { en: 'Clear Pulsar data', es: 'Borrar los datos de Pulsar' },
+    'Usunie lokalną bibliotekę, ustawienia i historię. Oryginalne pliki audio oraz kopie zapasowe pozostaną na dysku.': { en: 'Removes the local library, settings, and history. Original audio files and backups on disk are kept.', es: 'Elimina la biblioteca local, los ajustes y el historial. Conserva los archivos de audio originales y las copias de seguridad del disco.' },
+    'Resetuj Pulsara i usuń lokalne dane': { en: 'Reset Pulsar and erase local data', es: 'Restablecer Pulsar y borrar los datos locales' },
+    'Resetuj Pulsara…': { en: 'Reset Pulsar…', es: 'Restablecer Pulsar…' },
+    'Czy na pewno zresetować Pulsara?': { en: 'Reset Pulsar to factory settings?', es: '¿Restablecer Pulsar a los valores de fábrica?' },
+    'Usunie lokalną bibliotekę, ustawienia, historię odtwarzania i dane synchronizacji z tego urządzenia. Nie usunie oryginalnych plików audio ani kopii zapasowych. Tej operacji nie można cofnąć.': { en: 'This erases the local library, settings, playback history, and sync data from this device. Original audio files and backups are not deleted. This cannot be undone.', es: 'Esto borra la biblioteca local, los ajustes, el historial de reproducción y los datos de sincronización de este dispositivo. No elimina los archivos de audio originales ni las copias de seguridad. No se puede deshacer.' },
+    'Usuń dane i uruchom ponownie': { en: 'Erase data and restart', es: 'Borrar datos y reiniciar' },
+    'Nie udało się wyczyścić danych. Zamknij inne okna Pulsara i spróbuj ponownie.': { en: 'Could not clear the data. Close other Pulsar windows and try again.', es: 'No se pudieron borrar los datos. Cierra otras ventanas de Pulsar e inténtalo de nuevo.' },
     'Oba kanały grają to samo — przydatne z jedną słuchawką': { en: 'Both channels play the same — handy with one earbud', es: 'Ambos canales suenan igual — útil con un solo auricular' },
     'Okno': { en: 'Window', es: 'Ventana' },
     'Otwórz…': { en: 'Open…', es: 'Abrir…' },
@@ -2148,6 +2163,14 @@
     'Zaznacz utwory': { en: 'Select tracks', es: 'Seleccionar canciones' },
     '+ Nowy album': { en: '+ New album', es: '+ Nuevo álbum' },
     'Uzupełnij online': { en: 'Fetch online', es: 'Completar online' },
+    'Okładki albumów': { en: 'Album covers', es: 'Portadas de álbumes' },
+    'Ponownie odczyta osadzone okładki z obsługiwanych formatów audio, a brakujące wyszuka w iTunes, Deezerze, MusicBrainz i na YouTube.': { en: 'Re-read embedded covers from supported audio formats, then search iTunes, Deezer, MusicBrainz, and YouTube for any that are missing.', es: 'Volverá a leer las portadas incrustadas en formatos de audio compatibles y buscará las que falten en iTunes, Deezer, MusicBrainz y YouTube.' },
+    'Wczytaj okładki ponownie': { en: 'Reload album covers', es: 'Volver a cargar portadas' },
+    'Ponownie wczytaj okładki z plików i źródeł online': { en: 'Reload covers from files and online sources', es: 'Volver a cargar portadas desde archivos y fuentes en línea' },
+    'Sprawdzam okładki ': { en: 'Checking covers ', es: 'Comprobando portadas ' },
+    'Znaleziono osadzonych okładek: ': { en: 'Embedded covers found: ', es: 'Portadas incrustadas encontradas: ' },
+    ' · uzupełniono online: ': { en: ' · found online: ', es: ' · encontradas en línea: ' },
+    'Ponowne wczytywanie okładek anulowane': { en: 'Cover reload cancelled', es: 'Se canceló la recarga de portadas' },
     'Uzupełnij okładki i metadane brakujących utworów (Deezer / iTunes / MusicBrainz)': { en: 'Fetch covers and metadata for tracks that miss them (Deezer / iTunes / MusicBrainz)', es: 'Completar portadas y metadatos que falten (Deezer / iTunes / MusicBrainz)' },
     'Brak duplikatów': { en: 'No duplicates', es: 'Sin duplicados' },
     'Usuń powtórzone kopie utworów z biblioteki': { en: 'Remove duplicate copies of tracks from the library', es: 'Elimina copias duplicadas de la biblioteca' },
@@ -2337,7 +2360,7 @@
     '</svg>'
   );
 
-  const AUDIO_EXT_RE = /\.(mp3|wav|ogg|oga|m4a|aac|flac|opus|weba|webm)$/i;
+  const AUDIO_EXT_RE = /\.(mp3|mp2|mpga|wav|aif|aiff|caf|ogg|oga|m4a|m4b|m4p|mp4|3gp|3g2|aac|flac|opus|weba|webm|mka|ape|wv|mpc|wma|dsf|dff)$/i;
 
   const audio = document.getElementById('audio');
   const coverImg = document.getElementById('coverImg');
@@ -2957,6 +2980,7 @@
   const DB_NAME = 'ambient-player-library';
   const DB_VERSION = 2;
   let dbPromise = null;
+  let dbConnection = null;
 
   function openDatabase(){
     if (dbPromise) return dbPromise;
@@ -2968,7 +2992,11 @@
         if (!db.objectStoreNames.contains('playlists')) db.createObjectStore('playlists', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('analysis')) db.createObjectStore('analysis', { keyPath: 'trackId' });
       };
-      request.onsuccess = () => resolve(request.result);
+      request.onsuccess = () => {
+        dbConnection = request.result;
+        dbConnection.onversionchange = () => { dbConnection.close(); dbConnection = null; dbPromise = null; };
+        resolve(dbConnection);
+      };
       request.onerror = () => reject(request.error);
     });
     return dbPromise;
@@ -3061,6 +3089,49 @@
         if (rs && tracks[startIdx] && tracks[startIdx].id === rs.id && rs.t > 1) applyResumeTime(rs.t);
       }
     } catch(e) { console.warn('Nie można przywrócić biblioteki.', e); }
+  }
+
+  function deleteIndexedDb(name){
+    return new Promise((resolve, reject) => {
+      const request = indexedDB.deleteDatabase(name);
+      request.onsuccess = () => resolve();
+      request.onerror = () => reject(request.error || new Error('indexedDB delete failed'));
+      request.onblocked = () => reject(new Error('indexedDB delete blocked'));
+    });
+  }
+  async function clearPulsarData(){
+    if (dbConnection){ dbConnection.close(); dbConnection = null; }
+    dbPromise = null;
+    try {
+      if (window.__pulsarDrive && typeof window.__pulsarDrive.closeForReset === 'function') window.__pulsarDrive.closeForReset();
+    } catch(e){}
+    await Promise.all(['ambient-player-library', 'pulsar-sync'].map(deleteIndexedDb));
+    try { localStorage.clear(); } catch(e){}
+    // Neutralino keeps its native bridge token in sessionStorage; preserve only that token across reload.
+    let nlToken = null;
+    try { nlToken = sessionStorage.getItem('NL_TOKEN'); sessionStorage.clear(); if (nlToken) sessionStorage.setItem('NL_TOKEN', nlToken); } catch(e){}
+    location.reload();
+  }
+  function showFactoryResetDialog(){
+    openModal({
+      title: t('Czy na pewno zresetować Pulsara?'),
+      okText: t('Usuń dane i uruchom ponownie'),
+      variant: 'modal-danger',
+      buildBody(body){
+        const note = document.createElement('p');
+        note.className = 'sm-desc';
+        note.textContent = t('Usunie lokalną bibliotekę, ustawienia, historię odtwarzania i dane synchronizacji z tego urządzenia. Nie usunie oryginalnych plików audio ani kopii zapasowych. Tej operacji nie można cofnąć.');
+        body.appendChild(note);
+      },
+      onOk(){
+        modalOk.disabled = true;
+        clearPulsarData().catch(function(){
+          modalOk.disabled = false;
+          showToast(t('Nie udało się wyczyścić danych. Zamknij inne okna Pulsara i spróbuj ponownie.'));
+        });
+        return false;
+      }
+    });
   }
 
   /* ---- Wznawianie od ostatniego miejsca (deklaracje funkcji — dostępne już przy starcie) ---- */
@@ -4130,6 +4201,7 @@
     track.album = album; track.year = year; track.genre = genre;
     if (o.coverChanged){
       track.coverBlob = o.coverBlob || null; track.matchedImg = null;
+      track.coverSource = o.coverBlob ? 'manual' : '';
       track.coverUrl = o.coverBlob ? URL.createObjectURL(o.coverBlob) : DEFAULT_COVER;
     }
     track.resolved = true;
@@ -4142,6 +4214,7 @@
       setCover(coverUrlOf(track)); setMediaSessionMeta(track);
       try { document.dispatchEvent(new CustomEvent('pulsar:state', { detail: { reason: 'tags' } })); } catch(e){}
     }
+    await refreshAlbumCoversForTrack(track.id);
     renderLibrary();
     return res;
   }
@@ -5553,7 +5626,7 @@
     catch(e){ file = finalBlob; }
     const track = { id: makeId(), file: file, folder: netBaseFolder() + '/' + r.provider, title: r.title, artist: r.artist,
       matchedImg: null, coverBlob: null, coverUrl: null, resolved: true, album: r.album || '', year: r.year || '', genre: r.genre || '', netLink: r.link || '', netId: r.provider + ':' + r.id };
-    if (coverBlob){ track.coverBlob = coverBlob; track.coverUrl = URL.createObjectURL(coverBlob); }
+    if (coverBlob){ track.coverBlob = coverBlob; track.coverSource = r.provider || 'online'; track.coverUrl = URL.createObjectURL(coverBlob); }
     tracks.push(track);
     persistTrack(track);
     if (!queue.length || currentIndex < 0) rebuildQueue();
@@ -5578,7 +5651,7 @@
   }
 
   /* ---- Uzupełnianie okładek/metadanych lokalnej biblioteki ----
-     Źródła po kolei: Deezer → iTunes → MusicBrainz/Cover Art Archive.
+     Źródła po kolei: okładka osadzona w pliku → iTunes → Deezer → MusicBrainz/Cover Art Archive → YouTube.
      • tytuły z YouTube są czyszczone: „Imagine Dragons - Bones (Official Audio)” → wykonawca „Imagine Dragons”, tytuł „Bones”
      • nazwy kanałów: „ImagineDragonsVEVO”, „Imagine Dragons - Topic” → „Imagine Dragons”
      • limity: iTunes ~20 zapytań/min (wcześniej po kilkunastu utworach blokował resztę), MusicBrainz 1/s
@@ -5730,6 +5803,18 @@
     }
     return null;
   }
+  async function coverFromYoutube(cand, track){
+    const term = (cand.artist ? cand.artist + ' ' : '') + cand.title;
+    const results = await netYoutube(term, 8);
+    let best = null, bestScore = 0;
+    for (const result of results){
+      const score = coverScore({ title: result.title || '', artist: result.artist || '', art: result.art || '' }, cand, track);
+      if (score > bestScore && result.art){ best = result; bestScore = score; }
+    }
+    if (!best || bestScore < 4) return null;
+    const img = await coverImage(best.art);
+    return img ? { provider: 'youtube', title: best.title, artist: best.artist, img } : null;
+  }
   function enrichTargets(manual){
     const out = [];
     for (let i = 0; i < tracks.length; i++){
@@ -5740,15 +5825,21 @@
     }
     return out;
   }
-  async function enrichOne(track){
+  async function enrichOne(track, options){
+    options = options || {};
     if (!netEnabled || !track) return null;
     coverTried.set(track.id, Date.now());
-    // najpierw tagi z pliku (tytuł/wykonawca/osadzona okładka) — czytane leniwie, więc mogły jeszcze nie być wczytane
-    try { await ensureTrackMeta(track); } catch(e){}
-    if (track.coverBlob || !track.title) return null;
+    // Pliki są zawsze pierwszym źródłem; przy ręcznym odświeżeniu odczytujemy tagi ponownie.
+    if (!options.fileScanned){
+      try { var fileResult = await ensureTrackMeta(track, { forceFileScan: !!options.force, deferAlbumRefresh: !!options.deferAlbumRefresh }); } catch(e){}
+      if (options.force && fileResult && fileResult.embeddedCover) return 'embedded';
+    }
+    if ((!options.force && track.coverBlob) || !track.title) return null;
+    if (track.coverSource === 'manual' && options.force && !(fileResult && fileResult.embeddedCover)) return null;
+    if (options.force && navigator.onLine === false) return null;
     const cands = coverCandidates(track);
     let hit = null, used = null;
-    for (const src of [coverFromDeezer, coverFromItunes, coverFromMusicBrainz]){
+    for (const src of [coverFromItunes, coverFromDeezer, coverFromMusicBrainz, coverFromYoutube]){
       for (const c of cands){
         try { hit = await src(c, track); } catch(e){ hit = null; }
         if (hit){ used = c; break; }
@@ -5758,14 +5849,15 @@
     if (!hit) return null;
     const img = hit.img || await coverImage(hit.art);
     if (!img) return null;
-    track.coverBlob = img; track.coverUrl = URL.createObjectURL(img);
+    track.coverBlob = img; track.coverSource = hit.provider || 'online'; track.coverUrl = URL.createObjectURL(img);
     // porządki w opisie: tytuł bez „(Official Audio)”, prawdziwy wykonawca zamiast nazwy kanału
     if (hit.title) track.title = hit.title;
     if (hit.artist) track.artist = hit.artist;
     if (hit.album && !track.album) track.album = hit.album;
     if (hit.year && !track.year) track.year = hit.year;
     track.resolved = true;
-    persistTrack(track);
+    await persistTrack(track);
+    if (!options.deferAlbumRefresh) await refreshAlbumCoversForTrack(track.id);
     if (tracks[currentIndex] === track){ setCover(track.coverUrl); updateTitleArtist(txArtist(track.artist), track.title); }
     return hit.provider;
   }
@@ -5789,6 +5881,33 @@
     else if (manual) showToast(t('Nie znaleziono okładek w sieci dla ') + done);
     return ok;
   }
+  async function reloadAlbumCovers(){
+    if (enrichBusy) return 0;
+    if (!tracks.length){ showToast(t('Najpierw dodaj utwory')); return 0; }
+    enrichBusy = true;
+    const btn = document.getElementById('smReloadAlbumCoversBtn');
+    if (btn){ btn.disabled = true; btn.classList.add('on'); }
+    let embedded = 0, online = 0, done = 0;
+    try {
+      for (const track of tracks.slice()){
+        done++;
+        if (btn) btn.textContent = t('Sprawdzam okładki ') + done + '/' + tracks.length + '…';
+        let result = null;
+        try { result = await enrichOne(track, { force: true, deferAlbumRefresh: true }); } catch(e){}
+        if (result === 'embedded') embedded++;
+        else if (result) online++;
+      }
+      await refreshAllAlbumCovers(true);
+      renderLibrary();
+      showToast(t('Znaleziono osadzonych okładek: ') + embedded + t(' · uzupełniono online: ') + online);
+      return embedded + online;
+    } finally {
+      enrichBusy = false;
+      if (btn){ btn.disabled = false; btn.classList.remove('on'); btn.textContent = t('Wczytaj okładki ponownie'); }
+    }
+  }
+  const reloadAlbumCoversBtn = document.getElementById('smReloadAlbumCoversBtn');
+  if (reloadAlbumCoversBtn) reloadAlbumCoversBtn.addEventListener('click', function(){ reloadAlbumCovers(); });
   const enrichBtnEl = document.getElementById('enrichBtn');
   if (enrichBtnEl) enrichBtnEl.addEventListener('click', function(){ if (navigator.onLine === false){ showToast(t('Brak połączenia z siecią')); return; } enrichAll(true); });
 
@@ -6217,44 +6336,53 @@
   }
   if (soundBtn) soundBtn.addEventListener('click', function(e){ e.stopPropagation(); ensureAudioContext(); openSoundModal(); });
 
-  async function ensureTrackMeta(track){
+  async function ensureTrackMeta(track, options){
+    options = options || {};
+    const forceFileScan = !!options.forceFileScan;
     const mayContainMp4Metadata = /\.(m4a|m4b|mp4)$/i.test(String(track && track.file && track.file.name || ''));
-    if (track.resolved && (mayContainMp4Metadata ? track.mp4TagsScanned : (track.coverBlob || track.matchedImg || !mayContainMp4Metadata))) return;
+    if (!forceFileScan && track.audioTagsScanned) return { embeddedCover: false };
     const index = tracks.indexOf(track);
+    let embeddedCover = null;
+    const originalCover = track.coverBlob;
     try {
       const id3 = await extractID3(track.file);
       if (id3){
         if (id3.title) track.title = id3.title;
         if (id3.artist) track.artist = id3.artist;
         if (id3.picture && id3.picture.bytes && id3.picture.bytes.length > 50){
-          track.coverBlob = new Blob([id3.picture.bytes], { type: id3.picture.mime || 'image/jpeg' });
-          track.coverUrl = URL.createObjectURL(track.coverBlob);
+          embeddedCover = new Blob([id3.picture.bytes], { type: id3.picture.mime || 'image/jpeg' });
         }
       }
-      if (mayContainMp4Metadata && window.PulsarTags && typeof window.PulsarTags.extractMp4Metadata === 'function'){
-        const embedded = await window.PulsarTags.extractMp4Metadata(track.file);
+      if (window.PulsarTags && typeof window.PulsarTags.extractAudioMetadata === 'function'){
+        const embedded = await window.PulsarTags.extractAudioMetadata(track.file);
         if (embedded){
           if (embedded.title) track.title = embedded.title;
           if (embedded.artist) track.artist = embedded.artist;
           if (embedded.album) track.album = embedded.album;
-          if (embedded.year) track.year = embedded.year.slice(0, 4);
+          if (embedded.year) track.year = String(embedded.year).slice(0, 4);
           if (embedded.genre) track.genre = embedded.genre;
-          if (!track.coverUrl && embedded.coverBlob){ track.coverBlob = embedded.coverBlob; track.coverUrl = URL.createObjectURL(embedded.coverBlob); }
+          if (embedded.coverBlob) embeddedCover = embedded.coverBlob;
         }
-        track.mp4TagsScanned = true;
       }
+      track.audioTagsScanned = true;
+      if (mayContainMp4Metadata) track.mp4TagsScanned = true; // zachowanie zgodności ze starszymi rekordami
     } catch(e){}
+    if (embeddedCover && (forceFileScan || !track.coverBlob || track.coverSource !== 'manual')){
+      track.coverBlob = embeddedCover; track.coverSource = 'embedded';
+      track.coverUrl = URL.createObjectURL(embeddedCover);
+    }
     if (!track.coverUrl) track.coverUrl = track.matchedImg ? URL.createObjectURL(track.matchedImg) : DEFAULT_COVER;
     track.resolved = true;
-    persistTrack(track);
+    await persistTrack(track);
+    if (embeddedCover && embeddedCover !== originalCover && index > -1 && !options.deferAlbumRefresh) await refreshAlbumCoversForTrack(track.id);
 
     if (tracks[currentIndex] === track){
       updateTitleArtist(txArtist(track.artist), track.title);
       setCover(track.coverUrl);
       setMediaSessionMeta(track);
     }
-    if (index < 0) return;
-    if (libraryPanel.classList.contains('open')) renderLibrary();
+    if (index < 0) return { embeddedCover: !!embeddedCover };
+    if (libraryPanel.classList.contains('open')) { if (!options.deferAlbumRefresh) renderLibrary(); }
     else {
       const li = trackListEl.querySelector('li[data-track-index="' + index + '"]');
       if (li){
@@ -6263,6 +6391,7 @@
         const ta = li.querySelector('.t-artist'); if (ta) ta.textContent = track.artist;
       }
     }
+    return { embeddedCover: !!embeddedCover };
   }
 
   async function loadTrack(index, opts){
@@ -7255,6 +7384,8 @@
   })();
   const smM3uBtn = document.getElementById('smM3uBtn');
   if (smM3uBtn) smM3uBtn.addEventListener('click', function(){ exportQueueM3U(); });
+  const smFactoryResetBtn = document.getElementById('smFactoryResetBtn');
+  if (smFactoryResetBtn) smFactoryResetBtn.addEventListener('click', showFactoryResetDialog);
 
   /* ---- Mini-player Picture-in-Picture (Chrome/Edge) ---- */
   var pipWin = null, pipLastSync = 0;
@@ -7533,6 +7664,32 @@
     })));
     images.forEach(u => { if (created.indexOf(u) > -1) { try { URL.revokeObjectURL(u); } catch(e){} } });
     return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  }
+
+  const albumCoverRefreshVersions = new WeakMap();
+  async function refreshAlbumCover(album, clearIfEmpty){
+    if (!album || album.customCover) return false;
+    const version = (albumCoverRefreshVersions.get(album) || 0) + 1;
+    albumCoverRefreshVersions.set(album, version);
+    const cover = await buildAlbumCover(album.trackIds || []);
+    if (albumCoverRefreshVersions.get(album) !== version || album.customCover) return false;
+    if (!cover){
+      if (!clearIfEmpty || !album.coverBlob) return false;
+      album.coverBlob = null;
+      await persistAlbum(album);
+      return true;
+    }
+    album.coverBlob = cover;
+    await persistAlbum(album);
+    return true;
+  }
+  async function refreshAlbumCoversForTrack(trackId){
+    const affected = albums.filter(album => !album.customCover && (album.trackIds || []).includes(trackId));
+    for (const album of affected) await refreshAlbumCover(album);
+    if (affected.length && libraryPanel.classList.contains('open')) renderLibrary();
+  }
+  async function refreshAllAlbumCovers(clearIfEmpty){
+    for (const album of albums) await refreshAlbumCover(album, !!clearIfEmpty);
   }
 
   newPlaylistBtn.addEventListener('click', () => {

@@ -20,6 +20,7 @@ function response(release, ok = true, status = 200) {
   });
   await test('nienumeryczny i niepełny tag nie jest wersją', () => {
     for (const tag of ['Linux', 'Release 0.21.0', '0.21', '0.21.0.1', '01.2.3', '']) assert.strictEqual(updates.parseVersion(tag), null, tag);
+    assert.strictEqual(updates.parseVersion(Object.create(null)), null);
   });
   await test('porównanie jest numeryczne, nie leksykograficzne', () => {
     assert.strictEqual(updates.compareVersions('0.21.0', '0.22.1'), -1);
@@ -58,6 +59,15 @@ function response(release, ok = true, status = 200) {
     assert.strictEqual(result.releaseUrl, 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.22.1');
     assert.strictEqual(result.releaseNotes, '<b>Fixes</b> & improvements');
     assert.strictEqual(result.downloadUrl, result.releaseUrl);
+  });
+  await test('tag v0.22.1 nie powoduje błędu przy obiekcie API Neutralino.os', async () => {
+    const result = await updates.check({
+      current: '0.22.0', repo: 'UrSusel/Pulsar-Desktop', platform: Object.create(null),
+      fetchImpl: response({ tag_name: 'v0.22.1', html_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.22.1' })
+    });
+    assert.strictEqual(result.error, undefined);
+    assert.strictEqual(result.latest, '0.22.1');
+    assert.strictEqual(result.updateAvailable, true);
   });
   await test('ten sam i starszy release nie oferują aktualizacji', async () => {
     for (const tag of ['v0.21.0', 'v0.20.12']) {

@@ -30,8 +30,11 @@ function fixture(imageBytes) {
 
 (async () => {
   const jpeg = new Uint8Array(80); jpeg.set([0xff, 0xd8, 0xff]);
-  const jpegBlob = await globalThis.PulsarTags.extractMp4Cover(fixture(jpeg));
+  const mp4Fixture = fixture(jpeg);
+  const jpegBlob = await globalThis.PulsarTags.extractMp4Cover(mp4Fixture);
   assert.ok(jpegBlob, 'extracts a cover stored in M4A/MP4 covr');
+  const mp4Metadata = await globalThis.PulsarTags.extractAudioMetadata(mp4Fixture);
+  assert.ok(mp4Metadata && mp4Metadata.coverBlob, 'shared audio reader also routes MP4/M4A through covr parser');
   assert.equal(jpegBlob.type, 'image/jpeg');
   assert.deepEqual(new Uint8Array(await jpegBlob.arrayBuffer()), jpeg);
 

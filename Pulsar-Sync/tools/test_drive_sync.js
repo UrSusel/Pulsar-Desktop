@@ -452,6 +452,8 @@ function containsAudioLike(value, depth) {
     check('manifest holds no audio payload', !containsAudioLike(manifest, 0), 'bytes=' + JSON.stringify(manifest).length);
     check('manifest keeps the cross-device key', manifest.tracks[0].key === 'youtube:dQw4w9WgXcQ', manifest.tracks[0].key);
     check('manifest keeps the genre tag', manifest.tracks[0].genre === 'Rock', manifest.tracks[0].genre);
+    check('sync DB exposes a close hook for factory reset', typeof env.api.closeForReset === 'function');
+    if (typeof env.api.closeForReset === 'function') env.api.closeForReset();
     check('local file paths are never uploaded', !/(srcPath|folder|blob)/.test(env.drive.files.get('appdata')));
     check('readable mirror is written too', !!env.drive.files.get('mirror'));
   }

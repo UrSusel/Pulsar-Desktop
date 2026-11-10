@@ -57,6 +57,29 @@ def main() -> None:
         tags = (resources / "tags.js").read_text(encoding="utf-8")
         require("extractMp4Metadata" in tags and "'album'" in tags and "'year'" in tags and "'genre'" in tags,
                 f"{platform}: M4A/MP4 album, year, and genre tags can be read and written")
+        require("extractAudioMetadata: extractAudioMetadata" in tags
+                and "parseFlac" in tags and "parseXiphPictureComment" in tags
+                and "parseApe" in tags and "parseAsf" in tags and "parseMatroska" in tags,
+                f"{platform}: embedded cover reader includes FLAC, Vorbis/Opus, APE, WMA, and Matroska formats")
+        require("aiff|caf" in html and "wv|mpc|wma" in html and "webm|mka" in html,
+                f"{platform}: common extra audio extensions can be added to the library")
+        require('id="smFactoryResetBtn"' in html and "deleteDatabase('ambient-player-library')" not in html,
+                f"{platform}: factory-reset control is present")
+        require("['ambient-player-library', 'pulsar-sync'].map(deleteIndexedDb)" in html
+                and "localStorage.clear()" in html and "location.reload()" in html,
+                f"{platform}: factory reset removes local databases/settings and restarts")
+        require("oryginalnych plików audio ani kopii zapasowych" in html,
+                f"{platform}: factory reset warns that audio files and backups are preserved")
+        require('id="smReloadAlbumCoversBtn"' in html and "async function reloadAlbumCovers()" in html,
+                f"{platform}: manual cover reload is available in Library settings")
+        reload_block = html[html.index("async function reloadAlbumCovers()"):html.index("const reloadAlbumCoversBtn", html.index("async function reloadAlbumCovers()"))]
+        require("ensureTrackMeta(track, { forceFileScan: !!options.force, deferAlbumRefresh: !!options.deferAlbumRefresh })" in html
+                and "extractAudioMetadata(track.file)" in html and "extractID3(track.file)" in html,
+                f"{platform}: cover reload rescans embedded artwork through the shared format reader")
+        require("[coverFromItunes, coverFromDeezer, coverFromMusicBrainz, coverFromYoutube]" in html,
+                f"{platform}: online fallback order is iTunes, Deezer, MusicBrainz, then YouTube")
+        require("refreshAllAlbumCovers(true)" in reload_block and "refreshAlbumCoversForTrack(track.id)" in html,
+                f"{platform}: album mosaics refresh after track art loads and are rebuilt on demand")
 
     linux = (PLATFORMS["Linux"] / "desktop.js").read_text(encoding="utf-8")
     require("window.PulsarTags.mp4Embed" in linux,

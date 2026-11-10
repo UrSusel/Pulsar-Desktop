@@ -4,7 +4,8 @@
  *   PulsarTags.embed(u8, meta)           → Uint8Array z nowymi tagami albo null (format bez obsługi zapisu)
  *   PulsarTags.id3Embed(u8, meta)        → MP3: ID3v2 (zachowuje inne ramki, np. teksty, album, rok)
  *   PulsarTags.mp4Embed(u8, meta)        → M4A/MP4: zapis tekstowych metadanych i covr (poprawia offsety stco/co64)
- *   PulsarTags.extractMp4Metadata(file) → odczyt tytułu, wykonawcy, albumu, roku, gatunku i okładki
+ *   PulsarTags.extractMp4Metadata(file) → odczyt tagów MP4/M4A
+ *   PulsarTags.extractAudioMetadata(file) → okładka z ID3, MP4, FLAC/Vorbis, APEv2, ASF/WMA, CAF i Matroska
  * meta = { title, artist, album, year, genre, cover: Uint8Array|null, coverMime } — podane puste pola usuwają tag.
  */
 (function (root) {
@@ -328,6 +329,380 @@
     } catch (e){ return null; }
   }
 
+  const MAX_ARTWORK_SCAN = 32 * 1024 * 1024;
+  function imageMime(bytes){
+    if (!bytes || bytes.length < 16) return '';
+    if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return 'image/jpeg';
+    if (bytes[0] === 0x89 && u8type(bytes, 1) === 'PNG') return 'image/png';
+    if (u8type(bytes, 0) === 'RIFF' && u8type(bytes, 8) === 'WEBP') return 'image/webp';
+    if (u8type(bytes, 0) === 'GIF8') return 'image/gif';
+    if (u8type(bytes, 0) === 'BM') return 'image/bmp';
+    if (u8type(bytes, 4) === 'ftyp' && /avif|avis/.test(u8type(bytes, 8))) return 'image/avif';
+    return '';
+  }
+  function artworkBlob(raw, mime){
+    if (!raw || raw.length < 50) return null;
+    const detected = imageMime(raw);
+    if (!detected) return null;
+    return new Blob([raw], { type: detected || mime || 'application/octet-stream' });
+  }
+  function readU32LE(a, o){ return (a[o] | (a[o+1] << 8) | (a[o+2] << 16) | (a[o+3] << 24)) >>> 0; }
+  function readU64LE(a, o){ return readU32LE(a, o) + readU32LE(a, o + 4) * 4294967296; }
+  function readU64BE(a, o){ return readU32BE(a, o + 4) + readU32BE(a, o) * 4294967296; }
+  function readU32BE(a, o){ return u8r32(a, o); }
+  function parseId3Artwork(a){
+    try {
+      if (!a || a.length < 10 || a[0] !== 0x49 || a[1] !== 0x44 || a[2] !== 0x33) return null;
+      const ver = a[3], flags = a[5];
+      let end = 10 + ((a[6] & 127) << 21) + ((a[7] & 127) << 14) + ((a[8] & 127) << 7) + (a[9] & 127);
+      end = Math.min(end, a.length);
+      let off = 10;
+      if ((flags & 0x40) && off + 4 <= end){
+        const ext = ver === 4 ? (((a[off] & 127) << 21) | ((a[off+1] & 127) << 14) | ((a[off+2] & 127) << 7) | (a[off+3] & 127)) : readU32BE(a, off);
+        off += ver === 4 ? Math.max(4, ext) : 4 + ext;
+      }
+      while (off + (ver === 2 ? 6 : 10) <= end){
+        const hlen = ver === 2 ? 6 : 10;
+        let id = '';
+        for (let i = 0; i < (ver === 2 ? 3 : 4); i++) id += String.fromCharCode(a[off + i]);
+        if (!id.trim()) break;
+        let size = ver === 2 ? ((a[off+3] << 16) | (a[off+4] << 8) | a[off+5])
+          : (ver === 4 ? (((a[off+4] & 127) << 21) | ((a[off+5] & 127) << 14) | ((a[off+6] & 127) << 7) | (a[off+7] & 127)) : readU32BE(a, off + 4));
+        if (!size || size > end - off - hlen) break;
+        if (id === 'APIC' || id === 'PIC'){
+          const frame = a.subarray(off + hlen, off + hlen + size);
+          let p = 1, mime = 'image/jpeg';
+          if (id === 'PIC'){
+            const fmt = String.fromCharCode(frame[1], frame[2], frame[3]).toUpperCase();
+            mime = fmt === 'PNG' ? 'image/png' : 'image/jpeg'; p = 4;
+          } else {
+            let z = p; while (z < frame.length && frame[z] !== 0) z++;
+            const tagMime = new TextDecoder('latin1').decode(frame.subarray(p, z));
+            if (tagMime && tagMime !== '-->') mime = tagMime;
+            p = z + 1;
+          }
+          p++; // picture type
+          const enc = frame[0];
+          if (enc === 1 || enc === 2){ while (p + 1 < frame.length && !(frame[p] === 0 && frame[p+1] === 0)) p += 2; p += 2; }
+          else { while (p < frame.length && frame[p] !== 0) p++; p++; }
+          const blob = artworkBlob(frame.subarray(p), mime);
+          if (blob) return blob;
+        }
+        off += hlen + size;
+      }
+    } catch(e){}
+    return null;
+  }
+  function parseFlacPicture(a, start, end){
+    try {
+      let p = start;
+      if (p + 32 > end) return null;
+      const mimeLen = readU32BE(a, p + 4); p += 8 + mimeLen;
+      if (p + 4 > end) return null;
+      const descLen = readU32BE(a, p); p += 4 + descLen;
+      if (p + 20 > end) return null;
+      p += 16; // width, height, depth, indexed colors
+      const imageLen = readU32BE(a, p); p += 4;
+      if (!imageLen || p + imageLen > end) return null;
+      const mimeText = new TextDecoder('utf-8').decode(a.subarray(start + 8, start + 8 + mimeLen));
+      return artworkBlob(a.subarray(p, p + imageLen), mimeText);
+    } catch(e){ return null; }
+  }
+  function decodeBase64(raw){
+    try {
+      const clean = String(raw || '').replace(/\s+/g, '');
+      if (!clean || clean.length > MAX_ARTWORK_SCAN * 2) return null;
+      const binary = atob(clean); const out = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) out[i] = binary.charCodeAt(i);
+      return out;
+    } catch(e){ return null; }
+  }
+  function parseXiphPictureComment(bytes){
+    try {
+      const text = new TextDecoder('latin1').decode(bytes);
+      const block = text.match(/METADATA_BLOCK_PICTURE=([^\0\r\n]+)/i);
+      if (block){
+        const raw = decodeBase64(block[1]);
+        if (raw){ const pic = parseFlacPicture(raw, 0, raw.length); if (pic) return pic; }
+      }
+      const mimeMatch = text.match(/COVERARTMIME=([^\0\r\n]+)/i);
+      const cover = text.match(/COVERART=([^\0\r\n]+)/i);
+      if (cover){ const raw = decodeBase64(cover[1]); const pic = artworkBlob(raw, mimeMatch && mimeMatch[1]); if (pic) return pic; }
+    } catch(e){}
+    return null;
+  }
+  function parseFlac(a){
+    if (u8type(a, 0) !== 'fLaC') return null;
+    let p = 4;
+    while (p + 4 <= a.length){
+      const header = a[p], type = header & 0x7f;
+      const len = (a[p+1] << 16) | (a[p+2] << 8) | a[p+3];
+      p += 4;
+      if (!len || p + len > a.length) break;
+      if (type === 6){ const blob = parseFlacPicture(a, p, p + len); if (blob) return blob; }
+      if (type === 4){ const blob = parseXiphPictureComment(a.subarray(p, p + len)); if (blob) return blob; }
+      p += len;
+      if (header & 0x80) break;
+    }
+    return null;
+  }
+  function findChunkArtwork(a, aiff){
+    try {
+      const form = aiff ? u8type(a, 0) === 'FORM' : u8type(a, 0) === 'RIFF';
+      if (!form) return null;
+      let p = 12;
+      while (p + 8 <= a.length){
+        const id = u8type(a, p);
+        const len = aiff ? readU32BE(a, p + 4) : readU32LE(a, p + 4);
+        const body = p + 8, end = Math.min(a.length, body + len);
+        if (len > 0 && end <= a.length){
+          if (/^ID3(?: |$)/i.test(id)){ const blob = parseId3Artwork(a.subarray(body, end)); if (blob) return blob; }
+          if (/^LIST$/.test(id) && u8type(a, body) === 'INFO'){
+            // RIFF INFO chunks can contain a binary IART/ICOP only rarely; no assumption that text is an image.
+          }
+        }
+        if (!len || body + len > a.length) break;
+        p = body + len + (len & 1);
+      }
+    } catch(e){}
+    return null;
+  }
+  function parseApe(a){
+    try {
+      // APEv2 footer; its declared size includes item payloads and the footer.
+      let footer = -1;
+      for (let p = a.length - 32; p >= Math.max(0, a.length - 4096); p--){
+        if (u8type(a, p) === 'APET'){ footer = p; break; }
+      }
+      if (footer < 0 || u8type(a, footer) !== 'APET' || u8type(a, footer + 4) !== 'AGEX') return null;
+      const tagSize = readU32LE(a, footer + 12), count = readU32LE(a, footer + 16);
+      if (tagSize < 32 || tagSize > a.length) return null;
+      let p = a.length - tagSize;
+      if (u8type(a, p) === 'APET' && u8type(a, p + 4) === 'AGEX') p += 32; // optional header
+      for (let i = 0; i < Math.min(count, 10000) && p + 9 < footer; i++){
+        const valueLen = readU32LE(a, p); p += 8;
+        let z = p; while (z < footer && a[z] !== 0) z++;
+        if (z >= footer) break;
+        const key = new TextDecoder('latin1').decode(a.subarray(p, z)).toLowerCase();
+        p = z + 1;
+        if (valueLen > footer - p) break;
+        const value = a.subarray(p, p + valueLen);
+        if (key === 'cover art (front)' || key === 'cover art (back)' || key === 'cover art'){
+          let imageStart = 0; while (imageStart < value.length && value[imageStart] !== 0) imageStart++;
+          if (imageStart < value.length){ const blob = artworkBlob(value.subarray(imageStart + 1)); if (blob) return blob; }
+        }
+        p += valueLen;
+      }
+    } catch(e){}
+    return null;
+  }
+  function parseWmPicture(data){
+    try {
+      if (data.length < 8) return null;
+      const imageLen = readU32LE(data, 1);
+      if (!imageLen || imageLen > data.length) return null;
+      let p = 5;
+      function skipUtf16(){ while (p + 1 < data.length && (data[p] !== 0 || data[p+1] !== 0)) p += 2; p += 2; }
+      skipUtf16(); skipUtf16();
+      if (p + imageLen > data.length) return null;
+      return artworkBlob(data.subarray(p, p + imageLen));
+    } catch(e){ return null; }
+  }
+  const ASF_EXT_GUID = [0x40,0xa4,0xd0,0xd2,0x07,0xe3,0xd2,0x11,0x97,0xf0,0x00,0xa0,0xc9,0x5e,0xa8,0x50];
+  const ASF_META_GUID = [0xea,0xcb,0xf8,0xc5,0xaf,0x5b,0x77,0x48,0x84,0x67,0xaa,0x8c,0x44,0xfa,0x4c,0xca];
+  function bytesMatch(a, p, pattern){ for (let i = 0; i < pattern.length; i++) if (a[p+i] !== pattern[i]) return false; return true; }
+  function parseAsf(a){
+    const utf16 = (bytes, start, len) => { try { return new TextDecoder('utf-16le').decode(bytes.subarray(start, start + len)).replace(/\0+$/g, ''); } catch(e){ return ''; } };
+    function descriptorValue(start, size, isMetadataObject){
+      let p = start, end = start + size;
+      if (isMetadataObject) p += 2; // reserved
+      if (p + 2 > end) return null;
+      const n = a[p] | (a[p+1] << 8); p += 2;
+      for (let i = 0; i < n && p + (isMetadataObject ? 10 : 6) <= end; i++){
+        if (isMetadataObject) p += 4; // language index + stream number
+        const nameLen = a[p] | (a[p+1] << 8); p += 2;
+        if (nameLen > end - p - (isMetadataObject ? 6 : 4)) break;
+        const name = utf16(a, p, nameLen).toLowerCase(); p += nameLen;
+        const type = a[p] | (a[p+1] << 8);
+        const valueLen = isMetadataObject ? readU32LE(a, p + 2) : (a[p+2] | (a[p+3] << 8));
+        p += isMetadataObject ? 6 : 4;
+        if (valueLen > end - p) break;
+        if (name === 'wm/picture' && (type === 1 || type === 2)){ const blob = parseWmPicture(a.subarray(p, p + valueLen)); if (blob) return blob; }
+        p += valueLen;
+      }
+      return null;
+    }
+    try {
+      for (let p = 0; p + 24 <= a.length; p++){
+        let guid = null;
+        if (bytesMatch(a, p, ASF_EXT_GUID)) guid = 'ext';
+        else if (bytesMatch(a, p, ASF_META_GUID)) guid = 'meta';
+        if (!guid) continue;
+        const size = readU64LE(a, p + 16);
+        if (size < 26 || size > a.length - p) continue;
+        const head = guid === 'ext' ? 24 : 28;
+        const blob = descriptorValue(p + 24, size - 24, guid === 'meta');
+        if (blob) return blob;
+      }
+    } catch(e){}
+    return null;
+  }
+  function ebmlVint(a, p, keepMarker){
+    if (p >= a.length || !a[p]) return null;
+    let mask = 0x80, len = 1;
+    while (len <= 8 && !(a[p] & mask)){ mask >>= 1; len++; }
+    if (len > 8 || p + len > a.length) return null;
+    let value = keepMarker ? a[p] : (a[p] & (mask - 1));
+    for (let i = 1; i < len; i++) value = value * 256 + a[p+i];
+    return { value, len };
+  }
+  function parseMatroska(a){
+    try {
+      for (let p = 0; p + 6 < a.length; p++){
+        if (a[p] !== 0x19 || a[p+1] !== 0x41 || a[p+2] !== 0xa4 || a[p+3] !== 0x69) continue;
+        const size = ebmlVint(a, p + 4, false);
+        if (!size) continue;
+        const end = Math.min(a.length, p + 4 + size.len + size.value);
+        let q = p + 4 + size.len;
+        while (q + 3 < end){
+          const id = ebmlVint(a, q, true); if (!id) break;
+          const sz = ebmlVint(a, q + id.len, false); if (!sz) break;
+          const body = q + id.len + sz.len, childEnd = body + sz.value;
+          if (childEnd > end || childEnd > a.length) break;
+          if (id.value === 0x61a7){
+            let r = body;
+            while (r + 2 < childEnd){
+              const cid = ebmlVint(a, r, true); if (!cid) break;
+              const cs = ebmlVint(a, r + cid.len, false); if (!cs) break;
+              const cb = r + cid.len + cs.len, ce = cb + cs.value;
+              if (ce > childEnd) break;
+              if (cid.value === 0x465c){ const blob = artworkBlob(a.subarray(cb, ce)); if (blob) return blob; }
+              r = ce;
+            }
+          }
+          q = childEnd;
+        }
+      }
+    } catch(e){}
+    return null;
+  }
+  async function extractFlacArtwork(file){
+    try {
+      const marker = new Uint8Array(await file.slice(0, 4).arrayBuffer());
+      if (u8type(marker, 0) !== 'fLaC') return null;
+      let p = 4, scanned = 0;
+      while (p + 4 <= file.size && scanned < MAX_ARTWORK_SCAN){
+        const header = new Uint8Array(await file.slice(p, p + 4).arrayBuffer());
+        const type = header[0] & 0x7f;
+        const len = (header[1] << 16) | (header[2] << 8) | header[3];
+        p += 4; scanned += 4;
+        if (!len || len > MAX_ARTWORK_SCAN || p + len > file.size) break;
+        if (type === 6 || type === 4){
+          const block = new Uint8Array(await file.slice(p, p + len).arrayBuffer());
+          const blob = type === 6 ? parseFlacPicture(block, 0, block.length) : parseXiphPictureComment(block);
+          if (blob) return blob;
+        }
+        p += len; scanned += len;
+        if (header[0] & 0x80) break;
+      }
+    } catch(e){}
+    return null;
+  }
+  async function extractId3Chunks(file, aiff){
+    try {
+      const header = new Uint8Array(await file.slice(0, 12).arrayBuffer());
+      if (aiff ? u8type(header, 0) !== 'FORM' : u8type(header, 0) !== 'RIFF') return null;
+      let p = 12, count = 0;
+      while (p + 8 <= file.size && count++ < 20000){
+        const chunk = new Uint8Array(await file.slice(p, p + 8).arrayBuffer());
+        const id = u8type(chunk, 0), len = aiff ? readU32BE(chunk, 4) : readU32LE(chunk, 4);
+        const body = p + 8;
+        if (/^ID3(?: |$)/i.test(id) && len > 0 && len <= MAX_ARTWORK_SCAN){
+          const blob = parseId3Artwork(new Uint8Array(await file.slice(body, body + len).arrayBuffer()));
+          if (blob) return blob;
+        }
+        if (!len || body + len > file.size) break;
+        p = body + len + (len & 1);
+      }
+    } catch(e){}
+    return null;
+  }
+  async function extractCafArtwork(file){
+    try {
+      const header = new Uint8Array(await file.slice(0, 8).arrayBuffer());
+      if (u8type(header, 0) !== 'caff') return null;
+      let p = 8, count = 0;
+      while (p + 12 <= file.size && count++ < 20000){
+        const chunk = new Uint8Array(await file.slice(p, p + 12).arrayBuffer());
+        const id = u8type(chunk, 0), len = readU64BE(chunk, 4), body = p + 12;
+        if (id.toLowerCase() === 'id3 ' && len > 0 && len <= MAX_ARTWORK_SCAN && body + len <= file.size){
+          const blob = parseId3Artwork(new Uint8Array(await file.slice(body, body + len).arrayBuffer()));
+          if (blob) return blob;
+        }
+        if (!Number.isSafeInteger(len) || !len || body + len > file.size) break;
+        p = body + len;
+      }
+    } catch(e){}
+    return null;
+  }
+  async function extractApeArtwork(file){
+    try {
+      if (file.size < 32) return null;
+      const tailStart = Math.max(0, file.size - 4096);
+      const tail = new Uint8Array(await file.slice(tailStart).arrayBuffer());
+      for (let p = tail.length - 32; p >= 0; p--){
+        if (u8type(tail, p) !== 'APET' || u8type(tail, p + 4) !== 'AGEX') continue;
+        const tagSize = readU32LE(tail, p + 12);
+        const end = tailStart + p + 32, start = end - tagSize;
+        if (tagSize < 32 || tagSize > MAX_ARTWORK_SCAN || start < 0) continue;
+        const tag = new Uint8Array(await file.slice(start, end).arrayBuffer());
+        const blob = parseApe(tag);
+        if (blob) return blob;
+      }
+    } catch(e){}
+    return null;
+  }
+  async function extractAudioMetadata(file){
+    try {
+      if (!file || typeof file.slice !== 'function') return null;
+      const name = String(file.name || '').toLowerCase();
+      const probe = new Uint8Array(await file.slice(0, Math.min(file.size, 16)).arrayBuffer());
+      // Run the MP4 parser before generic scans: its metadata may live at the end of a large file.
+      if (u8type(probe, 4) === 'ftyp') return await extractMp4Metadata(file);
+      if (probe[0] === 0x49 && probe[1] === 0x44 && probe[2] === 0x33){
+        const size = probe.length >= 10 ? 10 + ((probe[6] & 127) << 21) + ((probe[7] & 127) << 14) + ((probe[8] & 127) << 7) + (probe[9] & 127) : 0;
+        if (size > 10 && size <= MAX_ARTWORK_SCAN){
+          const blob = parseId3Artwork(new Uint8Array(await file.slice(0, size).arrayBuffer()));
+          if (blob) return { coverBlob: blob };
+        }
+      }
+      let coverBlob = null;
+      if (u8type(probe, 0) === 'fLaC') coverBlob = await extractFlacArtwork(file);
+      else if (u8type(probe, 0) === 'RIFF') coverBlob = await extractId3Chunks(file, false);
+      else if (u8type(probe, 0) === 'FORM') coverBlob = await extractId3Chunks(file, true);
+      else if (u8type(probe, 0) === 'OggS' || /\.(ogg|oga|opus)$/i.test(name)){
+        const data = new Uint8Array(await file.slice(0, Math.min(file.size, MAX_ARTWORK_SCAN)).arrayBuffer());
+        coverBlob = parseXiphPictureComment(data);
+        if (!coverBlob){
+          for (let p = 0; p + 4 < data.length; p++) if (u8type(data, p) === 'fLaC'){ coverBlob = parseFlac(data.subarray(p)); if (coverBlob) break; }
+        }
+      } else if (u8type(probe, 0) === 'caff' || /\.caf$/i.test(name)) coverBlob = await extractCafArtwork(file);
+      else if (/\.(ape|wv|mpc)$/i.test(name)) coverBlob = await extractApeArtwork(file);
+      else if (/\.(dsf|dff)$/i.test(name)){
+        const tail = new Uint8Array(await file.slice(Math.max(0, file.size - MAX_ARTWORK_SCAN), file.size).arrayBuffer());
+        for (let p = tail.length - 10; p >= 0; p--) if (tail[p] === 0x49 && tail[p+1] === 0x44 && tail[p+2] === 0x33){ coverBlob = parseId3Artwork(tail.subarray(p)); if (coverBlob) break; }
+      } else if (/\.wma$/i.test(name) || (probe[0] === 0x30 && probe[1] === 0x26 && probe[2] === 0xb2 && probe[3] === 0x75)){
+        const data = new Uint8Array(await file.slice(0, Math.min(file.size, MAX_ARTWORK_SCAN)).arrayBuffer());
+        coverBlob = parseAsf(data);
+      } else if (/\.(mka|mkv|webm|weba)$/i.test(name)){
+        const data = new Uint8Array(await file.slice(0, Math.min(file.size, MAX_ARTWORK_SCAN)).arrayBuffer());
+        coverBlob = parseMatroska(data) || parseXiphPictureComment(data);
+      }
+      if (!coverBlob) coverBlob = await extractApeArtwork(file); // APEv2 can also trail MP3/other files.
+      return coverBlob ? { coverBlob } : null;
+    } catch(e){ return null; }
+  }
+
   async function extractMp4Cover(file){
     const metadata = await extractMp4Metadata(file);
     return metadata && metadata.coverBlob || null;
@@ -354,5 +729,5 @@
     return null;
   }
 
-  root.PulsarTags = { detect: detect, embed: embed, id3Embed: id3Embed, mp4Embed: mp4EmbedBytes, extractMp4Metadata: extractMp4Metadata, extractMp4Cover: extractMp4Cover };
+  root.PulsarTags = { detect: detect, embed: embed, id3Embed: id3Embed, mp4Embed: mp4EmbedBytes, extractMp4Metadata: extractMp4Metadata, extractMp4Cover: extractMp4Cover, extractAudioMetadata: extractAudioMetadata };
 })(typeof window !== 'undefined' ? window : globalThis);

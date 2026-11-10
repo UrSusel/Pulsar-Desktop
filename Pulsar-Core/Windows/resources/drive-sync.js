@@ -895,6 +895,7 @@
   // --------------------------------------------------------------- baza sync
 
   var dbPromise = null;
+  var dbConnection = null;
 
   function openSyncDatabase() {
     if (dbPromise) return dbPromise;
@@ -905,7 +906,11 @@
         if (!db.objectStoreNames.contains('state')) db.createObjectStore('state', { keyPath: 'id' });
         if (!db.objectStoreNames.contains('cloud')) db.createObjectStore('cloud', { keyPath: 'key' });
       };
-      request.onsuccess = function () { resolve(request.result); };
+      request.onsuccess = function () {
+        dbConnection = request.result;
+        dbConnection.onversionchange = function () { dbConnection.close(); dbConnection = null; dbPromise = null; };
+        resolve(dbConnection);
+      };
       request.onerror = function () { reject(request.error); };
     });
     return dbPromise;
@@ -2647,6 +2652,7 @@
 
   // API dla konsoli i testów offline.
   window.__pulsarDrive = {
+    closeForReset: function () { if (dbConnection && typeof dbConnection.close === 'function') dbConnection.close(); dbConnection = null; dbPromise = null; },
     sync: runSync,
     status: refreshStatus,
     // Wystawione dla testów offline (panel buduje się dopiero po starcie).

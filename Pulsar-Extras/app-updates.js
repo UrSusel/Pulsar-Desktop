@@ -21,7 +21,8 @@
   let ui = {};
 
   function parseVersion(value) {
-    const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(String(value || '').trim());
+    const text = typeof value === 'string' ? value.trim() : '';
+    const match = /^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?(?:\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/.exec(text);
     if (!match) return null;
     return {
       major: Number(match[1]), minor: Number(match[2]), patch: Number(match[3]),
@@ -56,31 +57,41 @@
   function storageSet(key, value) { try { if (root.localStorage) root.localStorage.setItem(key, value); } catch (e) {} }
 
   function safeReleaseUrl(value, fallback) {
+    if (typeof value !== 'string') return fallback;
     try {
-      const url = new URL(String(value || ''));
+      const url = new URL(value);
       return url.protocol === 'https:' && url.hostname === 'github.com' ? url.href : fallback;
     } catch (e) { return fallback; }
   }
 
   function selectDownloadAsset(release, platform) {
-    const os = String(platform || '').toLowerCase();
+    // Neutralino.os is an API object, not the platform-name string; never coerce arbitrary objects.
+    const os = typeof platform === 'string' ? platform.toLowerCase() : '';
     const windows = /^(?:windows|win32|win64)/.test(os), linux = /linux/.test(os);
     if (!windows && !linux) return '';
     const assets = Array.isArray(release && release.assets) ? release.assets : [];
     const ext = windows ? /\.(?:exe|msi|zip)$/i : /\.(?:appimage|deb|rpm|tar\.gz|zip)$/i;
     const platformName = windows ? /windows|win32|win64|desktop/i : /linux|ubuntu|debian|appimage/i;
     const asset = assets.find(function (item) {
-      const name = String(item && item.name || '');
+      const name = item && typeof item.name === 'string' ? item.name : '';
       return ext.test(name) && platformName.test(name) && !/source|symbols|debug/i.test(name);
     });
     try {
-      const url = new URL(String(asset && asset.browser_download_url || ''));
+      const downloadUrl = asset && typeof asset.browser_download_url === 'string' ? asset.browser_download_url : '';
+      const url = new URL(downloadUrl);
       return url.protocol === 'https:' && (url.hostname === 'github.com' || url.hostname === 'objects.githubusercontent.com') ? url.href : '';
     } catch (e) { return ''; }
   }
 
   function releaseNotesText(value) {
-    return String(value || '').replace(/\r\n?/g, '\n').slice(0, 12000).trim();
+    return (typeof value === 'string' ? value : '').replace(/\r\n?/g, '\n').slice(0, 12000).trim();
+  }
+  function detectPlatform() {
+    if (typeof root.NL_OS === 'string') return root.NL_OS;
+    const nav = root.navigator;
+    if (nav && typeof nav.platform === 'string') return nav.platform;
+    if (nav && typeof nav.userAgent === 'string') return nav.userAgent;
+    return '';
   }
   function shouldAutoCheck(now, lastCheck, enabled, force) {
     return enabled !== false && (force === true || !(Number(lastCheck) > 0) || Number(now) - Number(lastCheck) >= AUTO_INTERVAL);
@@ -166,7 +177,7 @@
         const release = await response.json();
         const latest = parseVersion(release && release.tag_name);
         const releaseUrl = safeReleaseUrl(release && release.html_url, base.releaseUrl);
-        const platform = root.Neutralino && root.Neutralino.os;
+        const platform = options.platform === undefined ? detectPlatform() : options.platform;
         const result = Object.assign(base, {
           releaseUrl: releaseUrl,
           downloadUrl: selectDownloadAsset(release, platform) || releaseUrl,
