@@ -1,7 +1,7 @@
 /**
  * Pulsar Android — synchronizacja biblioteki z Google Drive (tylko metadane).
  *
- * Co wysyłamy: lista utworów (tytuł, wykonawca, album, rok, polubienie, liczba
+ * Co wysyłamy: lista utworów (tytuł, wykonawca, album, rok, gatunek, polubienie, liczba
  * odtworzeń, identyfikator YouTube) oraz albumy (nazwa, okładka, zawartość).
  * Czego NIGDY nie wysyłamy: plików audio, okładek-blobów, ścieżek lokalnych
  * ani adresów strumieni (te wygasają po kilku godzinach i są przypisane do IP).
@@ -272,6 +272,7 @@
       artist: String((track && track.artist) || ''),
       album: String((track && track.album) || ''),
       year: String((track && track.year) || ''),
+      genre: String((track && track.genre) || ''),
       provider: netId ? netId.split(':')[0] : String((track && track.provider) || ''),
       ytId: netId.indexOf('youtube:') === 0 ? netId.slice(8) : '',
       durMs: Math.round(Number((track && track.durMs) || 0) || 0),
@@ -283,7 +284,7 @@
 
   function fingerprintOf(meta) {
     return [
-      meta.title, meta.artist, meta.album, meta.year, meta.provider, meta.ytId,
+      meta.title, meta.artist, meta.album, meta.year, meta.genre, meta.provider, meta.ytId,
       meta.durMs, meta.fav ? 1 : 0, meta.plays, meta.lastPlay
     ].join('|');
   }
@@ -476,6 +477,7 @@
         artist: meta.artist,
         album: meta.album,
         year: meta.year,
+        genre: meta.genre,
         provider: meta.provider,
         ytId: meta.ytId,
         durMs: meta.durMs,
@@ -568,6 +570,7 @@
       artist: record.artist || '',
       album: record.album || '',
       year: record.year || '',
+      genre: record.genre || '',
       provider: record.provider || '',
       ytId: record.ytId || '',
       durMs: Number(record.durMs || 0) || 0,
@@ -623,6 +626,7 @@
       out.artist = text('artist');
       out.album = text('album');
       out.year = text('year');
+      out.genre = text('genre');
       out.provider = text('provider');
       out.ytId = text('ytId');
       out.fav = knownAges ? !!winner.fav : (!!mine.fav || !!theirs.fav);
@@ -766,6 +770,7 @@
       if (entry.artist && entry.artist !== local.artist) fields.artist = entry.artist;
       if ((entry.album || '') !== (local.album || '')) fields.album = entry.album || '';
       if ((entry.year || '') !== (local.year || '')) fields.year = entry.year || '';
+      if ((entry.genre || '') !== (local.genre || '')) fields.genre = entry.genre || '';
       if (!!entry.fav !== !!local.fav) fields.fav = !!entry.fav;
       if (Number(entry.plays || 0) > Number(local.plays || 0)) fields.plays = Number(entry.plays || 0);
       if (Number(entry.lastPlay || 0) > Number(local.lastPlay || 0)) fields.lastPlay = Number(entry.lastPlay || 0);

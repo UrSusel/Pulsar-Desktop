@@ -74,6 +74,7 @@ function makeLibrary(tracks, albums) {
           artist: track.artist,
           album: track.album || '',
           year: track.year || '',
+          genre: track.genre || '',
           provider: track.netId ? track.netId.split(':')[0] : '',
           ytId: track.netId && track.netId.startsWith('youtube:') ? track.netId.slice(8) : '',
           durMs: track.durMs || 0,
@@ -443,13 +444,14 @@ function containsAudioLike(value, depth) {
   }, over);
 
   { // 1. manifest zawiera tylko metadane — bez audio, bez ścieżek
-    const env = makeEnv({ config: { clientId: 'id', clientSecret: 'secret' }, signedIn: true, tracks: [track({})] });
+    const env = makeEnv({ config: { clientId: 'id', clientSecret: 'secret' }, signedIn: true, tracks: [track({ genre: 'Rock' })] });
     env.api.setMode('google');
     env.api.setEnabled(true);
     await env.api.sync();
     const manifest = JSON.parse(env.drive.files.get('appdata'));
     check('manifest holds no audio payload', !containsAudioLike(manifest, 0), 'bytes=' + JSON.stringify(manifest).length);
     check('manifest keeps the cross-device key', manifest.tracks[0].key === 'youtube:dQw4w9WgXcQ', manifest.tracks[0].key);
+    check('manifest keeps the genre tag', manifest.tracks[0].genre === 'Rock', manifest.tracks[0].genre);
     check('local file paths are never uploaded', !/(srcPath|folder|blob)/.test(env.drive.files.get('appdata')));
     check('readable mirror is written too', !!env.drive.files.get('mirror'));
   }
@@ -643,7 +645,7 @@ async function checkRuntimeHooks() {
   const libraryState = {
     tracks: [
       { id: 't1', file, coverBlob: cover, folder: 'Muzyka', srcPath: '/storage/emulated/0/Muzyka/Giants.mp3',
-        netId: 'youtube:dQw4w9WgXcQ', title: 'Giants', artist: 'Imagine Dragons', album: 'Evolve', year: '2017',
+        netId: 'youtube:dQw4w9WgXcQ', title: 'Giants', artist: 'Imagine Dragons', album: 'Evolve', year: '2017', genre: 'Alternative Rock',
         fav: true, plays: 7, durMs: 200000 },
       { id: 't2', file: { name: 'Local.mp3', size: 8192 }, folder: 'Muzyka', title: 'Local', artist: 'X', fav: false, plays: 1 },
       // Rekord zapisany, zanim runtime zachowywał netId: zostaje po nim link.
@@ -663,6 +665,7 @@ async function checkRuntimeHooks() {
   check('snapshot exposes no blobs or paths', !/(blob|file|srcPath|folder)/i.test(JSON.stringify(snapshot)),
     JSON.stringify(snapshot).slice(0, 120));
   check('snapshot keys YouTube tracks by video id', snapshot.tracks[0].key === 'youtube:dQw4w9WgXcQ', snapshot.tracks[0].key);
+  check('snapshot includes genre metadata', snapshot.tracks[0].genre === 'Alternative Rock', snapshot.tracks[0].genre);
   check('snapshot keys local files by fingerprint', /^fp:8192:/.test(snapshot.tracks[1].key), snapshot.tracks[1].key);
   check('a legacy track without netId still syncs through its YouTube link',
     !!snapshot.tracks[2] && snapshot.tracks[2].key === 'youtube:aaaaaaaaaaa' &&
@@ -676,7 +679,7 @@ async function checkRuntimeHooks() {
     JSON.stringify(snapshot.albums.map((album) => album.trackKeys)));
 
   const plan = {
-    trackUpdates: [{ key: 'youtube:dQw4w9WgXcQ', fields: { fav: false, plays: 12, album: '' } }],
+    trackUpdates: [{ key: 'youtube:dQw4w9WgXcQ', fields: { fav: false, plays: 12, album: '', genre: 'Rock' } }],
     albumUpdates: [{ key: snapshot.albums[0].key, trackKeys: ['youtube:dQw4w9WgXcQ', 'fp:8192:' + snapshot.tracks[1].key.split(':')[2]] }],
     newAlbums: [
       { key: 'al:nowy', name: 'Z chmury', trackKeys: ['fp:8192:' + snapshot.tracks[1].key.split(':')[2], 'youtube:nieistnieje'], createdAt: 999 },
@@ -685,7 +688,7 @@ async function checkRuntimeHooks() {
   };
   const applied = await hooks.window.__pulsarSyncApply(plan);
   const track1 = libraryState.tracks[0];
-  check('metadata updates are applied', track1.fav === false && track1.plays === 12, JSON.stringify({ fav: track1.fav, plays: track1.plays }));
+  check('metadata updates are applied', track1.fav === false && track1.plays === 12 && track1.genre === 'Rock', JSON.stringify({ fav: track1.fav, plays: track1.plays, genre: track1.genre }));
   check('audio file object is untouched', track1.file === file && track1.coverBlob === cover);
   check('local paths are never rewritten', track1.srcPath === '/storage/emulated/0/Muzyka/Giants.mp3');
   check('album membership maps keys to local ids', JSON.stringify(libraryState.albums[0].trackIds) === JSON.stringify(['t1', 't2']),

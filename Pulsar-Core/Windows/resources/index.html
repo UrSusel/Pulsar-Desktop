@@ -1526,7 +1526,7 @@
       </div>
       <div class="sm-pane" data-pane="net">
         <h2 class="sm-pane-title">Pobieranie</h2>
-        <div class="sm-card"><h3 class="sm-cap">Zapis utworów z sieci</h3><button type="button" class="sm-btn" id="smNetFolderBtn" title="Zmienia folder w bibliotece Pulsara, nie zapisuje plików na dysku">Folder w bibliotece dla pobrań</button><button type="button" class="sm-btn" id="smNetMoveBtn" title="Zmienia folder już pobranych utworów na wybrany powyżej">Przenieś pobrane</button><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zapisz pobrany plik na dysku</span><span class="sm-desc">Dodatkowa kopia pliku pobranego z YouTube w wybranym folderze</span></div><label class="switch"><input type="checkbox" id="smNetDiskToggle"><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smNetDiskBtn" title="Folder na dysku, do którego zapisywana jest kopia pobranego pliku">Folder na dysku</button></div>
+        <div class="sm-card"><h3 class="sm-cap">Zapis utworów z sieci</h3><button type="button" class="sm-btn" id="smNetFolderBtn" title="Wybierz folder docelowy w bibliotece Pulsara">Folder w bibliotece dla pobrań</button><div class="sm-desc">Folder wybierzesz w oknie dialogowym. Lokalizację dodatkowej kopii na dysku wybiera się osobno.</div><button type="button" class="sm-btn" id="smNetMoveBtn" title="Zmienia folder już pobranych utworów na wybrany powyżej">Przenieś pobrane</button><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zapisz pobrany plik na dysku</span><span class="sm-desc">Dodatkowa kopia pliku pobranego z YouTube w wybranym folderze</span></div><label class="switch"><input type="checkbox" id="smNetDiskToggle"><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smNetDiskBtn" title="Folder na dysku, do którego zapisywana jest kopia pobranego pliku">Folder na dysku</button></div>
         <div class="sm-card sm-desktop-only"><h3 class="sm-cap">yt-dlp</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Automatyczne aktualizacje yt-dlp</span><span class="sm-desc">Raz na dobę sprawdza nowe wydanie; przy błędzie pobierania próbuje aktualizacji</span></div><label class="switch"><input type="checkbox" id="smYtdlpAuto" checked><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smYtdlpBtn" title="Pobiera najnowszą wersję yt-dlp — naprawia pobieranie, gdy YouTube coś zmieni">Aktualizuj yt-dlp</button></div>
       </div>
       <div class="sm-pane sm-desktop-only" data-pane="win">
@@ -1651,7 +1651,6 @@
     'Zapisz pobrany plik na dysku': { en: 'Save downloaded file to disk', es: 'Guardar el archivo descargado en el disco' },
     'Dodatkowa kopia pliku pobranego z YouTube w wybranym folderze': { en: 'An extra copy of the YouTube download in the chosen folder', es: 'Una copia adicional de la descarga de YouTube en la carpeta elegida' },
     'Folder na dysku, do którego zapisywana jest kopia pobranego pliku': { en: 'Disk folder where a copy of the downloaded file is saved', es: 'Carpeta de disco donde se guarda una copia del archivo descargado' },
-    'np. /home/nazwa/Muzyka/YouTube': { en: 'e.g. /home/username/Music/YouTube', es: 'p. ej. /home/usuario/Música/YouTube' },
     'Kopia zapasowa': { en: 'Backup', es: 'Copia de seguridad' },
     'Oba kanały grają to samo — przydatne z jedną słuchawką': { en: 'Both channels play the same — handy with one earbud', es: 'Ambos canales suenan igual — útil con un solo auricular' },
     'Okno': { en: 'Window', es: 'Ventana' },
@@ -1676,6 +1675,8 @@
     'Nie udało się wczytać obrazu': { en: 'Could not load the image', es: 'No se pudo cargar la imagen' },
     'Tytuł': { en: 'Title', es: 'Título' },
     'Wykonawca': { en: 'Artist', es: 'Artista' },
+    'Rok': { en: 'Year', es: 'Año' },
+    'Gatunek': { en: 'Genre', es: 'Género' }
     'Tagi zostaną zapisane w pliku (': { en: 'Tags will be written into the file (', es: 'Las etiquetas se guardarán en el archivo (' },
     ') — zobaczysz je też w Eksploratorze i na telefonie.': { en: ') — you will also see them in Explorer and on your phone.', es: ') — también las verás en el Explorador y en el móvil.' },
     'Ten format (FLAC/OGG/WAV) — zmiany zapiszą się tylko w bibliotece Pulsara.': { en: 'This format (FLAC/OGG/WAV) — changes are saved only in the Pulsar library.', es: 'Este formato (FLAC/OGG/WAV) — los cambios solo se guardan en la biblioteca de Pulsar.' },
@@ -1831,9 +1832,15 @@
     'Zmień nazwę albumu': { en: 'Rename album', es: 'Renombrar álbum' },
     'Folder na dysku dla pobranych MP3': { en: 'Disk folder for downloaded MP3s', es: 'Carpeta en disco para los MP3 descargados' },
     'Folder na dysku dla pobranych utworów': { en: 'Disk folder for downloaded tracks', es: 'Carpeta en disco para las canciones descargadas' },
+    'Wybierz folder na dysku dla pobranych utworów': { en: 'Choose a disk folder for downloaded tracks', es: 'Elige una carpeta del disco para las canciones descargadas' },
+    'Wybierz folder w bibliotece dla pobrań': { en: 'Choose the library folder for downloads', es: 'Elige la carpeta de biblioteca para las descargas' },
+    'Wybierz folder docelowy w bibliotece Pulsara': { en: 'Choose the destination folder in Pulsar’s library', es: 'Elige la carpeta de destino en la biblioteca de Pulsar' },
+    'Folder wybierzesz w oknie dialogowym. Lokalizację dodatkowej kopii na dysku wybiera się osobno.': { en: 'Choose this folder in the dialog. The location for an extra disk copy is selected separately.', es: 'Elige esta carpeta en el diálogo. La ubicación de una copia adicional en disco se elige por separado.' },
+    'Natywny wybór folderu jest niedostępny': { en: 'The native folder picker is unavailable', es: 'El selector de carpetas nativo no está disponible' },
+    'Nie udało się otworzyć wyboru folderu': { en: 'Could not open the folder picker', es: 'No se pudo abrir el selector de carpetas' },
+    'To nazwa kategorii w bibliotece Pulsara, nie folder na dysku.': { en: 'This is a category name in Pulsar’s library, not a folder on disk.', es: 'Es el nombre de una categoría en la biblioteca de Pulsar, no una carpeta del disco.' },
     'Mostek zapisu na dysk jest niedostępny': { en: 'Disk-writing bridge is unavailable', es: 'El puente de escritura en disco no está disponible' },
     'Folder zapisu z sieci': { en: 'Web download folder', es: 'Carpeta de descargas de la red' },
-    'np. Sieć albo Muzyka/Pobrane (podfolder źródła dodany automatycznie)': { en: 'e.g. Web or Music/Downloads (source subfolder added automatically)', es: 'p. ej. Red o Música/Descargas (subcarpeta de fuente añadida automáticamente)' },
     'Usunąć album „': { en: 'Delete album “', es: '¿Eliminar el álbum «' },
     '? Utwory pozostaną w bibliotece.': { en: '? Tracks will stay in the library.', es: '? Las canciones seguirán en la biblioteca.' },
     'Usunąć ': { en: 'Delete ', es: '¿Eliminar ' },
@@ -3006,7 +3013,7 @@
         fav: !!track.fav, plays: track.plays || 0, lastPlay: track.lastPlay || 0,
         srcPath: track.srcPath || '', // ścieżka oryginału na dysku — edytor tagów może go zaktualizować
         // Android: tożsamość sieciowa i metadane, których synchronizacja używa jako klucza
-        netId: track.netId || '', album: track.album || '', year: track.year || '',
+        netId: track.netId || '', album: track.album || '', year: track.year || '', genre: track.genre || '',
         netLink: track.netLink || '', durMs: Math.round(Number(track.durMs || 0) || 0)
       });
       document.dispatchEvent(new CustomEvent('pulsar:library', { detail: { reason: 'track' } }));
@@ -3029,7 +3036,7 @@
         folder: item.folder || '', title: item.title, artist: item.artist,
         matchedImg: null, coverBlob: item.coverBlob || null, coverUrl: null, resolved: true,
         fav: !!item.fav, plays: item.plays || 0, lastPlay: item.lastPlay || 0, srcPath: item.srcPath || '',
-        netId: item.netId || '', album: item.album || '', year: item.year || '',
+        netId: item.netId || '', album: item.album || '', year: item.year || '', genre: item.genre || '',
         netLink: item.netLink || '', durMs: Math.round(Number(item.durMs || 0) || 0)
       }));
       albums = storedAlbums.map(a => Object.assign({ createdAt: 0, customCover: false }, a));
@@ -4105,13 +4112,16 @@
     const res = { embedded: false, disk: null };
     const title = String(o.title || '').trim() || track.title;
     const artist = String(o.artist || '').trim();
+    const album = o.album === undefined ? (track.album || '') : String(o.album || '').trim();
+    const year = o.year === undefined ? (track.year || '') : String(o.year || '').trim();
+    const genre = o.genre === undefined ? (track.genre || '') : String(o.genre || '').trim();
     const finalCover = o.coverChanged ? o.coverBlob : (track.coverBlob || track.matchedImg || null);
     let out = null;
     try {
       if (window.PulsarTags && track.file && track.file.arrayBuffer){
         const buf = new Uint8Array(await track.file.arrayBuffer());
         const cb = finalCover ? new Uint8Array(await finalCover.arrayBuffer()) : null;
-        out = window.PulsarTags.embed(buf, { title: title, artist: artist, cover: cb, coverMime: (finalCover && finalCover.type) || 'image/jpeg' });
+        out = window.PulsarTags.embed(buf, { title: title, artist: artist, album: album, year: year, genre: genre, cover: cb, coverMime: (finalCover && finalCover.type) || 'image/jpeg' });
       }
     } catch(e){ out = null; }
     if (out){
@@ -4119,6 +4129,7 @@
       res.embedded = true;
     }
     track.title = title; track.artist = artist || track.artist;
+    track.album = album; track.year = year; track.genre = genre;
     if (o.coverChanged){
       track.coverBlob = o.coverBlob || null; track.matchedImg = null;
       track.coverUrl = o.coverBlob ? URL.createObjectURL(o.coverBlob) : DEFAULT_COVER;
@@ -4338,13 +4349,14 @@
     }
   })();
 
-  function openTagEditor(id){
+  async function openTagEditor(id){
     const track = tracks.find(x => x.id === id);
     if (!track) return;
+    await ensureTrackMeta(track);
     let coverBlob = null, coverChanged = false;
     const fmt = tagFormatOf(track);
     const canDisk = !!(track.srcPath && window.__pulsarFs);
-    let tIn, aIn, diskChk;
+    let tIn, aIn, albumIn, yearIn, genreIn, diskChk;
     openModal({
       title: t('Edytuj tagi'),
       okText: t('Zapisz'),
@@ -4374,6 +4386,11 @@
         };
         tIn = mk(t('Tytuł'), track.title);
         aIn = mk(t('Wykonawca'), track.artist === 'Nieznany wykonawca' ? '' : track.artist);
+        if (fmt === 'mp4'){
+          albumIn = mk(t('Album'), track.album);
+          yearIn = mk(t('Rok'), track.year);
+          genreIn = mk(t('Gatunek'), track.genre);
+        }
         const note = document.createElement('div'); note.className = 'tag-ed-note';
         note.textContent = fmt ? t('Tagi zostaną zapisane w pliku (') + fmt.toUpperCase().replace('MP4', 'M4A') + t(') — zobaczysz je też w Eksploratorze i na telefonie.')
                                : t('Ten format (FLAC/OGG/WAV) — zmiany zapiszą się tylko w bibliotece Pulsara.');
@@ -4390,7 +4407,7 @@
       },
       onOk(){
         modalOk.disabled = true;
-        saveTrackTags(track, { title: tIn.value, artist: aIn.value, coverBlob: coverBlob, coverChanged: coverChanged, writeDisk: !!(diskChk && diskChk.checked) })
+        saveTrackTags(track, { title: tIn.value, artist: aIn.value, album: albumIn ? albumIn.value : undefined, year: yearIn ? yearIn.value : undefined, genre: genreIn ? genreIn.value : undefined, coverBlob: coverBlob, coverChanged: coverChanged, writeDisk: !!(diskChk && diskChk.checked) })
           .then(res => {
             showToast(res.disk === false ? t('Zapisano w bibliotece, ale nie udało się nadpisać pliku na dysku')
               : res.embedded ? (res.disk ? t('Tagi zapisane (biblioteka + plik na dysku)') : t('Tagi zapisane w pliku i bibliotece')) : t('Zapisano w bibliotece'));
@@ -4835,7 +4852,7 @@
     if (!d || !Array.isArray(d.data)) return [];
     return d.data.map(function(t){
       return { provider: 'audius', id: String(t.id), title: t.title || '', artist: (t.user && t.user.name) || '',
-        album: t.genre || '', year: t.release_date ? String(t.release_date).slice(0, 4) : '',
+        album: '', year: t.release_date ? String(t.release_date).slice(0, 4) : '', genre: t.genre || '',
         art: (t.artwork && (t.artwork['480x480'] || t.artwork['1000x1000'])) || '',
         stream: base + '/tracks/' + t.id + '/stream?user_id=muzyka-web', isFull: true,
         durMs: (t.duration || 0) * 1000, link: 'https://audius.co' + (t.permalink || '') };
@@ -5467,7 +5484,10 @@
     try { return (localStorage.getItem('playerNetFolder') || '').trim() || 'Sieć'; } catch(e){ return 'Sieć'; }
   }
   function setNetBaseFolder(v){
-    v = String(v || '').replace(/\\/g, '/').replace(/[*?"<>|]+/g, '').replace(/^\/+|\/+$/g, '').trim();
+    v = String(v || '').replace(/\\/g, '/').trim();
+    const absolute = v.charAt(0) === '/';
+    v = v.replace(/[*?"<>|]+/g, '').replace(/^\/+|\/+$/g, '').trim();
+    if (absolute && v) v = '/' + v;
     if (!v) v = 'Sieć';
     try { localStorage.setItem('playerNetFolder', v); } catch(e){}
     const btn = document.getElementById('smNetFolderBtn');
@@ -5534,7 +5554,7 @@
     try { file = new File([finalBlob], safeName + '.' + ext, { type: finalBlob.type || ('audio/' + ext) }); }
     catch(e){ file = finalBlob; }
     const track = { id: makeId(), file: file, folder: netBaseFolder() + '/' + r.provider, title: r.title, artist: r.artist,
-      matchedImg: null, coverBlob: null, coverUrl: null, resolved: true, album: r.album || '', year: r.year || '', netLink: r.link || '', netId: r.provider + ':' + r.id };
+      matchedImg: null, coverBlob: null, coverUrl: null, resolved: true, album: r.album || '', year: r.year || '', genre: r.genre || '', netLink: r.link || '', netId: r.provider + ':' + r.id };
     if (coverBlob){ track.coverBlob = coverBlob; track.coverUrl = URL.createObjectURL(coverBlob); }
     tracks.push(track);
     persistTrack(track);
@@ -6200,8 +6220,8 @@
   if (soundBtn) soundBtn.addEventListener('click', function(e){ e.stopPropagation(); ensureAudioContext(); openSoundModal(); });
 
   async function ensureTrackMeta(track){
-    const mayContainMp4Art = /\.(m4a|m4b|mp4)$/i.test(String(track && track.file && track.file.name || ''));
-    if (track.resolved && (track.coverBlob || track.matchedImg || track.mp4CoverScanned || !mayContainMp4Art)) return;
+    const mayContainMp4Metadata = /\.(m4a|m4b|mp4)$/i.test(String(track && track.file && track.file.name || ''));
+    if (track.resolved && (mayContainMp4Metadata ? track.mp4TagsScanned : (track.coverBlob || track.matchedImg || !mayContainMp4Metadata))) return;
     const index = tracks.indexOf(track);
     try {
       const id3 = await extractID3(track.file);
@@ -6213,10 +6233,17 @@
           track.coverUrl = URL.createObjectURL(track.coverBlob);
         }
       }
-      if (!track.coverUrl && window.PulsarTags && typeof window.PulsarTags.extractMp4Cover === 'function'){
-        const embeddedCover = await window.PulsarTags.extractMp4Cover(track.file);
-        if (embeddedCover){ track.coverBlob = embeddedCover; track.coverUrl = URL.createObjectURL(embeddedCover); }
-        if (/\.(m4a|m4b|mp4)$/i.test(String(track.file && track.file.name || ''))) track.mp4CoverScanned = true;
+      if (mayContainMp4Metadata && window.PulsarTags && typeof window.PulsarTags.extractMp4Metadata === 'function'){
+        const embedded = await window.PulsarTags.extractMp4Metadata(track.file);
+        if (embedded){
+          if (embedded.title) track.title = embedded.title;
+          if (embedded.artist) track.artist = embedded.artist;
+          if (embedded.album) track.album = embedded.album;
+          if (embedded.year) track.year = embedded.year.slice(0, 4);
+          if (embedded.genre) track.genre = embedded.genre;
+          if (!track.coverUrl && embedded.coverBlob){ track.coverBlob = embedded.coverBlob; track.coverUrl = URL.createObjectURL(embedded.coverBlob); }
+        }
+        track.mp4TagsScanned = true;
       }
     } catch(e){}
     if (!track.coverUrl) track.coverUrl = track.matchedImg ? URL.createObjectURL(track.matchedImg) : DEFAULT_COVER;
@@ -7170,21 +7197,29 @@
     const dtEl = document.getElementById('smNetDiskToggle');
     if (dtEl) dtEl.checked = !!netDiskDir();
   }
-  function openDiskDirModal(){
-    openModal({
-      title: t('Folder na dysku dla pobranych utworów'),
-      input: /linux/i.test(String(navigator.platform || '')) ? t('np. /home/nazwa/Muzyka/YouTube') : t('np. C:\\Users\\ursus\\Music\\Z YouTube — mostek zapisze tam pliki'),
-      value: netDiskDir(),
-      onOk: function(v){
-        v = String(v || '').trim();
-        if (!v){ setNetDiskDir(''); updateNetDiskUi(); showToast(t('Zapis na dysku: wyłączony')); return true; }
-        Promise.resolve(probeDiskDir(v)).then(function(r){
-          if (r && r.ok){ setNetDiskDir(v); updateNetDiskUi(); showToast(t('💾 Pobrane MP3 będą trafiać na dysk')); }
-          else showToast(t('Mostek nie mógł utworzyć tego folderu') + (r && r.error ? ' — ' + r.error : ''));
-        });
-        return true;
+  async function openDiskDirModal(){
+    const fs = window.__pulsarFs;
+    if (!fs || typeof fs.folderDialog !== 'function'){
+      showToast(t('Natywny wybór folderu jest niedostępny'));
+      return;
+    }
+    try {
+      const selected = await fs.folderDialog(t('Wybierz folder na dysku dla pobranych utworów'));
+      if (!selected){ updateNetDiskUi(); return; }
+      const dir = String(selected).trim();
+      const result = await probeDiskDir(dir);
+      if (result && result.ok){
+        setNetDiskDir(dir);
+        updateNetDiskUi();
+        showToast(t('💾 Pobrane MP3 będą trafiać na dysk'));
+      } else {
+        updateNetDiskUi();
+        showToast(t('Mostek nie mógł utworzyć tego folderu') + (result && result.error ? ' — ' + result.error : ''));
       }
-    });
+    } catch (e){
+      updateNetDiskUi();
+      showToast(t('Nie udało się otworzyć wyboru folderu') + (e && e.message ? ' — ' + e.message : ''));
+    }
   }
   const smNetDiskBtn = document.getElementById('smNetDiskBtn');
   if (smNetDiskBtn) smNetDiskBtn.addEventListener('click', function(){
@@ -7196,21 +7231,28 @@
     if (!smNetDiskToggle.checked){ setNetDiskDir(''); updateNetDiskUi(); showToast(t('Zapis na dysku: wyłączony')); return; }
     openDiskDirModal();
   });
+  async function openNetLibraryFolderDialog(){
+    const fs = window.__pulsarFs;
+    if (!fs || typeof fs.folderDialog !== 'function'){
+      showToast(t('Natywny wybór folderu jest niedostępny'));
+      return;
+    }
+    try {
+      const selected = await fs.folderDialog(t('Wybierz folder w bibliotece dla pobrań'));
+      if (!selected) return;
+      const clean = setNetBaseFolder(String(selected));
+      showToast(t('Zapis z sieci: ') + clean + t('/<źródło>'));
+    } catch (e){
+      showToast(t('Nie udało się otworzyć wyboru folderu') + (e && e.message ? ' — ' + e.message : ''));
+    }
+  }
   (function initNetFolderUi(){
     const btn = document.getElementById('smNetFolderBtn');
     if (!btn) return;
     btn.textContent = t('Folder w bibliotece dla pobrań') + ': ' + netBaseFolder();
     btn.addEventListener('click', function(){
       if (settingsMenu) settingsMenu.hidden = true;
-      openModal({
-        title: t('Folder w bibliotece dla pobrań'),
-        input: t('np. Sieć albo Muzyka/Pobrane (podfolder źródła dodany automatycznie)'),
-        value: netBaseFolder(),
-        onOk: function(v){
-          const clean = setNetBaseFolder(v);
-          showToast(t('Zapis z sieci: ') + clean + t('/<źródło>'));
-        }
-      });
+      openNetLibraryFolderDialog();
     });
   })();
   const smM3uBtn = document.getElementById('smM3uBtn');
@@ -8587,6 +8629,7 @@ window.__pulsarSyncSnapshot = function () {
       artist: track.artist || '',
       album: track.album || '',
       year: track.year || '',
+      genre: track.genre || '',
       provider: track.netId ? String(track.netId).split(':')[0] : (pulsarCloudYoutubeId(track) ? 'youtube' : ''),
       ytId: pulsarCloudYoutubeId(track),
       durMs: Math.round(Number(track.durMs || 0) || 0),
@@ -8768,7 +8811,7 @@ window.__pulsarSyncApply = async function (plan) {
       importIdx: (i) => netImport(i, null),
       enrichOne: i => enrichOne(tracks[i]), enrichAll: () => enrichAll(true),
       targets: () => enrichTargets().map(x => x.i),
-      trackAt: i => { const t = tracks[i]; return t ? { title: t.title, artist: t.artist, album: t.album || '', year: t.year || '', hasCover: !!t.coverBlob, folder: t.folder, fileName: (t.file && t.file.name) || '', fileType: (t.file && t.file.type) || '' } : null; },
+      trackAt: i => { const t = tracks[i]; return t ? { title: t.title, artist: t.artist, album: t.album || '', year: t.year || '', genre: t.genre || '', hasCover: !!t.coverBlob, folder: t.folder, fileName: (t.file && t.file.name) || '', fileType: (t.file && t.file.type) || '' } : null; },
       folder: () => netBaseFolder(), setFolder: v => setNetBaseFolder(v),
       migrate: () => migrateNetFolder(), disk: () => ({ dir: netDiskDir() }), setDiskDir: v => setNetDiskDir(v),
       youtube: { instances: () => ({ piped: YT_PIPED.slice(), invidious: YT_INVIDIOUS.slice(), cobalt: YT_COBALT.slice(), lastGood: Object.assign({}, ytLastGood) }), resolveStream: id => netYtStream(id), bridge: () => ({ ok: ytBridgeOk, ffmpeg: ytBridgeFfmpeg, port: BRIDGE_PORT, base: BRIDGE_BASE }), probeBridge: () => ytBridgePing(true), pasteLink: t => ytIdFromText(t), resolveMeta: id => netYtMeta(id) },

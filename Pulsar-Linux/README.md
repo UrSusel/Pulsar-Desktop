@@ -57,7 +57,7 @@ AI files live in `$XDG_CACHE_HOME/pulsar/lyrics-ai` or `~/.cache/pulsar/lyrics-a
 
 ## Application updates
 
-**Settings → Downloads → Pulsar** shows the installed version and checks the published releases at `UrSusel/Pulsar-Desktop`. Checks run at most once every 12 hours by default, or on demand with **Check for updates**. A newer stable release is shown with a download link; Pulsar never downloads or installs an application update automatically. You can disable the automatic checks independently of `yt-dlp` updates.
+**Settings → Downloads → Pulsar** shows the installed version and checks the published releases at `UrSusel/Pulsar-Desktop` on app startup, then at most once every 12 hours during a long session; you can also use **Check for updates** on demand. A newer stable release is shown with a download link; Pulsar never downloads or installs an application update automatically. You can disable the automatic checks independently of `yt-dlp` updates.
 
 ## Auto-DJ and automatic backups
 

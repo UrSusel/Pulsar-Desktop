@@ -296,8 +296,16 @@
         if (dl.ext === 'm4a' || dl.ext === 'mp4'){
           try {
             const artist = String(uploader).replace(/\s*-\s*Topic\s*$/i, '').trim();
+            const album = String((meta && meta.album) || '').trim();
+            const year = String((meta && (meta.release_year || meta.release_date)) || '').slice(0, 4);
+            const rawGenre = meta && meta.genre;
+            const genre = Array.isArray(rawGenre) ? rawGenre.join(', ') : String(rawGenre || '');
             const cover = await fetchCoverJpeg(id);
-            const embedded = mp4EmbedBytes(new Uint8Array(buf), { title: title, artist: artist, cover: cover });
+            const tagMeta = { title: title, artist: artist, cover: cover };
+            if (album) tagMeta.album = album;
+            if (year) tagMeta.year = year;
+            if (genre) tagMeta.genre = genre;
+            const embedded = mp4EmbedBytes(new Uint8Array(buf), tagMeta);
             if (embedded !== buf) buf = embedded;
           } catch (e){}
         }
@@ -338,6 +346,7 @@
       const buf = ArrayBuffer.isView(u8) ? u8.buffer.slice(u8.byteOffset, u8.byteOffset + u8.byteLength) : u8;
       return Neutralino.filesystem.appendBinaryFile(path, buf);
     },
+    folderDialog: function (title){ return Neutralino.os.showFolderDialog(title || dTr('Wybierz folder')); },
     saveDialog: function (title, name, ext, label){
       return Neutralino.os.showSaveDialog(title, { defaultPath: name, filters: [{ name: label || ext, extensions: [ext] }, { name: 'All files', extensions: ['*'] }] })
         .then(function (p){ if (!p) return ''; p = String(p); return /\.[a-z0-9]+$/i.test(p) ? p : p + '.' + ext; });

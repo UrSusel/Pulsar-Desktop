@@ -32,17 +32,32 @@ function response(release, ok = true, status = 200) {
     assert.strictEqual(updates.compareVersions('0.21.0-alpha.10', '0.21.0-alpha.2'), 1);
     assert.strictEqual(updates.compareVersions('0.21.0+local', '0.21.0'), 0);
   });
+  await test('release notes są ograniczone, a asset musi pasować do platformy i używać HTTPS', () => {
+    assert.strictEqual(updates.releaseNotesText(' <b>Notatki</b>\r\nZmiany '), '<b>Notatki</b>\nZmiany');
+    const assets = [
+      { name: 'Pulsar-Windows-x64.zip', browser_download_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/download/v1/Pulsar-Windows-x64.zip' },
+      { name: 'Pulsar-Desktop.zip', browser_download_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/download/v1/Pulsar-Desktop.zip' },
+      { name: 'Pulsar-Linux.AppImage', browser_download_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/download/v1/Pulsar-Linux.AppImage' },
+      { name: 'Pulsar-Linux.exe', browser_download_url: 'http://evil.example/Pulsar-Linux.exe' }
+    ];
+    assert.match(updates.selectDownloadAsset({ assets }, 'Windows'), /Pulsar-Windows-x64\.zip$/);
+    assert.match(updates.selectDownloadAsset({ assets: assets.slice(1, 2) }, 'Windows'), /Pulsar-Desktop\.zip$/);
+    assert.match(updates.selectDownloadAsset({ assets }, 'Linux'), /Pulsar-Linux\.AppImage$/);
+    assert.strictEqual(updates.selectDownloadAsset({ assets }, 'Darwin'), '');
+  });
   await test('nowszy GitHub Release zwraca aktualizację i właściwy endpoint', async () => {
     let url, init;
     const result = await updates.check({
       current: '0.21.0', repo: 'UrSusel/Pulsar-Desktop',
-      fetchImpl: async (u, i) => { url = u; init = i; return response({ tag_name: 'v0.22.0', html_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.22.0' })(); }
+      fetchImpl: async (u, i) => { url = u; init = i; return response({ tag_name: 'v0.22.0', html_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.22.0', body: '<b>Fixes</b> & improvements' })(); }
     });
     assert.strictEqual(url, 'https://api.github.com/repos/UrSusel/Pulsar-Desktop/releases/latest');
     assert.strictEqual(init.headers.Accept, 'application/vnd.github+json');
     assert.strictEqual(result.updateAvailable, true);
     assert.strictEqual(result.latest, '0.22.0');
     assert.strictEqual(result.releaseUrl, 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.22.0');
+    assert.strictEqual(result.releaseNotes, '<b>Fixes</b> & improvements');
+    assert.strictEqual(result.downloadUrl, result.releaseUrl);
   });
   await test('ten sam i starszy release nie oferują aktualizacji', async () => {
     for (const tag of ['v0.21.0', 'v0.20.12']) {
@@ -62,9 +77,11 @@ function response(release, ok = true, status = 200) {
     assert.match(result.error, /503/);
     assert.strictEqual(result.updateAvailable, false);
   });
-  await test('automatyczne sprawdzanie jest domyślne i ograniczone do 12 godzin', () => {
+  await test('automatyczne sprawdzanie działa przy starcie, a w trakcie pracy jest ograniczone do 12 godzin', () => {
     const now = Date.UTC(2026, 10, 1, 12);
     assert.strictEqual(updates.shouldAutoCheck(now, 0, undefined), true);
+    assert.strictEqual(updates.shouldAutoCheck(now, now - 1000, true, true), true);
+    assert.strictEqual(updates.shouldAutoCheck(now, now - 1000, false, true), false);
     assert.strictEqual(updates.shouldAutoCheck(now, now - updates.AUTO_INTERVAL + 1, true), false);
     assert.strictEqual(updates.shouldAutoCheck(now, now - updates.AUTO_INTERVAL, true), true);
     assert.strictEqual(updates.shouldAutoCheck(now, 0, false), false);

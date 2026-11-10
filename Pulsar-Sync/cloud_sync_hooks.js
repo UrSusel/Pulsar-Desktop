@@ -74,6 +74,7 @@ window.__pulsarSyncSnapshot = function () {
       artist: track.artist || '',
       album: track.album || '',
       year: track.year || '',
+      genre: track.genre || '',
       provider: track.netId ? String(track.netId).split(':')[0] : (pulsarCloudYoutubeId(track) ? 'youtube' : ''),
       ytId: pulsarCloudYoutubeId(track),
       durMs: Math.round(Number(track.durMs || 0) || 0),

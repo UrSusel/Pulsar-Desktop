@@ -1,10 +1,11 @@
-/* tags.js — zapis tagów (tytuł, wykonawca, okładka) prosto w plikach audio, czysty JS, bez ffmpeg.
+/* tags.js — zapis i odczyt tagów (tytuł, wykonawca, album, rok, gatunek, okładka) prosto w plikach audio, czysty JS, bez ffmpeg.
  * Używają go: edytor tagów (index.html) i zapis pobranych utworów (desktop.js).
  *   PulsarTags.detect(u8)                → 'mp3' | 'mp4' | 'flac' | 'ogg' | 'wav' | ''
  *   PulsarTags.embed(u8, meta)           → Uint8Array z nowymi tagami albo null (format bez obsługi zapisu)
  *   PulsarTags.id3Embed(u8, meta)        → MP3: ID3v2 (zachowuje inne ramki, np. teksty, album, rok)
- *   PulsarTags.mp4Embed(u8, meta)        → M4A/MP4: ©nam/©ART/covr w moov/udta/meta/ilst (poprawia offsety stco/co64)
- * meta = { title, artist, cover: Uint8Array|null, coverMime }  — cover:null usuwa okładkę.
+ *   PulsarTags.mp4Embed(u8, meta)        → M4A/MP4: zapis tekstowych metadanych i covr (poprawia offsety stco/co64)
+ *   PulsarTags.extractMp4Metadata(file) → odczyt tytułu, wykonawcy, albumu, roku, gatunku i okładki
+ * meta = { title, artist, album, year, genre, cover: Uint8Array|null, coverMime } — podane puste pola usuwają tag.
  */
 (function (root) {
   'use strict';
@@ -75,13 +76,25 @@
           ilstChildren = u8atoms(src, ilst.body, ilst.end);
         }
       }
-      const keep = ['\u00a9nam', '\u00a9ART', 'covr']; // tylko te trzy podmieniamy
+      meta = meta || {};
+      const fields = [
+        ['title', '\u00a9nam', 1], ['artist', '\u00a9ART', 1], ['album', '\u00a9alb', 1],
+        ['year', '\u00a9day', 1], ['genre', '\u00a9gen', 1], ['cover', 'covr', 13]
+      ];
+      const replace = fields.filter(function (field) { return Object.prototype.hasOwnProperty.call(meta, field[0]); });
+      if (!replace.length) return src;
+      const keep = replace.map(function (field) { return field[1]; });
       const other = ilstChildren.filter(c => keep.indexOf(c.type) < 0);
       const built = [];
-      const t = utf8(meta && meta.title);   if (t.length)  built.push(ilstItem('\u00a9nam', 1, t));
-      const ar = utf8(meta && meta.artist); if (ar.length) built.push(ilstItem('\u00a9ART', 1, ar));
-      if (meta && meta.cover && meta.cover.length) built.push(ilstItem('covr', 13, meta.cover));
-      if (!built.length) return src;
+      for (const field of replace){
+        const value = meta[field[0]];
+        if (field[0] === 'cover'){
+          if (value && value.length) built.push(ilstItem(field[1], field[2], value));
+        } else {
+          const text = utf8(value);
+          if (text.length) built.push(ilstItem(field[1], field[2], text));
+        }
+      }
       const newIlstBody = u8cat(other.map(c => src.subarray(c.head, c.end)).concat(built));
       const newIlst = u8cat([u8w32(new Uint8Array(4), 0, 8 + newIlstBody.length), u8str('ilst'), newIlstBody]);
       // --- przebuduj meta/udta/moov ---
@@ -101,7 +114,11 @@
           const newUdta = rebuild(udta, metaB.head, metaB.end, newMeta);
           tail = rebuild(moov, udta.head, udta.end, newUdta);
         } else {
-          const newUdta = u8cat([src.subarray(udta.head, udta.end), newIlst]);
+          const hdlrBody = new Uint8Array(25);
+          hdlrBody.set(u8str('mdir'), 8); hdlrBody.set(u8str('appl'), 12);
+          const hdlr = u8cat([u8w32(new Uint8Array(4), 0, 8 + hdlrBody.length), u8str('hdlr'), hdlrBody]);
+          const newMeta = u8cat([u8w32(new Uint8Array(4), 0, 8 + 4 + hdlr.length + newIlst.length), u8str('meta'), new Uint8Array(4), hdlr, newIlst]);
+          const newUdta = rebuild(udta, udta.end, udta.end, newMeta);
           tail = rebuild(moov, udta.head, udta.end, newUdta);
         }
       } else {
@@ -225,7 +242,7 @@
     return u8cat([header, body, src.subarray(audioStart)]);
   }
 
-  async function extractMp4Cover(file){
+  async function extractMp4Metadata(file){
     // Czytaj tylko nagłówki atomów i blok moov — plik audio nie jest wczytywany w całości.
     try {
       if (!file || typeof file.slice !== 'function' || !Number.isFinite(file.size) || file.size < 16) return null;
@@ -274,21 +291,46 @@
       const ilst = metaKids.find(x => x.type === 'ilst');
       if (!ilst) return null;
       const items = safeAtoms(moovBytes, ilst.body, ilst.end);
-      const covr = items.find(x => x.type === 'covr');
-      if (!covr) return null;
-      for (const data of safeAtoms(moovBytes, covr.body, covr.end)){
-        if (data.type !== 'data' || data.end - data.body < 58) continue;
-        const image = moovBytes.subarray(data.body + 8, data.end);
-        if (image.length < 50) continue;
-        let mime = '';
-        if (image[0] === 0xff && image[1] === 0xd8) mime = 'image/jpeg';
-        else if (image[0] === 0x89 && image[1] === 0x50 && image[2] === 0x4e && image[3] === 0x47) mime = 'image/png';
-        else if (u8type(image, 0) === 'RIFF' && u8type(image, 8) === 'WEBP') mime = 'image/webp';
-        else if (u8type(image, 0) === 'GIF8') mime = 'image/gif';
-        if (mime) return new Blob([image], { type: mime });
+      const result = {};
+      const textTags = {
+        '\u00a9nam': 'title', '\u00a9ART': 'artist', '\u00a9alb': 'album',
+        '\u00a9day': 'year', '\u00a9gen': 'genre', 'aART': 'albumArtist'
+      };
+      for (const item of items){
+        const field = textTags[item.type];
+        if (!field) continue;
+        const data = safeAtoms(moovBytes, item.body, item.end).find(x => x.type === 'data');
+        if (!data || data.end - data.body < 8) continue;
+        const payload = moovBytes.subarray(data.body + 8, data.end);
+        try {
+          let text;
+          if (moovBytes[data.body] === 2) text = new TextDecoder('utf-16be').decode(payload);
+          else text = new TextDecoder('utf-8').decode(payload);
+          text = text.replace(/\0+$/g, '').trim();
+          if (text) result[field] = text;
+        } catch (e) {}
       }
-      return null;
+      const covr = items.find(x => x.type === 'covr');
+      if (covr){
+        for (const data of safeAtoms(moovBytes, covr.body, covr.end)){
+          if (data.type !== 'data' || data.end - data.body < 58) continue;
+          const image = moovBytes.subarray(data.body + 8, data.end);
+          if (image.length < 50) continue;
+          let mime = '';
+          if (image[0] === 0xff && image[1] === 0xd8) mime = 'image/jpeg';
+          else if (image[0] === 0x89 && image[1] === 0x50 && image[2] === 0x4e && image[3] === 0x47) mime = 'image/png';
+          else if (u8type(image, 0) === 'RIFF' && u8type(image, 8) === 'WEBP') mime = 'image/webp';
+          else if (u8type(image, 0) === 'GIF8') mime = 'image/gif';
+          if (mime){ result.coverBlob = new Blob([image], { type: mime }); break; }
+        }
+      }
+      return Object.keys(result).length ? result : null;
     } catch (e){ return null; }
+  }
+
+  async function extractMp4Cover(file){
+    const metadata = await extractMp4Metadata(file);
+    return metadata && metadata.coverBlob || null;
   }
 
   function detect(a){
@@ -306,10 +348,11 @@
     if (k === 'mp3') return id3Embed(a, meta);
     if (k === 'mp4'){
       const out = mp4EmbedBytes(a, meta);
-      return out === a && (meta.title || meta.artist || meta.cover) ? null : out; // mp4EmbedBytes zwraca oryginał, gdy się nie udało
+      const requested = ['title', 'artist', 'album', 'year', 'genre', 'cover'].some(function (key) { return meta && Object.prototype.hasOwnProperty.call(meta, key); });
+      return out === a && requested ? null : out; // mp4EmbedBytes zwraca oryginał, gdy się nie udało
     }
     return null;
   }
 
-  root.PulsarTags = { detect: detect, embed: embed, id3Embed: id3Embed, mp4Embed: mp4EmbedBytes, extractMp4Cover: extractMp4Cover };
+  root.PulsarTags = { detect: detect, embed: embed, id3Embed: id3Embed, mp4Embed: mp4EmbedBytes, extractMp4Metadata: extractMp4Metadata, extractMp4Cover: extractMp4Cover };
 })(typeof window !== 'undefined' ? window : globalThis);

@@ -24,4 +24,4 @@ python Pulsar-Sync/tools/refresh_download_zips.py
 
 `test_desktop_editor.py` includes a clean source rebuild and requires its output to be byte-for-byte identical to the checked-in archives.
 
-Before changing downloadable archives, run the relevant unit/browser suites listed in `Pulsar-Editor/README.md`, refresh both ZIPs, and update `SHA256SUMS-0.21.0.txt` for the 0.21.0 artifacts.
+Before changing downloadable archives, run the relevant unit/browser suites listed in `Pulsar-Editor/README.md`, refresh both ZIPs, and update the versioned `SHA256SUMS-<version>.txt` file for the release artifacts.

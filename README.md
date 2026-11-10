@@ -2,7 +2,7 @@
 
 A free, **portable** music player for **Windows and Linux** with a pulsar-nebula soul: search YouTube, save full tracks **with cover art and tags embedded**, sing along with synced lyrics, and watch audio-reactive visualizers. No installer, no command line — one folder that just runs.
 
-![version](https://img.shields.io/badge/version-0.21.0-4de3ff) ![license](https://img.shields.io/badge/license-Apache--2.0-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20%C2%B7%20Linux%20x64-a06bff) ![size](https://img.shields.io/badge/size-%7E20%20MB%20(Win)%20%2F%20%7E7%20MB%20(Linux)-ff5fd0)
+![version](https://img.shields.io/badge/version-0.22.0-4de3ff) ![license](https://img.shields.io/badge/license-Apache--2.0-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20%C2%B7%20Linux%20x64-a06bff) ![size](https://img.shields.io/badge/size-%7E20%20MB%20(Win)%20%2F%20%7E7%20MB%20(Linux)-ff5fd0)
 
 ## ⬇️ Download
 
@@ -34,7 +34,7 @@ The project page — [ursusel.github.io/Pulsar-Desktop](https://ursusel.github.i
 - ⏱️ **Sleep timer & stats** — gentle fade-out, favourites, play counts, smart sorting
 - 📻 **Auto-DJ 2.0** — calm/focus/workout/party/discovery moods, “more like this”, artist/genre diversity, undoable history and a short reason for every pick
 - 🔌 **Truly portable** — keep it on any drive, even a USB stick; identical experience on Windows and Linux
-- 🔄 **App update checks** — automatic checks every 12 hours and a manual button compare the installed version with GitHub Releases; Pulsar only shows a download link and never installs an update by itself
+- 🔄 **App update checks** — checks GitHub Releases on app startup (then at most every 12 hours during a long session), shows release notes and a platform-matched download link when available; Pulsar never installs an update by itself
 - 🌍 **PL / EN / ES localization** — all newly added editor, AI, Auto-DJ, backup and update UI follows the selected language without a restart
 - 🪟 **Windows integration** — tray icon with playback menu, optional close-to-tray, always-on-top, compact mini mode
 - ⏯️ **Resume where you left off** — last track and position are restored on start

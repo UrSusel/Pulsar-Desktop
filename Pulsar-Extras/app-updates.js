@@ -13,7 +13,7 @@
 
   const AUTO_KEY = 'pulsarAppUpdateAuto';
   const CHECKED_KEY = 'pulsarAppUpdateCheckedAt';
-  const NOTICE_KEY = 'pulsarAppUpdateNotice';
+  const NOTICE_KEY = 'pulsarAppUpdateNoticeV2';
   const AUTO_INTERVAL = 12 * 60 * 60 * 1000;
   let configPromise = null;
   let inflight = null;
@@ -54,8 +54,36 @@
 
   function storageGet(key) { try { return root.localStorage ? root.localStorage.getItem(key) : null; } catch (e) { return null; } }
   function storageSet(key, value) { try { if (root.localStorage) root.localStorage.setItem(key, value); } catch (e) {} }
-  function shouldAutoCheck(now, lastCheck, enabled) {
-    return enabled !== false && (!(Number(lastCheck) > 0) || Number(now) - Number(lastCheck) >= AUTO_INTERVAL);
+
+  function safeReleaseUrl(value, fallback) {
+    try {
+      const url = new URL(String(value || ''));
+      return url.protocol === 'https:' && url.hostname === 'github.com' ? url.href : fallback;
+    } catch (e) { return fallback; }
+  }
+
+  function selectDownloadAsset(release, platform) {
+    const os = String(platform || '').toLowerCase();
+    const windows = /^(?:windows|win32|win64)/.test(os), linux = /linux/.test(os);
+    if (!windows && !linux) return '';
+    const assets = Array.isArray(release && release.assets) ? release.assets : [];
+    const ext = windows ? /\.(?:exe|msi|zip)$/i : /\.(?:appimage|deb|rpm|tar\.gz|zip)$/i;
+    const platformName = windows ? /windows|win32|win64|desktop/i : /linux|ubuntu|debian|appimage/i;
+    const asset = assets.find(function (item) {
+      const name = String(item && item.name || '');
+      return ext.test(name) && platformName.test(name) && !/source|symbols|debug/i.test(name);
+    });
+    try {
+      const url = new URL(String(asset && asset.browser_download_url || ''));
+      return url.protocol === 'https:' && (url.hostname === 'github.com' || url.hostname === 'objects.githubusercontent.com') ? url.href : '';
+    } catch (e) { return ''; }
+  }
+
+  function releaseNotesText(value) {
+    return String(value || '').replace(/\r\n?/g, '\n').slice(0, 12000).trim();
+  }
+  function shouldAutoCheck(now, lastCheck, enabled, force) {
+    return enabled !== false && (force === true || !(Number(lastCheck) > 0) || Number(now) - Number(lastCheck) >= AUTO_INTERVAL);
   }
 
   function loadConfig() {
@@ -79,9 +107,11 @@
   function notify(result) {
     const key = result.current + '→' + result.latest;
     if (storageGet(NOTICE_KEY) === key) return;
-    storageSet(NOTICE_KEY, key);
+    const host = root.__pulsarHost;
+    if (!host || typeof host.toast !== 'function') return;
     try {
-      if (root.__pulsarHost) root.__pulsarHost.toast(tr('Dostępna jest nowa wersja Pulsara: ') + result.latest + tr('. Otwórz Ustawienia → Pobieranie.'));
+      host.toast(tr('Dostępna jest nowa wersja Pulsara: ') + result.latest + tr('. Otwórz Ustawienia → Pobieranie.'));
+      storageSet(NOTICE_KEY, key);
     } catch (e) {}
   }
 
@@ -92,6 +122,8 @@
     ui.check.disabled = !!value && !!value.pending;
     if (!value) return;
     ui.download.hidden = !value.updateAvailable;
+    ui.notesSection.hidden = true;
+    ui.notesTitle.textContent = tr('Informacje o wydaniu');
     ui.status.classList.toggle('pupdate-error', !!value.error);
     ui.status.classList.toggle('pupdate-new', !!value.updateAvailable);
     if (value.pending) {
@@ -102,7 +134,11 @@
       ui.status.textContent = tr('Nie udało się sprawdzić aktualizacji: ') + trMessage(value.error);
     } else if (value.updateAvailable) {
       ui.status.textContent = tr('Dostępna wersja ') + value.latest + tr(' · zainstalowana ') + value.current + tr('. Pobieranie nie uruchamia się automatycznie.');
-      ui.download.href = value.releaseUrl;
+      ui.download.href = value.downloadUrl || value.releaseUrl;
+      ui.download.textContent = value.downloadUrl && value.downloadUrl !== value.releaseUrl
+        ? tr('Pobierz dla tego systemu') : tr('Otwórz stronę wydania');
+      ui.notes.textContent = value.releaseNotes || tr('To wydanie nie zawiera opisu zmian.');
+      ui.notesSection.hidden = !value.releaseNotes;
       notify(value);
     } else {
       ui.status.textContent = tr('Masz najnowszą wersję: ') + value.current + '.';
@@ -129,8 +165,13 @@
         if (!response || !response.ok) throw new Error('GitHub HTTP ' + (response && response.status || tr('brak odpowiedzi')));
         const release = await response.json();
         const latest = parseVersion(release && release.tag_name);
+        const releaseUrl = safeReleaseUrl(release && release.html_url, base.releaseUrl);
+        const platform = root.Neutralino && root.Neutralino.os;
         const result = Object.assign(base, {
-          releaseUrl: String(release && release.html_url || base.releaseUrl), checkedAt: Date.now()
+          releaseUrl: releaseUrl,
+          downloadUrl: selectDownloadAsset(release, platform) || releaseUrl,
+          releaseNotes: releaseNotesText(release && release.body),
+          checkedAt: Date.now()
         });
         if (!latest) result.error = 'invalid-tag';
         else {
@@ -151,9 +192,10 @@
     finally { if (inflight === task) inflight = null; }
   }
 
-  function maybeAutoCheck() {
+  function maybeAutoCheck(force) {
     const enabled = storageGet(AUTO_KEY) !== '0';
-    if (shouldAutoCheck(Date.now(), Number(storageGet(CHECKED_KEY)), enabled)) check({ manual: false });
+    if (!shouldAutoCheck(Date.now(), Number(storageGet(CHECKED_KEY)), enabled, force === true)) return null;
+    return check({ manual: false });
   }
 
   function mount() {
@@ -166,21 +208,23 @@
     card.id = 'pulsarAppUpdate';
     card.innerHTML = '<h3 class="sm-cap">Pulsar</h3>'
       + '<div class="sm-row"><div class="sm-txt"><span class="sm-lab">Wersja aplikacji</span><span class="sm-desc" id="pupdateVersion">Wczytywanie…</span></div></div>'
-      + '<div class="sm-row"><div class="sm-txt"><span class="sm-lab">Sprawdzaj nowe wydania</span><span class="sm-desc">Co 12 godzin; nigdy nie instaluje aktualizacji automatycznie</span></div><label class="switch"><input type="checkbox" id="pupdateAuto"><span class="slider"></span></label></div>'
+      + '<div class="sm-row"><div class="sm-txt"><span class="sm-lab">Sprawdzaj nowe wydania</span><span class="sm-desc">Przy starcie i co 12 godzin podczas długiej sesji; nie instaluje aktualizacji automatycznie</span></div><label class="switch"><input type="checkbox" id="pupdateAuto"><span class="slider"></span></label></div>'
       + '<div class="pupdate-actions"><button type="button" class="sm-btn" id="pupdateCheck">Sprawdź aktualizacje</button><a class="sm-btn" id="pupdateDownload" href="#" target="_blank" rel="noopener noreferrer" hidden>Pobierz nową wersję</a></div>'
-      + '<div class="pupdate-status" id="pupdateStatus" aria-live="polite">Sprawdzanie jest wykonywane najwyżej co 12 godzin.</div>';
+      + '<div class="pupdate-status" id="pupdateStatus" aria-live="polite">Sprawdzanie jest wykonywane najwyżej co 12 godzin.</div>'
+      + '<section class="pupdate-release-notes" id="pupdateNotesSection" hidden><h4 id="pupdateNotesTitle">Informacje o wydaniu</h4><pre id="pupdateNotes"></pre></section>';
     const ytdlp = document.getElementById('smYtdlpBtn');
     const anchor = ytdlp && ytdlp.closest('.sm-card');
     pane.insertBefore(card, anchor || null);
     ui = {
       version: document.getElementById('pupdateVersion'), auto: document.getElementById('pupdateAuto'),
       check: document.getElementById('pupdateCheck'), download: document.getElementById('pupdateDownload'),
-      status: document.getElementById('pupdateStatus')
+      status: document.getElementById('pupdateStatus'), notesSection: document.getElementById('pupdateNotesSection'),
+      notes: document.getElementById('pupdateNotes'), notesTitle: document.getElementById('pupdateNotesTitle')
     };
     ui.auto.checked = storageGet(AUTO_KEY) !== '0';
     ui.auto.addEventListener('change', function () {
       storageSet(AUTO_KEY, ui.auto.checked ? '1' : '0');
-      if (ui.auto.checked) maybeAutoCheck();
+      if (ui.auto.checked) maybeAutoCheck(true);
     });
     ui.check.addEventListener('click', function () { render({ pending: true }); check({ manual: true }); });
     ui.download.addEventListener('click', function (event) {
@@ -197,7 +241,9 @@
       if (ui.status) ui.status.textContent = trMessage(String(error && error.message || error));
     });
     document.addEventListener('pulsar:lang', function () { render(); });
-    setTimeout(maybeAutoCheck, 5000);
+    // Always check on launch; the update notice itself is deduplicated per version pair.
+    setTimeout(function () { maybeAutoCheck(true); }, 5000);
+    // While the app stays open, retry on the existing 12-hour cadence.
     setInterval(maybeAutoCheck, 60 * 60 * 1000);
   }
 
@@ -206,6 +252,8 @@
     parseVersion: parseVersion,
     compareVersions: compareVersions,
     shouldAutoCheck: shouldAutoCheck,
+    selectDownloadAsset: selectDownloadAsset,
+    releaseNotesText: releaseNotesText,
     current: current,
     check: check,
     maybeAutoCheck: maybeAutoCheck,

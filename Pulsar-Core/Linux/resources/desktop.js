@@ -40,7 +40,11 @@
   function joinPath(a, b) { return String(a).replace(/[\\/]+$/, '') + '/' + String(b).replace(/^[/\\]+/, ''); }
   function baseName(path) { return String(path || '').replace(/[\\/]+$/, '').split('/').pop().split('\\').pop(); }
   function ext(path) { const m = /\.([a-z0-9]+)$/i.exec(String(path || '')); return m ? m[1].toLowerCase() : ''; }
-  function normalizePath(path) { return String(path || '').replace(/\\/g, '/').replace(/\/+$/, ''); }
+  function normalizePath(path) {
+    const value = String(path || '').replace(/\\/g, '/');
+    const trimmed = value.replace(/\/+$/, '');
+    return trimmed || (value.charAt(0) === '/' ? '/' : '');
+  }
   function relPath(path, root) { return baseName(root) + '/' + normalizePath(path).slice(normalizePath(root).length + 1); }
   function shellQuote(value) { return "'" + String(value == null ? '' : value).replace(/'/g, "'\\''") + "'"; }
   function uuid() { return 'pulsar-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9); }
@@ -108,18 +112,145 @@
     if (result.code && !result.stdout.trim()) throw new Error(result.stderr || 'yt-dlp failed');
     return { out: parseJson(result.stdout), raw: result.stdout, stderr: result.stderr, code: result.code };
   }
+  function onReadyDom(fn) {
+    if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true });
+    else fn();
+  }
+  const ytdlpUpdater = (function () {
+    const K_CHECK = 'pulsarYtdlpCheck', K_AUTO = 'pulsarYtdlpAuto';
+    let busy = null, triedFix = false, curVer = '';
+    function autoOn() { try { return localStorage.getItem(K_AUTO) !== '0'; } catch (e) { return true; } }
+    function updateUi() {
+      const button = document.getElementById('smYtdlpBtn');
+      if (button) {
+        button.disabled = !!busy;
+        button.textContent = busy ? tr('Aktualizuję yt-dlp…') : tr('Aktualizuj yt-dlp') + (curVer ? ' (' + curVer + ')' : '');
+      }
+      const automatic = document.getElementById('smYtdlpAuto');
+      if (automatic) automatic.checked = autoOn();
+    }
+    async function version() {
+      try {
+        const tools = await getTools();
+        if (!tools.yt) return '';
+        curVer = execOutput(await run(shellQuote(tools.yt) + ' --version', 20000)).stdout.trim().split(/\s+/)[0] || '';
+      } catch (e) { curVer = ''; }
+      updateUi();
+      return curVer;
+    }
+    async function latest() {
+      try {
+        const response = await fetch('https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest', { cache: 'no-store' });
+        if (!response.ok) return '';
+        const data = await response.json();
+        return String(data.tag_name || '').trim();
+      } catch (e) { return ''; }
+    }
+    function newer(a, b) {
+      const left = String(a || '').split('.').map(Number), right = String(b || '').split('.').map(Number);
+      for (let i = 0; i < Math.max(left.length, right.length); i++) {
+        const x = left[i] || 0, y = right[i] || 0;
+        if (x !== y) return x > y;
+      }
+      return false;
+    }
+    function update() {
+      if (busy) return busy;
+      busy = (async function () {
+        const before = await version();
+        if (!before) return { ok: false, error: tr('yt-dlp nie został znaleziony') };
+        updateUi();
+        let result;
+        try { result = execOutput(await run(shellQuote(ytDlpPath) + ' -U', 240000)); }
+        catch (e) { return { ok: false, before: before, error: String((e && e.message) || e) }; }
+        ytDlpPath = null;
+        const after = await version();
+        const text = result.stdout + '\n' + result.stderr;
+        const upToDate = /up to date|up-to-date/i.test(text);
+        const ok = !!after && (after !== before || upToDate);
+        const last = (result.stderr || result.stdout).split('\n').map(function (line) { return line.trim(); }).filter(Boolean).pop() || '';
+        try { localStorage.setItem(K_CHECK, String(Date.now())); } catch (e) {}
+        return { ok: ok, before: before, after: after, changed: !!after && after !== before, error: ok ? '' : (last.slice(0, 240) || tr('nieznany błąd')) };
+      })();
+      const pending = busy;
+      pending.then(function () { busy = null; updateUi(); }, function () { busy = null; updateUi(); });
+      return pending;
+    }
+    async function manual() {
+      toast(tr('Sprawdzam aktualizację yt-dlp…'));
+      const result = await update();
+      if (!result.ok) toast(tr('Aktualizacja yt-dlp nie powiodła się: ') + result.error);
+      else if (result.changed) toast(tr('yt-dlp zaktualizowany: ') + result.before + ' → ' + result.after);
+      else toast(tr('yt-dlp jest aktualny (') + result.after + ')');
+    }
+    async function autoCheck() {
+      if (!autoOn()) { version(); return; }
+      let last = 0;
+      try { last = +localStorage.getItem(K_CHECK) || 0; } catch (e) {}
+      const current = await version();
+      if (!current || Date.now() - last < 24 * 3600 * 1000) return;
+      try { localStorage.setItem(K_CHECK, String(Date.now())); } catch (e) {}
+      const latestVersion = await latest();
+      if (!latestVersion || !newer(latestVersion, current)) return;
+      const result = await update();
+      if (result.ok && result.changed) toast(tr('yt-dlp zaktualizowany: ') + result.before + ' → ' + result.after);
+    }
+    async function autoFix() {
+      if (triedFix || !autoOn()) return false;
+      triedFix = true;
+      const result = await update();
+      if (result.ok && result.changed) { toast(tr('yt-dlp zaktualizowany: ') + result.before + ' → ' + result.after); return true; }
+      return false;
+    }
+    onReadyDom(function () {
+      const button = document.getElementById('smYtdlpBtn');
+      if (button) button.addEventListener('click', manual);
+      const automatic = document.getElementById('smYtdlpAuto');
+      if (automatic) automatic.addEventListener('change', function () {
+        try { localStorage.setItem(K_AUTO, automatic.checked ? '1' : '0'); } catch (e) {}
+        if (automatic.checked) autoCheck();
+      });
+      document.addEventListener('pulsar:lang', updateUi);
+      updateUi();
+      setTimeout(autoCheck, 6000);
+    });
+    return { update: update, manual: manual, autoFix: autoFix, version: version, autoCheck: autoCheck, newer: newer };
+  })();
+
+  async function fetchCoverJpeg(id) {
+    const urls = ['https://i.ytimg.com/vi/' + encodeURIComponent(id) + '/maxresdefault.jpg', 'https://i.ytimg.com/vi/' + encodeURIComponent(id) + '/mqdefault.jpg'];
+    for (let i = 0; i < urls.length; i++) {
+      const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+      const timer = setTimeout(function () { try { if (controller) controller.abort(); } catch (e) {} }, 9000);
+      try {
+        const response = await fetch(urls[i], controller ? { signal: controller.signal } : {});
+        if (!response.ok) continue;
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        if (bytes.length > 3000 && bytes[0] === 0xff && bytes[1] === 0xd8) return bytes;
+      } catch (e) {}
+      finally { clearTimeout(timer); }
+    }
+    return null;
+  }
   function mapEntry(entry) {
     if (!entry || !entry.id) return null;
     return { id: String(entry.id), ytId: String(entry.id), title: entry.title || '', uploader: entry.uploader || entry.channel || 'YouTube', duration: typeof entry.duration === 'number' ? entry.duration : 0 };
   }
   async function makeDownload(id, mode) {
+    try { return await makeDownloadOnce(id, mode); }
+    catch (error) {
+      if (await ytdlpUpdater.autoFix()) return makeDownloadOnce(id, mode);
+      throw error;
+    }
+  }
+  async function makeDownloadOnce(id, mode) {
     const tools = await getTools();
     if (!tools.yt) throw new Error('yt-dlp not found');
     const tmp = await getTmp();
     const stem = joinPath(tmp, uuid());
     let format = 'bestaudio/best';
     let args = '--no-playlist -f ' + shellQuote(format) + ' -o ' + shellQuote(stem + '.%(ext)s');
-    if (mode === 'mp3' && tools.ffmpeg) args = '--no-playlist -f bestaudio/best -x --audio-format mp3 --audio-quality 192K --ffmpeg-location ' + shellQuote(tools.ffmpeg) + ' -o ' + shellQuote(stem + '.%(ext)s');
+    if (mode === 'mp3' && tools.ffmpeg) args = '--no-playlist -f bestaudio/best -x --audio-format mp3 --audio-quality 192K --embed-metadata --embed-thumbnail --ffmpeg-location ' + shellQuote(tools.ffmpeg) + ' -o ' + shellQuote(stem + '.%(ext)s');
     else if (mode === 'save' && !tools.ffmpeg) args = '--no-playlist -f bestaudio[ext=m4a]/bestaudio/best -o ' + shellQuote(stem + '.%(ext)s');
     args += ' ' + shellQuote('https://www.youtube.com/watch?v=' + id);
     await ytdlp(args, 300000);
@@ -151,8 +282,11 @@
     if (path === '/savedir') {
       const dir = normalizePath(url.searchParams.get('dir') || '');
       if (!dir) return jsonResponse({ ok: true, dir: '' });
-      try { await Neutralino.filesystem.createDirectory(dir); return jsonResponse({ ok: true, dir: dir }); }
-      catch (e) { return jsonResponse({ ok: false, error: String(e.message || e) }, 400); }
+      try { await Neutralino.filesystem.createDirectory(dir); } catch (e) {}
+      try {
+        if (!(await Neutralino.filesystem.getStats(dir))) throw new Error(tr('Folder niedostępny'));
+        return jsonResponse({ ok: true, dir: dir });
+      } catch (e) { return jsonResponse({ ok: false, error: String(e.message || e) }, 400); }
     }
     if (path === '/search') {
       const term = String(url.searchParams.get('q') || '').trim();
@@ -177,12 +311,34 @@
       const id = String(url.searchParams.get('id') || '').trim();
       const dir = normalizePath(url.searchParams.get('dir') || '');
       if (!id || !dir) return jsonResponse({ ok: false, error: tr('Nie ustawiono folderu na dysku') }, 400);
-      await Neutralino.filesystem.createDirectory(dir);
-      const meta = await ytdlp('--dump-single-json --no-playlist ' + shellQuote('https://www.youtube.com/watch?v=' + id), 30000);
+      try { await Neutralino.filesystem.createDirectory(dir); } catch (e) {}
+      try { if (!(await Neutralino.filesystem.getStats(dir))) throw new Error('folder unavailable'); }
+      catch (e) { return jsonResponse({ ok: false, error: tr('Nie mogę utworzyć folderu') + ' „' + dir + '”: ' + String(e.message || e) }, 400); }
+      let metadata = null;
+      try { metadata = (await ytdlp('--dump-single-json --no-playlist ' + shellQuote('https://www.youtube.com/watch?v=' + id), 30000)).out; } catch (e) {}
       const file = await makeDownload(id, 'save');
-      const safeTitle = String((meta.out && meta.out.title) || id).replace(/[\\/:*?"<>|\x00-\x1f]/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 160) || id;
+      const title = String((metadata && metadata.title) || id);
+      const uploader = String((metadata && (metadata.uploader || metadata.channel)) || '').replace(/\s*-\s*Topic\s*$/i, '').trim();
+      const safeTitle = String((uploader ? uploader + ' - ' : '') + title).replace(/[\\/:*?\"<>|\x00-\x1f]+/g, '_').replace(/\s{2,}/g, ' ').trim().slice(0, 140) || id;
       const dest = joinPath(dir, safeTitle + '.' + file.ext);
-      await writeBinary(dest, await Neutralino.filesystem.readBinaryFile(file.path));
+      let bytes = await Neutralino.filesystem.readBinaryFile(file.path);
+      if (file.ext === 'm4a' || file.ext === 'mp4') {
+        try {
+          const album = String((metadata && metadata.album) || '').trim();
+          const year = String((metadata && (metadata.release_year || metadata.release_date)) || '').slice(0, 4);
+          const rawGenre = metadata && metadata.genre;
+          const genre = Array.isArray(rawGenre) ? rawGenre.join(', ') : String(rawGenre || '');
+          const cover = await fetchCoverJpeg(id);
+          const tagMeta = { title: title, artist: uploader, cover: cover };
+          if (album) tagMeta.album = album;
+          if (year) tagMeta.year = year;
+          if (genre) tagMeta.genre = genre;
+          const embedded = window.PulsarTags && window.PulsarTags.mp4Embed
+            ? window.PulsarTags.mp4Embed(new Uint8Array(bytes), tagMeta) : null;
+          if (embedded && embedded.length) bytes = embedded;
+        } catch (e) {}
+      }
+      await writeBinary(dest, bytes);
       try { await Neutralino.filesystem.remove(file.path); } catch (e) {}
       return jsonResponse({ ok: true, dir: dir, file: baseName(dest), path: dest });
     }
@@ -224,6 +380,7 @@
     writeBinary: writeBinary,
     readBinary: function (path) { return Neutralino.filesystem.readBinaryFile(path); },
     appendBinary: function (path, data) { const b = ArrayBuffer.isView(data) ? data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) : data; return Neutralino.filesystem.appendBinaryFile(path, b); },
+    folderDialog: function (title) { return Neutralino.os.showFolderDialog(title || tr('Wybierz folder')); },
     saveDialog: function (title, name, extension, label) {
       return Neutralino.os.showSaveDialog(title, { defaultPath: name, filters: [{ name: label || extension, extensions: [extension] }, { name: 'All files', extensions: ['*'] }] }).then(function (path) { if (!path) return ''; return /\.[a-z0-9]+$/i.test(path) ? path : path + '.' + extension; });
     }

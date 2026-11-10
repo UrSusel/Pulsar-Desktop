@@ -37,9 +37,9 @@ Przy usuwaniu jedynej lokalnej kopii pojawia się osobne ostrzeżenie z nazwami 
 
 ## Aktualizacje samego Pulsara
 
-W **Ustawienia → Pobieranie → Pulsar** karta pokazuje zainstalowaną wersję z `app-version.json`. Domyślnie najwyżej raz na 12 godzin aplikacja odpytuje `https://api.github.com/repos/UrSusel/Pulsar-Desktop/releases/latest`; przycisk **Sprawdź aktualizacje** wykonuje kontrolę na żądanie. Tag `vX.Y.Z` lub `X.Y.Z` jest porównywany jako SemVer. Nowsze wydanie pokazuje komunikat i link do GitHuba — **Pulsar nie pobiera ani nie instaluje aktualizacji automatycznie**. Stary, nienumeryczny tag jest zgłaszany jako nieznana wersja, a nie jako potwierdzenie aktualności. Automatyczne sprawdzanie można wyłączyć niezależnie od aktualizacji `yt-dlp`.
+W **Ustawienia → Pobieranie → Pulsar** karta pokazuje zainstalowaną wersję z `app-version.json`. Automatyczne sprawdzanie uruchamia się przy starcie aplikacji, a podczas dłuższej sesji ponawia najwyżej raz na 12 godzin; przycisk **Sprawdź aktualizacje** wykonuje kontrolę na żądanie. Tag `vX.Y.Z` lub `X.Y.Z` jest porównywany jako SemVer. Nowsze wydanie pokazuje komunikat, zwykły tekst informacji o wydaniu oraz przycisk pobrania; jeśli GitHub opublikował pasujący asset Windows/Linux, przycisk prowadzi bezpośrednio do niego, a w przeciwnym razie do strony wydania. Treść release notes jest wyświetlana jako tekst, nie HTML. **Pulsar nie pobiera ani nie instaluje aktualizacji automatycznie**. Stary, nienumeryczny tag jest zgłaszany jako nieznana wersja, a nie jako potwierdzenie aktualności. Automatyczne sprawdzanie można wyłączyć niezależnie od aktualizacji `yt-dlp`.
 
-Endpoint `/releases/latest` wymaga opublikowanego, stabilnego GitHub Release. Sam tag Git albo draft nie wystarczy; kolejne wydania powinny mieć tagi zgodne z SemVer, np. `v0.21.0`.
+Endpoint `/releases/latest` wymaga opublikowanego, stabilnego GitHub Release. Sam tag Git albo draft nie wystarczy; kolejne wydania powinny mieć tagi zgodne z SemVer, np. `v0.22.0`.
 
 ## Natywny mostek
 
