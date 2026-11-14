@@ -106,9 +106,10 @@ def check(platform: str) -> None:
             'body.retro-mode[data-retro-layout="compact"] .bb-right > #ambientStyleBtn' in source and
             'right:89px; width:24px; height:22px;' in source,
             f"{platform}: Compact Retro does not expose the 3D visual-style button")
-    require("const compactRetro = document.body.classList.contains('retro-mode') && document.body.dataset.retroLayout === 'compact';" in source and
-            "threeDMode || compactRetro" in source,
-            f"{platform}: the 3D style button is unavailable while Compact Retro is active")
+    require("const retroMode = document.body.classList.contains('retro-mode');" in source and
+            "threeDMode || retroMode" in source and
+            "const RETRO_VISUAL_MODES = ['Siatka wektorowa', 'Plazma retro', 'Oscyloskop retro', 'Neonowy zachód'];" in source,
+            f"{platform}: three dedicated 3D backgrounds are not available throughout Retro mode")
     require("document.body.classList.add('three-d-mode');" in source and
             "localStorage.setItem('threeDMode', 'true')" in source,
             f"{platform}: the Compact Retro 3D button does not enable the GPU background itself")

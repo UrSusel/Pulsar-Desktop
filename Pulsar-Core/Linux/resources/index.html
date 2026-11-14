@@ -2680,6 +2680,11 @@
     'Świetliki': { en: 'Fireflies', es: 'Luciérnagas' },
     'Fale': { en: 'Waves', es: 'Olas' },
     'Tusz w wodzie': { en: 'Ink in water', es: 'Tinta en el agua' },
+    'Siatka wektorowa': { en: 'Retro vector grid', es: 'Cuadrícula vectorial retro' },
+    'Plazma retro': { en: 'Retro plasma', es: 'Plasma retro' },
+    'Oscyloskop retro': { en: 'Retro oscilloscope', es: 'Osciloscopio retro' },
+    'Neonowy zachód': { en: 'Neon sunset', es: 'Atardecer neón' },
+    'Tło 3D retro: ': { en: 'Retro 3D background: ', es: 'Fondo 3D retro: ' },
     'Pulsar': { en: 'Pulsar', es: 'Púlsar' },
     'Motyw: ': { en: 'Theme: ', es: 'Tema: ' },
     'Sleep timer wyłączony': { en: 'Sleep timer off', es: 'Temporizador apagado' },
@@ -3501,17 +3506,23 @@
 
   /* ---------- Style wizualizacji ---------- */
   const VISUAL_MODES = ['Aura okładki', 'Płynny marmur', 'Gwiezdny pył', 'Płynne kulki', 'Kalejdoskop', 'Świetliki', 'Fale', 'Tusz w wodzie'];
+  const RETRO_VISUAL_MODES = ['Siatka wektorowa', 'Plazma retro', 'Oscyloskop retro', 'Neonowy zachód'];
   let visualMode = 0;
+  let normalVisualMode = 0;
+  let retroVisualModeIndex = 0;
   try {
     const visualRevision = Number(localStorage.getItem('ambientVisualRevision') || 0);
     if (visualRevision < 2){
       visualMode = 0;
+      normalVisualMode = 0;
       localStorage.setItem('ambientVisualMode', '0');
       localStorage.setItem('ambientVisualRevision', '2');
     }else{
       const vm = Number(localStorage.getItem('ambientVisualMode'));
-      if (vm >= 0 && vm < VISUAL_MODES.length) visualMode = vm;
+      if (vm >= 0 && vm < VISUAL_MODES.length){ visualMode = vm; normalVisualMode = vm; }
     }
+    const retroVm = Number(localStorage.getItem('ambientRetroVisualMode'));
+    if (retroVm >= 0 && retroVm < RETRO_VISUAL_MODES.length) retroVisualModeIndex = retroVm;
   } catch(e){}
   let styleToastTimer = null;
   function animSwap(el, cls){
@@ -3534,19 +3545,27 @@
     clearTimeout(styleToastTimer);
     styleToastTimer = setTimeout(() => el.classList.remove('show'), Math.max(1600, Number(duration) || 1600));
   }
-  function flashStyleToast(){ showToast('✦ ' + t(VISUAL_MODES[visualMode])); }
+  function activeVisualModeName(){
+    return document.body.classList.contains('retro-mode')
+      ? RETRO_VISUAL_MODES[retroVisualModeIndex]
+      : VISUAL_MODES[normalVisualMode];
+  }
+  function flashStyleToast(){ showToast('✦ ' + t(activeVisualModeName())); }
   function updateStyleBtn(){
     if (!ambientStyleBtn) return;
-    const styleLabel = t('Styl wizualizacji: ') + t(VISUAL_MODES[visualMode]) + t(' — kliknij, aby zmienić');
+    const retroMode = document.body.classList.contains('retro-mode');
+    const stylePrefix = retroMode ? 'Tło 3D retro: ' : 'Styl wizualizacji: ';
+    const styleLabel = t(stylePrefix) + t(activeVisualModeName()) + t(' — kliknij, aby zmienić');
     ambientStyleBtn.title = styleLabel;
     ambientStyleBtn.setAttribute('aria-label', styleLabel);
-    const compactRetro = document.body.classList.contains('retro-mode') && document.body.dataset.retroLayout === 'compact';
-    ambientStyleBtn.hidden = !(Boolean(ambientVisual) && (threeDMode || compactRetro));
+    ambientStyleBtn.hidden = !(Boolean(ambientVisual) && (threeDMode || retroMode));
   }
   if (ambientStyleBtn) ambientStyleBtn.addEventListener('click', function(){
     if (!ambientVisual) return;
-    // Compact Retro keeps this control available: turn on the GPU background
-    // here rather than forcing users to leave the layout for Settings first.
+    const retroMode = document.body.classList.contains('retro-mode');
+    const was3DEnabled = threeDMode;
+    // Retro layouts expose their own three GPU backgrounds; the first click
+    // enables 3D without skipping the first preset.
     if (!threeDMode){
       threeDMode = true;
       document.body.classList.add('three-d-mode');
@@ -3554,8 +3573,15 @@
       ambientVisual.resize();
       try { localStorage.setItem('threeDMode', 'true'); } catch(e){}
     }
-    visualMode = (visualMode + 1) % VISUAL_MODES.length;
-    try { localStorage.setItem('ambientVisualMode', String(visualMode)); } catch(e){}
+    if (retroMode){
+      if (was3DEnabled) retroVisualModeIndex = (retroVisualModeIndex + 1) % RETRO_VISUAL_MODES.length;
+      visualMode = VISUAL_MODES.length + retroVisualModeIndex;
+      try { localStorage.setItem('ambientRetroVisualMode', String(retroVisualModeIndex)); } catch(e){}
+    }else{
+      normalVisualMode = (normalVisualMode + 1) % VISUAL_MODES.length;
+      visualMode = normalVisualMode;
+      try { localStorage.setItem('ambientVisualMode', String(normalVisualMode)); } catch(e){}
+    }
     updateStyleBtn();
     flashStyleToast();
   });
@@ -3586,6 +3612,7 @@
       'uniform vec2 uPointer;',
       'uniform vec2 uOrigin;',
       'uniform int uMode;',
+      'uniform float uStereo;',
       'uniform vec3 uCol0;',
       'uniform vec3 uCol1;',
       'uniform vec3 uCol2;',
@@ -3645,9 +3672,13 @@
       '    float a = atan(p.y, p.x);',
       '    float field = fbm(p * 0.58 + vec2(t * 0.11, -t * 0.07));',
       '    float warp = fbm(p * 1.25 + vec2(-t * 0.13, t * 0.09) + field * 0.45);',
-      '    float spec = texture2D(uSpectrum, vec2(abs(a) * 0.31830989, 0.5)).r;',
-      '    float petals = sin(a * 3.0 + field * 3.5 - t * 0.45) + 0.42 * sin(a * 7.0 - warp * 3.0 + t * 0.3);',
-      '    float shellRadius = 0.83 + petals * 0.105 + (spec - 0.25) * 0.22 + uBass * 0.12 + uBeat * 0.04;',
+      // Use a symmetric angular lookup so left/right lobes receive the same frequency bins.
+      // Drive every direction from the same broadband level, not a position-specific FFT bin.
+      '    float band = abs(a) * 0.31830989;',
+      // High-frequency bins naturally carry less energy; boost them in place without rotating the spectrum map.
+      '    float spec = clamp(texture2D(uSpectrum, vec2(band, 0.5)).r * (1.0 + band * 0.75) + uHigh * band * 1.4, 0.0, 1.0);',
+      '    float petals = 0.72 * sin(a * 3.0 + field * 3.5 - t * 0.45) + 0.28 * sin(a * 7.0 - warp * 3.0 + t * 0.3);',
+      '    float shellRadius = 0.86 + petals * 0.085 + (spec - 0.25) * 0.22 + uBass * 0.12 + uBeat * 0.04 + uHigh * band * 0.12;',
       '    float shellDelta = r - shellRadius;',
       '    float mantle = exp(-shellDelta * shellDelta * 9.0);',
       '    float edge = exp(-abs(shellDelta) * 32.0);',
@@ -3780,11 +3811,139 @@
       '    vec3 colI = base + pop(paletteMix(0.45 + 0.35 * f2)) * edgeB * 0.5;',
       '    colI += pop(paletteMix(fract(f2 + 0.15))) * pow(ink, 3.0) * 0.4;',
       '    col = mix(colI, pop(paletteMix(0.8)) * 0.22, pow(max(1.0 - length(p) * 0.9, 0.0), 2.4) * 0.3);',
+      '  } else if (uMode == 8){',
+      '    vec2 s = (uv - 0.5) * vec2(aspect, 1.0);',
+      '    float floorY = s.y + 0.2;',
+      // Add broad, smoothly travelling height waves without destabilizing the distant horizon.
+      '    float baseDepth = min(16.0, 0.32 / max(0.035, -floorY));',
+      '    float waveA = sin(s.x * 2.2 + uTime * 0.48) * 0.032;',
+      '    float waveB = sin(s.x * 4.6 - uTime * 0.31 + baseDepth * 0.18) * 0.015;',
+      '    float waveC = sin(s.x * 1.35 + baseDepth * 0.33 - uTime * 0.66) * (0.014 + uBass * 0.024);',
+      '    float groundWave = (waveA + waveB + waveC) * (1.0 - smoothstep(7.0, 15.0, baseDepth));',
+      '    float depth = min(16.0, 0.32 / max(0.035, -floorY + groundWave));',
+      '    float warpedX = s.x + sin(baseDepth * 0.3 - uTime * 0.4 + s.x * 2.0) * (0.012 + uMid * 0.012) * (1.0 - smoothstep(7.0, 15.0, baseDepth));',
+      '    float gridX = abs(fract(warpedX * depth * 2.3 + 0.5) - 0.5);',
+      '    float gridZ = abs(fract(depth * 1.45 - uTime * (0.36 + uBass * 0.55) + 0.5) - 0.5);',
+      '    float floorMask = 1.0 - smoothstep(-0.04, 0.08, floorY);',
+      '    float gridFade = 1.0 - smoothstep(6.0, 13.0, depth);',
+      '    float gridWidth = 0.012 + depth * 0.0012;',
+      '    float grid = (1.0 - smoothstep(gridWidth, gridWidth + 0.045, min(gridX, gridZ))) * gridFade;',
+      '    float horizon = exp(-abs(floorY) * 18.0);',
+      '    col = pop(paletteMix(fract(0.12 + depth * 0.08))) * (0.025 + grid * floorMask * (0.3 + uBass * 0.8 + uBeat * 0.3));',
+      '    col += pop(paletteMix(0.78)) * horizon * (0.05 + uMid * 0.25 + uBeat * 0.3);',
+      '  } else if (uMode == 9){',
+      '    vec2 s = (uv - 0.5) * vec2(aspect, 1.0) * 2.0;',
+      '    float p1 = sin(s.x * 2.4 + uTime * 0.36 + uBass * 1.4);',
+      '    float p2 = cos(s.y * 3.1 - uTime * 0.28 + uMid * 1.8);',
+      '    float p3 = sin((s.x + s.y) * 2.2 + uTime * 0.22 + uHigh * 1.6);',
+      '    float field = p1 + p2 + p3;',
+      '    float fill = 0.5 + 0.5 * sin(field * 1.15 + uBeat * 0.8);',
+      '    float contour = pow(max(1.0 - abs(sin(field * 1.7)), 0.0), 7.0);',
+      '    float scanline = 0.92 + 0.08 * sin(uv.y * uRes.y * 0.32);',
+      '    col = pop(paletteMix(fract(0.08 + fill * 0.72))) * (0.1 + fill * 0.28 + uMid * 0.22);',
+      '    col += pop(paletteMix(0.82)) * contour * (0.25 + uHigh * 0.75 + uBeat * 0.35);',
+      '    col *= scanline;',
+      '  } else if (uMode == 10){',
+      '    vec2 s = (uv - 0.5) * vec2(aspect * 2.0, 2.0);',
+      '    for (int i = 0; i < 3; i++){',
+      '      float fi = float(i);',
+      '      float band = i == 0 ? uBass : (i == 1 ? uMid : uHigh);',
+      '      float baseline = (fi - 1.0) * 0.42;',
+      '      float fftBin = clamp(0.035 + (s.x / max(0.01, aspect) * 0.5 + 0.5) * 0.9, 0.02, 0.98);',
+      '      for (int side = 0; side < 2; side++){',
+      '        float sideF = float(side);',
+      '        float sideWeight = side == 0 ? 1.0 : uStereo;',
+      '        float sideOffset = (sideF - 0.5) * 0.085 * uStereo;',
+      '        float row = side == 0 ? 0.25 : 0.75;',
+      '        float localSpectrum = texture2D(uSpectrum, vec2(fftBin, mix(0.5, row, uStereo))).r;',
+      '        float localDrive = clamp(localSpectrum * 1.25 + band * 0.4 + uBeat * 0.18, 0.0, 1.2);',
+      '        float amp = 0.035 + band * 0.19 + uBeat * 0.055 + localSpectrum * 0.14;',
+      '        float phase = uTime * (0.78 + fi * 0.18 + band * 0.25) + fi * 1.7 + sideF * 0.12;',
+      '        float wave = 0.58 * sin(s.x * (2.7 + fi * 0.95) + phase + localDrive * 1.8) + 0.27 * sin(s.x * (5.4 + fi * 1.2) - phase * 1.35) + 0.15 * sin(s.x * (1.35 + fi * 0.3) - uTime * 0.63 + fi);',
+      '        wave += (localDrive - 0.18) * (0.3 + band * 0.35);',
+      '        float y = baseline + sideOffset + wave * amp;',
+      '        vec3 traceColor = side == 0 ? pop(paletteMix(0.12 + fi * 0.28)) : pop(paletteMix(0.46 + fi * 0.22));',
+      '        float distToTrace = abs(s.y - y);',
+      '        float core = exp(-distToTrace * 115.0);',
+      '        float glow = exp(-distToTrace * 24.0);',
+      '        col += traceColor * sideWeight * (core * (0.45 + band * 1.45 + localDrive * 0.9 + uBeat * 0.42) + glow * (0.1 + localDrive * 0.06));',
+      // A dim, phase-lagged echo gives the trace a phosphor afterglow without framebuffer history.
+      '        float echoPhase = phase - 0.38;',
+      '        float echoWave = 0.58 * sin(s.x * (2.7 + fi * 0.95) + echoPhase + localDrive * 1.8) + 0.27 * sin(s.x * (5.4 + fi * 1.2) - echoPhase * 1.35) + 0.15 * sin(s.x * (1.35 + fi * 0.3) - (uTime - 0.38) * 0.63 + fi);',
+      '        float echoY = baseline + sideOffset + (echoWave + (localDrive - 0.18) * (0.5 + band * 0.5)) * amp * 0.92;',
+      '        float echoGlow = exp(-abs(s.y - echoY) * 22.0);',
+      '        col += traceColor * sideWeight * echoGlow * (0.035 + localDrive * 0.022);',
+      '      }',
+      '    }',
+      '    col *= 0.94 + 0.06 * sin(uv.y * uRes.y * 0.3);',
+      '  } else if (uMode == 11){',
+      '    vec2 s = (uv - 0.5) * vec2(aspect * 2.0, 2.0);',
+      '    float horizonY = -0.12;',
+      '    float floorDist = horizonY - s.y;',
+      '    float skyT = clamp((s.y - horizonY) / 1.2, 0.0, 1.0);',
+      '    vec3 skyLow = vec3(0.30, 0.035, 0.36);',
+      '    vec3 skyHigh = vec3(0.012, 0.018, 0.12);',
+      '    float skyPulse = 0.5 + 0.5 * sin(uTime * 0.12 + uMid * 0.8);',
+      '    vec3 sky = mix(skyLow + vec3(0.035, 0.008, 0.025) * skyPulse, skyHigh, smoothstep(0.0, 1.0, skyT));',
+      '    vec2 starCell = floor(uv * uRes * 0.075);',
+      '    float starHash = hash21(starCell);',
+      '    float starTwinkle = 0.55 + 0.45 * sin(uTime * (1.2 + starHash * 2.0) + starHash * 6.283);',
+      '    float stars = step(0.997, starHash) * starTwinkle;',
+      '    sky += vec3(0.42, 0.48, 0.9) * stars * (0.35 + uHigh * 0.65);',
+      // Distant ridge: quieter and cooler, with its own slow parallax drift.
+      '    float farPeak = horizonY + 0.065 + 0.042 * sin(s.x * 5.2 + uTime * 0.045) + 0.019 * sin(s.x * 13.0 - uTime * 0.035);',
+      '    float farCloud = 1.0 - smoothstep(farPeak - 0.018, farPeak + 0.018, s.y);',
+      '    sky = mix(sky, vec3(0.038, 0.025, 0.16), farCloud * 0.94);',
+      '    float farRim = exp(-abs(s.y - farPeak) * 70.0);',
+      '    sky += vec3(0.12, 0.2, 0.72) * farRim * 0.32;',
+      // The sun drifts gently and responds to bass, then sits behind the foreground clouds.
+      '    vec2 sunPos = vec2(0.0, horizonY + 0.33 + sin(uTime * 0.11) * 0.018 + uBass * 0.028);',
+      '    float sunRadius = 0.29 + uBass * 0.025 + uBeat * 0.012;',
+      '    float sunDist = length(vec2(s.x * 0.88, s.y - sunPos.y));',
+      '    float sun = 1.0 - smoothstep(sunRadius - 0.012, sunRadius + 0.012, sunDist);',
+      '    float sunGap = step(0.16, fract((sunPos.y - s.y + 0.025) * 28.0));',
+      '    vec3 sunColor = mix(vec3(1.0, 0.26, 0.42), vec3(1.0, 0.66, 0.32), clamp((s.y - (sunPos.y - sunRadius)) / (2.0 * sunRadius), 0.0, 1.0));',
+      '    float sunGlow = exp(-sunDist * 4.2) * (0.12 + uBeat * 0.06);',
+      '    sky += vec3(0.78, 0.08, 0.4) * sunGlow;',
+      '    sky = mix(sky, sunColor, sun * sunGap);',
+      // Continuous foreground cloud ridge softly overlaps the sun; slow phase drift adds parallax.
+      '    float cloudPeak = horizonY + 0.12 + 0.082 * sin(s.x * 7.0 + uTime * 0.035) + 0.034 * sin(s.x * 19.0 - uTime * 0.025) + 0.024 * sin(s.x * 3.2 + 1.1 + uTime * 0.02);',
+      '    float cloudMask = 1.0 - smoothstep(cloudPeak - 0.016, cloudPeak + 0.016, s.y);',
+      '    vec3 cloudColor = vec3(0.024, 0.016, 0.09) + vec3(0.025, 0.006, 0.035) * (0.5 + 0.5 * sin(s.x * 3.8 + uTime * 0.08));',
+      '    sky = mix(sky, cloudColor, cloudMask);',
+      '    float cloudRim = exp(-abs(s.y - cloudPeak) * 58.0);',
+      '    float rimPulse = 0.38 + uMid * 0.25 + uBeat * 0.18 + 0.12 * sin(uTime * 0.8 + s.x * 2.3);',
+      '    sky += vec3(0.62, 0.12, 0.92) * cloudRim * rimPulse;',
+      '    sky += vec3(0.28, 0.035, 0.42) * exp(-abs(s.y - cloudPeak) * 15.0) * 0.12;',
+      // Sparse, brief horizontal glitch ticks in the upper sky.
+      '    float glitchRow = step(0.9992, hash21(vec2(floor(uTime * 1.4), floor(uv.y * uRes.y * 0.025))));',
+      '    float glitchSeg = step(0.78, fract(uv.x * 3.1 + uTime * 0.07));',
+      '    sky += vec3(0.16, 0.24, 0.62) * glitchRow * glitchSeg * (1.0 - cloudMask) * 0.22;',
+      '    float floorDepth = min(16.0, 0.24 / max(0.035, floorDist));',
+      '    float floorFade = 1.0 - smoothstep(6.0, 13.0, floorDepth);',
+      '    float floorX = abs(fract(s.x * floorDepth * 1.8 + 0.5) - 0.5);',
+      '    float floorZ = abs(fract(floorDepth * 1.55 - uTime * (0.28 + uBass * 0.32) + 0.5) - 0.5);',
+      '    float floorWidth = 0.012 + floorDepth * 0.0012;',
+      '    float floorGrid = (1.0 - smoothstep(floorWidth, floorWidth + 0.045, min(floorX, floorZ))) * floorFade * smoothstep(-0.02, 0.08, floorDist);',
+      '    float horizonGlow = exp(-abs(s.y - horizonY) * 22.0);',
+      '    vec3 floorColor = vec3(0.045, 0.035, 0.24) + vec3(0.18, 0.035, 0.28) * exp(-abs(s.x) * 2.4);',
+      '    floorColor += vec3(0.48, 0.08, 0.5) * horizonGlow * 0.22;',
+      '    floorColor += vec3(0.2, 0.54, 1.0) * floorGrid * (0.35 + uBass * 0.45 + uBeat * 0.2);',
+      // A narrow, gently rippling reflection stretches from the sun toward the viewer.
+      '    float reflectionX = sin(uTime * 0.55 + floorDist * 7.0) * (0.012 + floorDist * 0.018);',
+      '    float reflectionWidth = 0.014 + floorDist * 0.055;',
+      '    float reflectionRipple = 0.72 + 0.28 * sin(floorDist * 58.0 - uTime * 1.6 + s.x * 5.0);',
+      '    float sunReflection = exp(-abs(s.x - reflectionX) / max(0.008, reflectionWidth)) * exp(-floorDist * 0.52) * smoothstep(0.0, 0.1, floorDist) * reflectionRipple;',
+      '    floorColor += mix(vec3(0.95, 0.08, 0.48), vec3(1.0, 0.48, 0.24), clamp(0.55 + uBass * 0.35, 0.0, 1.0)) * sunReflection * (0.24 + uBass * 0.22 + uBeat * 0.08);',
+      '    sky = mix(sky, floorColor, smoothstep(-0.025, 0.035, floorDist));',
+      '    sky += vec3(0.92, 0.12, 0.55) * horizonGlow * 0.18;',
+      '    col = sky;',
       '  } else {',
       '    float r = length(p);',
       '    float ang = atan(p.y, p.x);',
+      // Keep the radial ink rays equally reactive around the whole circle.
       '    float mir = abs(mod(ang + 3.14159265, 6.2831853) - 3.14159265) / 3.14159265;',
-      '    float specA = texture2D(uSpectrum, vec2(mir * 0.62 + 0.02, 0.5)).r;',
+      '    float specA = clamp(texture2D(uSpectrum, vec2(mir * 0.62 + 0.02, 0.5)).r * (1.0 + mir * 0.75) + uHigh * mir * 1.4, 0.0, 1.0);',
       '    float specR = texture2D(uSpectrum, vec2(min(0.99, r * 0.85), 0.5)).r;',
       '    vec3 colP = vec3(0.004, 0.005, 0.012);',
       '    float ray = pow(specA, 1.6) * exp(-r * (1.9 - uBass * 0.9));',
@@ -3848,12 +4007,13 @@
       gl.vertexAttribPointer(aPos, 2, gl.FLOAT, false, 0, 0);
 
       const U = {};
-      ['uRes', 'uTime', 'uBass', 'uMid', 'uHigh', 'uBeat', 'uPointer', 'uOrigin', 'uMode', 'uCol0', 'uCol1', 'uCol2', 'uCol3', 'uCol4', 'uSpectrum'].forEach(function(name){
+      ['uRes', 'uTime', 'uBass', 'uMid', 'uHigh', 'uBeat', 'uPointer', 'uOrigin', 'uMode', 'uStereo', 'uCol0', 'uCol1', 'uCol2', 'uCol3', 'uCol4', 'uSpectrum'].forEach(function(name){
         U[name] = gl.getUniformLocation(program, name);
       });
 
       const SPEC_N = 64;
-      const specTexArr = new Uint8Array(SPEC_N);
+      // Two spectrum rows carry L/R when stereo is really present; mono is mirrored to both.
+      const specTexArr = new Uint8Array(SPEC_N * 2);
       let specTex = null;
       try {
         specTex = gl.createTexture();
@@ -3862,7 +4022,7 @@
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, SPEC_N, 1, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, specTexArr);
+        gl.texImage2D(gl.TEXTURE_2D, 0, gl.LUMINANCE, SPEC_N, 2, 0, gl.LUMINANCE, gl.UNSIGNED_BYTE, specTexArr);
       } catch(e){ specTex = null; }
 
       const palette = [
@@ -3933,15 +4093,26 @@
           gl.uniform2f(U.uOrigin, originX, originY);
           gl.uniform1i(U.uMode, visualMode);
           if (specTex && U.uSpectrum){
+            const stereoLeft = stereoAnalyserL && stereoFreqL;
+            const stereoRight = stereoAnalyserR && stereoFreqR;
+            if (stereoLeft) stereoAnalyserL.getByteFrequencyData(stereoFreqL);
+            if (stereoRight) stereoAnalyserR.getByteFrequencyData(stereoFreqR);
+            let leftEnergy = 0, rightEnergy = 0, stereoDifference = 0;
             for (let si = 0; si < SPEC_N; si++){
               const idxF = Math.floor(Math.pow(si / SPEC_N, 1.7) * Math.max(1, (freqData ? freqData.length : 0) - 2));
               const v = freqData ? (freqData[idxF] || 0) / 255 : 0;
-              specTexArr[si] = Math.max(Math.round(v * 255), Math.floor(specTexArr[si] * 0.88));
+              const l = stereoLeft ? (stereoFreqL[idxF] || 0) / 255 : v;
+              const r = stereoRight ? (stereoFreqR[idxF] || 0) / 255 : v;
+              leftEnergy += l; rightEnergy += r; stereoDifference += Math.abs(l - r);
+              specTexArr[si] = Math.max(Math.round(l * 255), Math.floor(specTexArr[si] * 0.88));
+              specTexArr[SPEC_N + si] = Math.max(Math.round(r * 255), Math.floor(specTexArr[SPEC_N + si] * 0.88));
             }
+            const stereoReady = !!(stereoLeft && stereoRight && leftEnergy > 0.7 && rightEnergy > 0.7 && stereoDifference > (leftEnergy + rightEnergy) * 0.055);
+            gl.uniform1f(U.uStereo, stereoReady ? 1 : 0);
             try {
               gl.activeTexture(gl.TEXTURE0);
               gl.bindTexture(gl.TEXTURE_2D, specTex);
-              gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, SPEC_N, 1, gl.LUMINANCE, gl.UNSIGNED_BYTE, specTexArr);
+              gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, SPEC_N, 2, gl.LUMINANCE, gl.UNSIGNED_BYTE, specTexArr);
               gl.uniform1i(U.uSpectrum, 0);
             } catch(e){}
           }
@@ -4008,6 +4179,7 @@
   function savePlayerMode(){ try{ localStorage.setItem('playerMode', JSON.stringify({ repeat: repeatMode, shuffle: shuffleOn })); } catch(e){} }
   let threeDMode = false;
   let audioCtx = null, analyser = null, freqData = null;
+  let stereoAnalyserL = null, stereoAnalyserR = null, stereoFreqL = null, stereoFreqR = null;
   let seeking = false;
   let volSeeking = false;
   let currentBgLayer = 1;
@@ -7879,6 +8051,18 @@
       analyser = audioCtx.createAnalyser();
       analyser.fftSize = 256; analyser.smoothingTimeConstant = 0.7;
       freqData = new Uint8Array(analyser.frequencyBinCount);
+      try {
+        const stereoSplit = audioCtx.createChannelSplitter(2);
+        stereoAnalyserL = audioCtx.createAnalyser(); stereoAnalyserR = audioCtx.createAnalyser();
+        stereoAnalyserL.fftSize = 256; stereoAnalyserR.fftSize = 256;
+        stereoAnalyserL.smoothingTimeConstant = 0.66; stereoAnalyserR.smoothingTimeConstant = 0.66;
+        stereoFreqL = new Uint8Array(stereoAnalyserL.frequencyBinCount);
+        stereoFreqR = new Uint8Array(stereoAnalyserR.frequencyBinCount);
+        masterGain.connect(stereoSplit);
+        stereoSplit.connect(stereoAnalyserL, 0); stereoSplit.connect(stereoAnalyserR, 1);
+        const stereoTapMute = audioCtx.createGain(); stereoTapMute.gain.value = 0;
+        stereoAnalyserL.connect(stereoTapMute); stereoAnalyserR.connect(stereoTapMute); stereoTapMute.connect(audioCtx.destination);
+      } catch(e){ stereoAnalyserL = null; stereoAnalyserR = null; stereoFreqL = null; stereoFreqR = null; }
       let node = inputBus;
       node.connect(normNode); node = normNode;
       filters.forEach(bq => { node.connect(bq); node = bq; });
@@ -8748,6 +8932,8 @@
     const wasOn = document.body.classList.contains('retro-mode');
     retroStyleOn = on;
     document.body.classList.toggle('retro-mode', on);
+    if (on && !wasOn) visualMode = VISUAL_MODES.length + retroVisualModeIndex;
+    else if (!on && wasOn) visualMode = normalVisualMode;
     updateStyleBtn();
     if (retroBgBtn) retroBgBtn.hidden = !on;
     syncRetroVolumeDock();
@@ -10931,7 +11117,7 @@ window.__pulsarSyncApply = async function (plan) {
     cycleRepeat, toggleShuffle, nextTrack: () => nextTrack(false), prevTrack, loadIndex: i => loadTrack(i, { autoplay: true }),
     __bgMouse: { on: () => bgFollowMouse, set: v => setBgFollowMouse(v), pos: () => ({ x: pointerPos.x, y: pointerPos.y }) },
     extractVividColor, __getPalette: () => coverPalette.slice(),
-    visualModes: () => VISUAL_MODES.slice(),
+    visualModes: () => document.body.classList.contains('retro-mode') ? RETRO_VISUAL_MODES.slice() : VISUAL_MODES.slice(),
     __queue: {
       list: () => queue.slice(), upcoming: () => { const pos = queue.indexOf(currentIndex); return pos < 0 ? [] : queue.slice(pos + 1); },
       move: queueMove, render: renderQueuePanel, panelOpen: () => !!queuePanelEl && !queuePanelEl.hidden
@@ -10963,7 +11149,11 @@ window.__pulsarSyncApply = async function (plan) {
       for: i => { const t = tracks[i]; const a = t && analysisCache.get(t.id); return a ? { dur: a.dur || 0, silences: (a.silences || []).map(x => x.slice()) } : null; },
       inject: (i, segs) => { const t = tracks[i]; if (!t) return false; const a = analysisCache.get(t.id); const rec = a || { peaks: new Float32Array(600).fill(0.5), rms: 0.2, peak: 0.9, norm: 1 }; rec.silences = segs; rec.dur = rec.dur || 180; analysisCache.set(t.id, rec); drawWaves(); return true; }
     },
-    setVisualMode: i => { if (i >= 0 && i < VISUAL_MODES.length){ visualMode = i; try { localStorage.setItem('ambientVisualMode', String(i)); } catch(e){} updateStyleBtn(); } },
+    setVisualMode: i => {
+      if (document.body.classList.contains('retro-mode')){
+        if (i >= 0 && i < RETRO_VISUAL_MODES.length){ retroVisualModeIndex = i; visualMode = VISUAL_MODES.length + i; try { localStorage.setItem('ambientRetroVisualMode', String(i)); } catch(e){} updateStyleBtn(); }
+      }else if (i >= 0 && i < VISUAL_MODES.length){ normalVisualMode = i; visualMode = i; try { localStorage.setItem('ambientVisualMode', String(i)); } catch(e){} updateStyleBtn(); }
+    },
     paletteVars: () => { const out = []; for (let i = 0; i < 5; i++) out.push(document.documentElement.style.getPropertyValue('--pal-' + i + '-rgb')); return out; },
     __lib: {
       dupGroups: () => findDupGroups().length,

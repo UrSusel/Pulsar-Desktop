@@ -50,23 +50,23 @@ function response(release, ok = true, status = 200) {
     let url, init;
     const result = await updates.check({
       current: '0.21.0', repo: 'UrSusel/Pulsar-Desktop',
-      fetchImpl: async (u, i) => { url = u; init = i; return response({ tag_name: 'v0.23.0', html_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.23.0', body: '<b>Fixes</b> & improvements' })(); }
+      fetchImpl: async (u, i) => { url = u; init = i; return response({ tag_name: 'v0.23.1', html_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.23.1', body: '<b>Fixes</b> & improvements' })(); }
     });
     assert.strictEqual(url, 'https://api.github.com/repos/UrSusel/Pulsar-Desktop/releases/latest');
     assert.strictEqual(init.headers.Accept, 'application/vnd.github+json');
     assert.strictEqual(result.updateAvailable, true);
-    assert.strictEqual(result.latest, '0.23.0');
-    assert.strictEqual(result.releaseUrl, 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.23.0');
+    assert.strictEqual(result.latest, '0.23.1');
+    assert.strictEqual(result.releaseUrl, 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.23.1');
     assert.strictEqual(result.releaseNotes, '<b>Fixes</b> & improvements');
     assert.strictEqual(result.downloadUrl, result.releaseUrl);
   });
-  await test('tag v0.23.0 nie powoduje błędu przy obiekcie API Neutralino.os', async () => {
+  await test('tag v0.23.1 is handled with the Neutralino.os API object', async () => {
     const result = await updates.check({
       current: '0.22.1', repo: 'UrSusel/Pulsar-Desktop', platform: Object.create(null),
-      fetchImpl: response({ tag_name: 'v0.23.0', html_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.23.0' })
+      fetchImpl: response({ tag_name: 'v0.23.1', html_url: 'https://github.com/UrSusel/Pulsar-Desktop/releases/tag/v0.23.1' })
     });
     assert.strictEqual(result.error, undefined);
-    assert.strictEqual(result.latest, '0.23.0');
+    assert.strictEqual(result.latest, '0.23.1');
     assert.strictEqual(result.updateAvailable, true);
   });
   await test('ten sam i starszy release nie oferują aktualizacji', async () => {
