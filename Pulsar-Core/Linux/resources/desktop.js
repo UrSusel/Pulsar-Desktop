@@ -458,6 +458,10 @@
 
   /* Linux folder watcher: polling is portable and avoids inotify-specific native code. */
   const watcher = { dir: '', timer: 0, seen: {} };
+  function isAppleDoublePath(path){
+    const normalized = String(path || '').replace(/\\/g, '/');
+    return /(?:^|\/)\._[^/]*(?:$|\/)/.test(normalized) || /(?:^|\/)__MACOSX(?:$|\/)/i.test(normalized);
+  }
   async function listFiles(dir, output) {
     output = output || [];
     let entries = [];
@@ -465,6 +469,7 @@
     for (const entry of entries || []) {
       const name = String(entry.entry != null ? entry.entry : entry.name || '');
       const path = joinPath(dir, name);
+      if (isAppleDoublePath(path)) continue;
       if (entry.type === 'DIRECTORY') await listFiles(path, output);
       else if (entry.type === 'FILE' && AUDIO_RE.test(name)) output.push(path);
     }

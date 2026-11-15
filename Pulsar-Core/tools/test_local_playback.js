@@ -25,6 +25,28 @@ for (const platform of ['Linux', 'Windows']) {
     `${platform}: common audio formats receive canonical MIME types`);
   assert.match(html, /file: normalizeAudioFile\(new File\(\[item\.blob\]/,
     `${platform}: older library entries are corrected by filename when restored`);
+  const importFilter = html.match(/function isAppleDoubleSidecar\(fileOrPath\)\{[\s\S]*?function isImportableAudioFile\(file\)\{[\s\S]*?\n  \}/);
+  assert.ok(importFilter, `${platform}: local imports identify macOS AppleDouble sidecars`);
+  const importChecks = new Function('AUDIO_EXT_RE', `${importFilter[0]}; return { isAppleDoubleSidecar, isImportableAudioFile };`)(/\.(mp3|wav|flac)$/i);
+  assert.equal(importChecks.isImportableAudioFile({ name: '._01 death bed.mp3' }), false,
+    `${platform}: AppleDouble audio lookalikes are not imported as playable tracks`);
+  assert.equal(importChecks.isImportableAudioFile({ name: '01 death bed.mp3', webkitRelativePath: 'Album/01 death bed.mp3' }), true,
+    `${platform}: the real audio file beside a sidecar is still imported`);
+  assert.equal(importChecks.isAppleDoubleSidecar('Album/__MACOSX/._01 death bed.mp3'), true,
+    `${platform}: AppleDouble archive folders are ignored`);
+  assert.match(html, /const audioFiles = files\.filter\(isImportableAudioFile\)/,
+    `${platform}: library import excludes sidecars before saving them`);
+  assert.match(html, /tracks = storedTracks\.filter\(item => !isAppleDoubleSidecar\(String\(item\.folder \|\| ''\) \+ '\/' \+ String\(item\.name \|\| ''\)\)\)\.map/,
+    `${platform}: already-stored sidecars are hidden on restore without deleting library data`);
+  assert.match(html, /Pominięto pomocnicze pliki macOS; dodaj oryginalne pliki audio, jeśli utworów brakuje\./,
+    `${platform}: users are told how to restore the real tracks after sidecars are skipped`);
+  assert.match(html, /files\.some\(isImportableAudioFile\)/,
+    `${platform}: file-picker and drag-drop gates use the same playable-file filter`);
+  const desktopJs = fs.readFileSync(path.join(__dirname, '..', platform, 'resources', 'desktop.js'), 'utf8');
+  assert.match(desktopJs, /function isAppleDoublePath\(/,
+    `${platform}: the native watched-folder scanner recognizes AppleDouble paths`);
+  assert.match(desktopJs, platform === 'Linux' ? /if \(isAppleDoublePath\(path\)\) continue;/ : /isAppleDoublePath\(p\) \|\| !AUDIO\.test\(p\)/,
+    `${platform}: the native watched-folder scanner skips AppleDouble sidecars`);
   assert.match(loadTrack[1], /URL\.createObjectURL\(normalizeAudioFile\(track\.file\)\)/,
     `${platform}: playback uses a codec-friendly Blob type`);
   assert.match(loadTrack[1], /audio\.src = sourceUrl;\s*audio\.load\(\);/,

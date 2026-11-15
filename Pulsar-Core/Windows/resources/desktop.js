@@ -475,6 +475,7 @@
     let dir = '', seen = {}, watcherId = null, scanning = false, again = false, timer = 0, lastAdded = 0;
 
     function norm(p){ return String(p || '').replace(/\\/g, '/').replace(/\/+$/, ''); }
+    function isAppleDoublePath(p){ return /(?:^|\/)\._[^/]*(?:$|\/)/.test(norm(p)) || /(?:^|\/)__MACOSX(?:$|\/)/i.test(norm(p)); }
     function key(p){ return norm(p).toLowerCase(); }
     function loadPrefs(){
       try { dir = norm(localStorage.getItem(K_DIR) || ''); } catch (e){ dir = ''; }
@@ -513,7 +514,7 @@
         const libPaths = h.libraryPaths ? h.libraryPaths() : new Set();
         const todo = [];
         for (const p of files){
-          if (!AUDIO.test(p)) continue;
+          if (isAppleDoublePath(p) || !AUDIO.test(p)) continue;
           const k = p.toLowerCase();
           if (seen[k]) continue;
           if (libPaths.has(k)){ seen[k] = 1; continue; }

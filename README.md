@@ -2,7 +2,7 @@
 
 A free, **portable** music player for **Windows and Linux** with a pulsar-nebula soul: search YouTube, save full tracks **with cover art and tags embedded**, sing along with synced lyrics, and watch audio-reactive visualizers. No installer, no command line — one folder that just runs.
 
-![version](https://img.shields.io/badge/version-0.23.0-4de3ff) ![license](https://img.shields.io/badge/license-Apache--2.0-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20%C2%B7%20Linux%20x64-a06bff) ![size](https://img.shields.io/badge/size-%7E20%20MB%20(Win)%20%2F%20%7E7%20MB%20(Linux)-ff5fd0)
+![version](https://img.shields.io/badge/version-0.23.1-4de3ff) ![license](https://img.shields.io/badge/license-Apache--2.0-blue) ![platform](https://img.shields.io/badge/platform-Windows%2010%20%2F%2011%20%C2%B7%20Linux%20x64-a06bff) ![size](https://img.shields.io/badge/size-%7E20%20MB%20(Win)%20%2F%20%7E7%20MB%20(Linux)-ff5fd0)
 
 ## ⬇️ Download
 
@@ -20,11 +20,15 @@ The project page — [ursusel.github.io/Pulsar-Desktop](https://ursusel.github.i
 > (the GStreamer packages are what actually decode MP3/AAC — without them the player stays silent)
 > `ffmpeg` is optional: it unlocks MP3/FLAC export and memory-safe editing of very long recordings. The optional experimental AI lyrics aligner needs Python 3.10+ on first use, but does not need system FFmpeg. On Wayland everything works through XWayland out of the box.
 
+### Latest release: 0.23.1
+
+Retro-only 3D scenes now include Vector Grid, Retro Plasma, Retro Oscilloscope, and Neon Sunset. This update adds stronger audio-driven oscilloscope motion with stereo separation and a phosphor-style echo, layered sunset scenery and a bass-reactive floor reflection, safer import handling for macOS metadata sidecars, and a more reliable factory reset. See the full [0.23.1 release notes](RELEASE-0.23.1.md).
+
 ## ✨ Features
 
 - 🎧 **Built-in YouTube downloader** — yt-dlp ships inside the app and starts itself in the background
 - 🖼️ **Covers & tags embedded** — saved tracks look right in Explorer, your phone, any player
-- 🌠 **Nebula visualizers** — audio-reactive 3D backgrounds, fullscreen ambient mode
+- 🌠 **Nebula visualizers** — audio-reactive 3D backgrounds and fullscreen ambient mode; Retro adds four dedicated scenes: vector grid, plasma, stereo oscilloscope and neon sunset
 - 🎤 **Word-synced lyrics** — the regular lyrics panel gradually fills each word over its real duration from enhanced LRC, LRCLIB Lyricsfile, or the multi-source Lyrics+ fallback (used when LRCLIB has no word timing); otherwise it keeps the standard line-by-line highlighting
 - 🧪 **Experimental local AI alignment** — on Windows/Linux, manually align a track's existing lyrics to its audio with Stable-TS/Faster-Whisper on CPU; useful for music videos whose source timings come from the studio version, existing word-sync can be replaced only after confirmation, and the original lyrics can be restored offline
 - ✂️ **Audio Editor 2.0** — 32× waveform zoom, 1 ms cut boundaries, configurable silence detection, fades, resumable sessions and non-destructive WAV export
