@@ -39,7 +39,7 @@ Przy usuwaniu jedynej lokalnej kopii pojawia się osobne ostrzeżenie z nazwami 
 
 W **Ustawienia → Pobieranie → Pulsar** karta pokazuje zainstalowaną wersję z `app-version.json`. Automatyczne sprawdzanie uruchamia się przy starcie aplikacji, a podczas dłuższej sesji ponawia najwyżej raz na 12 godzin; przycisk **Sprawdź aktualizacje** wykonuje kontrolę na żądanie. Tag `vX.Y.Z` lub `X.Y.Z` jest porównywany jako SemVer. Nowsze wydanie pokazuje komunikat, zwykły tekst informacji o wydaniu oraz przycisk pobrania; jeśli GitHub opublikował pasujący asset Windows/Linux, przycisk prowadzi bezpośrednio do niego, a w przeciwnym razie do strony wydania. Treść release notes jest wyświetlana jako tekst, nie HTML. **Pulsar nie pobiera ani nie instaluje aktualizacji automatycznie**. Stary, nienumeryczny tag jest zgłaszany jako nieznana wersja, a nie jako potwierdzenie aktualności. Automatyczne sprawdzanie można wyłączyć niezależnie od aktualizacji `yt-dlp`.
 
-The `/releases/latest` endpoint requires a published, stable GitHub Release. A Git tag or draft alone is not enough; releases should use SemVer tags such as `v0.23.1`.
+The `/releases/latest` endpoint requires a published, stable GitHub Release. A Git tag or draft alone is not enough; releases should use SemVer tags such as `v0.23.2`.
 
 ## Natywny mostek
 

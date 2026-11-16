@@ -490,6 +490,23 @@
   .lib-tool { flex:1; border:1px solid rgba(255,255,255,.16); background:rgba(255,255,255,.05); color:var(--text-muted); font:inherit; font-size:12px; padding:8px 6px; border-radius:6px; cursor:pointer; white-space:nowrap; }
   .lib-tool:hover { color:#fff; background:rgba(255,255,255,.12); }
   .lib-tool.on { color:var(--accent); border-color:var(--accent); background:rgba(255,255,255,.08); }
+  .listening-view { flex:1 1 auto; min-height:0; overflow-y:auto; padding:0 4px 22px; }
+  .listening-view[hidden] { display:none; }
+  .listening-head { padding:8px 2px 13px; border-bottom:1px solid rgba(255,255,255,.08); margin-bottom:12px; }
+  .listening-head h3 { margin:0 0 5px; font-size:19px; }
+  .listening-head p,.listening-empty { margin:0; color:var(--text-muted); font-size:11px; line-height:1.55; }
+  .listening-stats { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:12px 0 18px; }
+  .listening-stat { padding:11px 10px; border:1px solid rgba(181,203,232,.12); border-radius:11px; background:rgba(255,255,255,.045); }
+  .listening-stat strong { display:block; font-size:18px; line-height:1.2; font-variant-numeric:tabular-nums; }
+  .listening-stat span { display:block; margin-top:4px; color:var(--text-muted); font-size:10px; }
+  .listening-section-title { margin:15px 2px 7px; font-size:11px; font-weight:700; color:rgba(255,255,255,.72); }
+  .listening-top,.listening-recent { display:grid; gap:5px; }
+  .listening-row { display:flex; align-items:center; justify-content:space-between; gap:10px; min-width:0; padding:8px 10px; border-radius:8px; background:rgba(255,255,255,.035); font-size:11px; }
+  .listening-row-main { min-width:0; }
+  .listening-row-title { overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-weight:650; }
+  .listening-row-sub { margin-top:3px; color:var(--text-muted); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .listening-row-meta { flex:none; color:var(--text-muted); font-size:10px; text-align:right; }
+  .listening-empty { padding:10px 2px; }
   .recommendations-view { flex:1 1 auto; min-height:0; overflow-y:auto; padding:0 4px 22px; }
   .recommendations-view[hidden] { display:none; }
   .recommendations-head { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:8px 2px 14px; border-bottom:1px solid rgba(255,255,255,.07); margin-bottom:10px; }
@@ -982,6 +999,7 @@
   .sm-val { flex: 0 0 auto; min-width: 54px; text-align: right; font-size: 12px; color: var(--accent); font-variant-numeric: tabular-nums; }
   .sm-val:empty { display: none; }
   .sm-select { background: rgba(255,255,255,.08); color: #fff; border: 1px solid rgba(255,255,255,.16); border-radius: 9px; padding: 6px 10px; font: inherit; font-size: 12.5px; cursor: pointer; }
+  .sm-discord-status { min-height:16px; margin-top:7px; color:var(--text-muted); font-size:11px; }
   .sm-select option { background: #14141c; color: #fff; }
   .sm-act { flex: none; padding: 7px 14px; border-radius: 9px; border: 1px solid rgba(255,255,255,.16); background: rgba(255,255,255,.07); color: #fff; font: inherit; font-size: 12.5px; cursor: pointer; transition: .14s; white-space: nowrap; }
   .sm-act:hover { background: rgba(var(--accent-rgb), .18); border-color: var(--accent); }
@@ -1034,9 +1052,11 @@
 
   /* ================= Styl biblioteki à la Spotify ================= */
   .library-panel { width: min(92vw, 392px); }
-  .library-header { margin-bottom: 14px; padding: 0 4px; }
-  .library-header h2 { font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
-  .library-tabs { border-radius: 999px; padding: 3px; background: rgba(255,255,255,.07); }
+  .library-header { flex-wrap:wrap; margin-bottom: 14px; padding: 0 4px; }
+  .library-header h2 { margin-right:auto; font-size: 22px; font-weight: 800; letter-spacing: -.02em; }
+  .library-header .icon-btn { order:2; }
+  .library-tabs { order:3; flex:0 0 100%; max-width:100%; overflow-x:auto; scrollbar-width:none; border-radius: 999px; padding: 3px; background: rgba(255,255,255,.07); }
+  .library-tabs::-webkit-scrollbar { display:none; }
   .lib-tab { border-radius: 999px; padding: 6px 13px; font-weight: 500; font-size: 12.5px; transition: .16s; }
   .lib-tab.active { background: rgba(255,255,255,.14); color: #fff; font-weight: 700; }
   .library-toolbar { display:grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap:6px; padding: 0 2px 10px; }
@@ -2076,6 +2096,7 @@
         <button class="lib-tab" data-view="albums" type="button">Albumy</button>
         <button class="lib-tab" data-view="net" type="button">Sieć</button>
         <button class="lib-tab" data-view="recommendations" type="button">Dla Ciebie</button>
+        <button class="lib-tab" data-view="history" type="button">Odsłuchy</button>
       </div>
       <button class="icon-btn" id="closeLibraryBtn" aria-label="Zamknij bibliotekę">
         <svg viewBox="0 0 24 24"><path d="M18 6L6 18M6 6l12 12" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
@@ -2157,6 +2178,14 @@
       <div class="recommendations-head"><div><div class="recommendations-kicker">PULSAR · YOUTUBE</div><h3 id="recommendationsTitle">Dla Ciebie</h3><p id="recommendationsIntro">Polecenia na podstawie odsłuchu. Nic nie zostanie pobrane automatycznie.</p></div><button class="lib-tool" id="recommendationsRefreshBtn" type="button">Odśwież</button></div>
       <p class="recommendations-status" id="recommendationsStatus" aria-live="polite"></p>
       <div class="recommendations-grid" id="recommendationsGrid"></div>
+    </div>
+
+    <div class="listening-view" id="listeningView" hidden>
+      <div class="listening-head"><h3>Historia odsłuchów</h3><p id="listeningStatus">Historia jest wyłączona. Włącz ją w Ustawieniach → Biblioteka, aby zapisywać odsłuchy lokalnie.</p></div>
+      <div class="listening-stats" id="listeningStats"></div>
+      <h4 class="listening-section-title">Najczęściej słuchani wykonawcy</h4><div class="listening-top" id="listeningTopArtists"></div>
+      <h4 class="listening-section-title">Ostatnie odsłuchy</h4><div class="listening-recent" id="listeningRecent"></div>
+      <p class="listening-empty" id="listeningEmpty" hidden>Po włączeniu historii zapisane odsłuchy pojawią się tutaj.</p>
     </div>
 
     <div class="album-detail" id="albumDetail" hidden>
@@ -2287,6 +2316,8 @@
         <h2 class="sm-pane-title">Biblioteka</h2>
         <div class="sm-card sm-desktop-only"><h3 class="sm-cap">Obserwowany folder</h3><div class="sm-row"><div class="sm-txt"><span class="sm-desc sm-desc-top">Nowe pliki audio z tego folderu (i podfolderów) same trafią do biblioteki</span><span class="sm-lab sm-path" id="smWatchPath">nie wybrano</span></div><button type="button" class="sm-mini" id="smWatchOff" hidden>Wyłącz</button></div><button type="button" class="sm-btn" id="smWatchBtn" title="Nowe pliki audio z tego folderu (i podfolderów) same trafią do biblioteki">Wybierz folder…</button></div>
         <div class="sm-card"><h3 class="sm-cap">Okładki albumów</h3><div class="sm-row"><div class="sm-txt"><span class="sm-desc">Ponownie odczyta osadzone okładki z obsługiwanych formatów audio, a brakujące wyszuka w iTunes, Deezerze, MusicBrainz i na YouTube.</span></div></div><button type="button" class="sm-btn" id="smReloadAlbumCoversBtn" title="Ponownie wczytaj okładki z plików i źródeł online">Wczytaj okładki ponownie</button></div>
+        <div class="sm-card sm-desktop-only"><h3 class="sm-cap">Discord Rich Presence</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Pokaż odtwarzany utwór na Discordzie</span><span class="sm-desc">Udostępnia tytuł i wykonawcę na Twoim profilu przez wspólną aplikację Discord Pulsara. Application ID jest już ustawione; łączy się lokalnie przez IPC, bez bota i tokenu. Linux wymaga Python 3, Windows używa wbudowanego PowerShella.</span></div><label class="switch"><input type="checkbox" id="smDiscordPresenceToggle"><span class="slider"></span></label></div><div class="sm-discord-status" id="smDiscordStatus" role="status" aria-live="polite">Wyłączone</div></div>
+        <div class="sm-card"><h3 class="sm-cap">Historia odsłuchów i statystyki</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Zapisuj historię odsłuchów</span><span class="sm-desc">Domyślnie wyłączone. Zapisuje utwór po co najmniej 30 sekundach słuchania lub po przesłuchaniu połowy krótszego utworu. Historia pozostaje tylko na tym urządzeniu i nie jest synchronizowana.</span></div><label class="switch"><input type="checkbox" id="smListeningHistoryToggle"><span class="slider"></span></label></div><button type="button" class="sm-btn" id="smListeningHistoryClearBtn">Usuń historię odsłuchów</button></div>
         <div class="sm-card"><h3 class="sm-cap">Rekomendacje YouTube</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Polecaj muzykę na podstawie odsłuchu</span><span class="sm-desc">Domyślnie wyłączone. Po włączeniu Pulsar zapisuje od teraz osobną historię rekomendacji lokalnie; wcześniejsze odsłuchy nie są w niej uwzględniane. Historia służy do szukania muzyki na YouTube. Wyniki nie są pobierane — pojawiają się w widoku „Dla Ciebie”.</span></div><label class="switch"><input type="checkbox" id="smRecommendationsToggle"><span class="slider"></span></label></div><div class="sm-desc" id="recommendationsPrivacyNote">Historia i polecenia pozostają na tym urządzeniu; zapytania wyszukiwania trafiają do skonfigurowanego źródła YouTube. Odświeżanie co 12 godzin.</div><button type="button" class="sm-btn" id="smRecommendationsClearBtn">Usuń zebrane dane rekomendacji</button></div>
         <div class="sm-card"><h3 class="sm-cap">Kopia zapasowa</h3><div class="sm-row"><div class="sm-txt"><span class="sm-desc sm-desc-top">Jeden plik .pulsarlib: utwory, okładki, albumy, ulubione, statystyki i ustawienia</span></div></div><div class="sm-btn-row"><button type="button" class="sm-btn" id="smBackupBtn" title="Jeden plik .pulsarlib: utwory, okładki, albumy, ulubione, statystyki i ustawienia">Kopia biblioteki…</button><button type="button" class="sm-btn" id="smRestoreBtn" title="Wczytuje plik .pulsarlib — dokłada brakujące utwory i albumy">Przywróć z kopii…</button></div><input type="file" id="backupFileInput" accept=".pulsarlib" hidden></div>
         <div class="sm-card sm-reset-card"><h3 class="sm-cap">Reset fabryczny</h3><div class="sm-row"><div class="sm-txt"><span class="sm-lab">Wyczyść dane Pulsara</span><span class="sm-desc">Usunie lokalną bibliotekę, ustawienia i historię. Oryginalne pliki audio oraz kopie zapasowe pozostaną na dysku.</span></div></div><button type="button" class="sm-btn sm-btn-danger" id="smFactoryResetBtn" title="Resetuj Pulsara i usuń lokalne dane">Resetuj Pulsara…</button></div>
@@ -3182,6 +3213,37 @@
     'Grafika powstaje lokalnie z okładek i metadanych. Nic nie jest wysyłane ani generowane przez AI.': { en: 'Artwork is generated locally from covers and metadata. Nothing is uploaded or AI-generated.', es: 'La imagen se genera localmente a partir de portadas y metadatos. No se sube ni se genera con IA.' },
     'Nie udało się wygenerować plakatu': { en: 'Could not generate the poster', es: 'No se pudo generar el póster' },
     'Plakat ustawiono jako okładkę': { en: 'Poster set as the cover', es: 'Póster establecido como portada' },
+    'Discord Rich Presence': { en: 'Discord Rich Presence', es: 'Presencia enriquecida de Discord' },
+    'Pokaż odtwarzany utwór na Discordzie': { en: 'Show the current track on Discord', es: 'Mostrar la canción actual en Discord' },
+    'Udostępnia tytuł i wykonawcę na Twoim profilu przez wspólną aplikację Discord Pulsara. Application ID jest już ustawione; łączy się lokalnie przez IPC, bez bota i tokenu. Linux wymaga Python 3, Windows używa wbudowanego PowerShella.': { en: 'Shares the title and artist on your profile through Pulsar’s shared Discord application. Its Application ID is preconfigured; communication uses local IPC, with no bot or token. Linux requires Python 3; Windows uses built-in PowerShell.', es: 'Comparte el título y el artista en tu perfil mediante la aplicación compartida de Pulsar en Discord. El ID de aplicación ya está configurado; se comunica por IPC local, sin bot ni token. Linux requiere Python 3; Windows usa PowerShell integrado.' },
+    'Gdzie znaleźć Application ID': { en: 'Where to find the Application ID', es: 'Dónde encontrar el ID de aplicación' },
+    'Otwórz Discord Developer Portal': { en: 'Open Discord Developer Portal', es: 'Abrir el portal de desarrolladores de Discord' },
+    'Zapisz Application ID': { en: 'Save Application ID', es: 'Guardar ID de aplicación' },
+    'Wyłączone': { en: 'Off', es: 'Desactivado' },
+    'Wpisz prawidłowy Discord Application ID.': { en: 'Enter a valid Discord Application ID.', es: 'Introduce un ID de aplicación de Discord válido.' },
+    'Discord RPC zakończył działanie.': { en: 'Discord RPC helper stopped.', es: 'El proceso de presencia de Discord se detuvo.' },
+    'Application ID zapisany.': { en: 'Application ID saved.', es: 'ID de aplicación guardado.' },
+    'Discord Rich Presence włączone.': { en: 'Discord Rich Presence enabled.', es: 'Presencia enriquecida de Discord activada.' },
+    'Discord Rich Presence wyłączone.': { en: 'Discord Rich Presence disabled.', es: 'Presencia enriquecida de Discord desactivada.' },
+    'Połączono z Discordem': { en: 'Connected to Discord', es: 'Conectado a Discord' },
+    'Nie znaleziono Discorda — uruchom aplikację desktopową.': { en: 'Discord was not found — launch the desktop app.', es: 'No se encontró Discord; inicia la aplicación de escritorio.' },
+    'Odsłuchy': { en: 'Listening', es: 'Escuchas' },
+    'Historia odsłuchów': { en: 'Listening history', es: 'Historial de escucha' },
+    'Historia jest wyłączona. Włącz ją w Ustawieniach → Biblioteka, aby zapisywać odsłuchy lokalnie.': { en: 'History is off. Enable it in Settings → Library to keep listening activity on this device.', es: 'El historial está desactivado. Actívalo en Ajustes → Biblioteca para guardar la actividad en este dispositivo.' },
+    'Łączny czas słuchania': { en: 'Total listening time', es: 'Tiempo total de escucha' },
+    'Utwory przesłuchane': { en: 'Tracks listened to', es: 'Pistas escuchadas' },
+    'Różne utwory': { en: 'Unique tracks', es: 'Pistas únicas' },
+    'Najczęściej słuchani wykonawcy': { en: 'Top artists', es: 'Artistas más escuchados' },
+    'Ostatnie odsłuchy': { en: 'Recent listens', es: 'Escuchas recientes' },
+    'Po włączeniu historii zapisane odsłuchy pojawią się tutaj.': { en: 'After you enable history, your listens will appear here.', es: 'Cuando actives el historial, tus escuchas aparecerán aquí.' },
+    'Odsłuchy pojawią się tutaj po przesłuchaniu co najmniej połowy krótszego utworu lub 30 sekund.': { en: 'Listens appear here after half of a shorter track or 30 seconds of playback.', es: 'Las escuchas aparecerán aquí tras la mitad de una pista corta o 30 segundos de reproducción.' },
+    'Zapisuj historię odsłuchów': { en: 'Save listening history', es: 'Guardar historial de escucha' },
+    'Domyślnie wyłączone. Zapisuje utwór po co najmniej 30 sekundach słuchania lub po przesłuchaniu połowy krótszego utworu. Historia pozostaje tylko na tym urządzeniu i nie jest synchronizowana.': { en: 'Off by default. Records a track after at least 30 seconds of listening, or after half of a shorter track. History stays on this device and is not synced.', es: 'Desactivado de forma predeterminada. Registra una pista tras escucharla al menos 30 segundos o la mitad si es más corta. El historial permanece en este dispositivo y no se sincroniza.' },
+    'Usuń historię odsłuchów': { en: 'Clear listening history', es: 'Borrar historial de escucha' },
+    'Historia pozostaje na tym urządzeniu i nie jest synchronizowana. Liczymy odsłuch po 30 sekundach lub połowie krótszego utworu.': { en: 'History stays on this device and is not synced. A listen counts after 30 seconds or half of a shorter track.', es: 'El historial permanece en este dispositivo y no se sincroniza. Una escucha cuenta tras 30 segundos o la mitad si la pista es más corta.' },
+    'Historia odsłuchów włączona — zapisywane są tylko odtworzenia lokalne.': { en: 'Listening history enabled — listens are stored only on this device.', es: 'Historial activado: las escuchas solo se guardan en este dispositivo.' },
+    'Historia odsłuchów wyłączona.': { en: 'Listening history is off.', es: 'El historial de escucha está desactivado.' },
+    'Historia odsłuchów usunięta.': { en: 'Listening history cleared.', es: 'Historial de escucha borrado.' },
     'Dane rekomendacji usunięte.': { en: 'Recommendation data deleted.', es: 'Datos de recomendaciones eliminados.' },
     'Dane rekomendacji usunięte': { en: 'Recommendation data deleted', es: 'Datos de recomendaciones eliminados' },
     'Rekomendacje włączone — historia zaczyna się od teraz.': { en: 'Recommendations enabled — history starts now.', es: 'Recomendaciones activadas: el historial empieza ahora.' },
@@ -4152,6 +4214,70 @@
   let recommendationHistory = [];
   let recommendationCache = { updatedAt: 0, items: [] };
   let recommendationLastTrackId = null;
+  let listeningHistoryEnabled = false;
+  let listeningHistory = [];
+  let listeningSession = null;
+  try {
+    listeningHistoryEnabled = localStorage.getItem('pulsarListeningHistoryEnabled') === '1';
+    listeningHistory = JSON.parse(localStorage.getItem('pulsarListeningHistoryV1') || '[]');
+    if (!Array.isArray(listeningHistory)) listeningHistory = [];
+    listeningHistory = listeningHistory.filter(item => item && typeof item === 'object').slice(-1000);
+  } catch(e){ listeningHistory = []; }
+  function persistListeningHistory(){
+    try { localStorage.setItem('pulsarListeningHistoryV1', JSON.stringify(listeningHistory.slice(-1000))); } catch(e){}
+  }
+  function startListeningSession(track, source){
+    if (!listeningHistoryEnabled || !track || track.id == null) return;
+    source = source || audio;
+    const id = String(track.id), key = id + '|' + String(track.title || '') + '|' + String(track.artist || '');
+    if (listeningSession && listeningSession.key === key){ listeningSession.source = source; listeningSession.lastTick = performance.now(); return; }
+    finishListeningSession();
+    listeningSession = { key, id, title:String(track.title || '').slice(0,180), artist:String(track.artist || 'Unknown artist').slice(0,120), album:String(track.album || '').slice(0,120), at:Date.now(), seconds:0, duration:Number(track.durMs || 0) / 1000, source, lastTick:performance.now() };
+  }
+  function tickListeningSession(source){
+    const session = listeningSession;
+    if (!listeningHistoryEnabled || !session || session.source !== source || source.paused) return;
+    const now = performance.now();
+    if (session.lastTick) session.seconds += Math.max(0, Math.min(10, (now - session.lastTick) / 1000));
+    session.lastTick = now;
+    const duration = Number(source.duration || session.duration || 0);
+    if (duration > 0) session.duration = duration;
+  }
+  function pauseListeningSession(source){
+    if (!listeningSession || listeningSession.source !== source) return;
+    tickListeningSession(source);
+    listeningSession.lastTick = 0;
+  }
+  function finishListeningSession(source){
+    const session = listeningSession;
+    if (!session || (source && session.source !== source)) return;
+    if (session.source && !session.source.paused) tickListeningSession(session.source);
+    listeningSession = null;
+    const minimum = session.duration > 0 ? Math.min(30, session.duration * 0.5) : 30;
+    if (session.seconds < minimum) return;
+    listeningHistory.push({ id:session.id, title:session.title, artist:session.artist, album:session.album, at:session.at, seconds:Math.round(session.seconds) });
+    if (listeningHistory.length > 1000) listeningHistory = listeningHistory.slice(-1000);
+    persistListeningHistory();
+    renderListeningHistoryView();
+  }
+  function renderListeningHistoryView(){
+    const status=document.getElementById('listeningStatus'),stats=document.getElementById('listeningStats');
+    const artistsEl=document.getElementById('listeningTopArtists'),recentEl=document.getElementById('listeningRecent'),empty=document.getElementById('listeningEmpty');
+    if(!status||!stats||!artistsEl||!recentEl||!empty)return;
+    stats.textContent='';artistsEl.textContent='';recentEl.textContent='';
+    if(!listeningHistoryEnabled){status.textContent=t('Historia jest wyłączona. Włącz ją w Ustawieniach → Biblioteka, aby zapisywać odsłuchy lokalnie.');empty.textContent=t('Po włączeniu historii zapisane odsłuchy pojawią się tutaj.');empty.hidden=false;return;}
+    status.textContent=t('Historia pozostaje na tym urządzeniu i nie jest synchronizowana. Liczymy odsłuch po 30 sekundach lub połowie krótszego utworu.');
+    const totalSeconds=listeningHistory.reduce((sum,item)=>sum+(Number(item.seconds)||0),0);
+    const totalMinutes=Math.floor(totalSeconds/60),durationLabel=totalMinutes>=60?Math.floor(totalMinutes/60)+' h '+(totalMinutes%60)+' min':totalMinutes+' min';
+    const unique=new Set(listeningHistory.map(item=>String(item.id))).size;
+    [[String(listeningHistory.length),t('Utwory przesłuchane')],[durationLabel,t('Łączny czas słuchania')],[String(unique),t('Różne utwory')]].forEach(([value,label])=>{const card=document.createElement('div');card.className='listening-stat';const strong=document.createElement('strong');strong.textContent=value;const span=document.createElement('span');span.textContent=label;card.appendChild(strong);card.appendChild(span);stats.appendChild(card);});
+    const counts=Object.create(null);listeningHistory.forEach(item=>{const artist=String(item.artist||'Unknown artist');counts[artist]=(counts[artist]||0)+1;});
+    Object.keys(counts).sort((a,b)=>counts[b]-counts[a]||a.localeCompare(b)).slice(0,5).forEach((artist,index)=>{const row=document.createElement('div');row.className='listening-row';const main=document.createElement('span');main.className='listening-row-title';main.textContent=(index+1)+'. '+artist;const meta=document.createElement('span');meta.className='listening-row-meta';meta.textContent=String(counts[artist]);row.appendChild(main);row.appendChild(meta);artistsEl.appendChild(row);});
+    const locale=CUR_LANG==='pl'?'pl-PL':(CUR_LANG==='es'?'es-ES':'en-US');
+    listeningHistory.slice(-20).reverse().forEach(item=>{const row=document.createElement('div');row.className='listening-row';const main=document.createElement('div');main.className='listening-row-main';const title=document.createElement('div');title.className='listening-row-title';title.textContent=String(item.title||t('Bez tytułu'));const sub=document.createElement('div');sub.className='listening-row-sub';sub.textContent=String(item.artist||'Unknown artist')+(item.album?' · '+String(item.album):'');main.appendChild(title);main.appendChild(sub);const meta=document.createElement('span');meta.className='listening-row-meta';meta.textContent=new Date(Number(item.at)||Date.now()).toLocaleDateString(locale)+' · '+Math.floor((Number(item.seconds)||0)/60)+':'+String(Math.floor((Number(item.seconds)||0)%60)).padStart(2,'0');row.appendChild(main);row.appendChild(meta);recentEl.appendChild(row);});
+    empty.textContent=t('Odsłuchy pojawią się tutaj po przesłuchaniu co najmniej połowy krótszego utworu lub 30 sekund.');
+    empty.hidden=Boolean(listeningHistory.length);
+  }
   try {
     recommendationsEnabled = localStorage.getItem('pulsarRecommendationsEnabled') === '1';
     recommendationHistory = JSON.parse(localStorage.getItem('pulsarRecommendationHistoryV1') || '[]');
@@ -4175,7 +4301,7 @@
   let currentIndex = -1;
   let repeatMode = 0;            // 0 – wyłączone, 1 – powtarzaj cały album/listę, 2 – powtarzaj jeden utwór
   let shuffleOn = false;
-  let libraryView = (function(){ try { var v = localStorage.getItem('playerLibView'); return (v === 'albums' || v === 'net' || v === 'recommendations' || v === 'tracks') ? v : 'tracks'; } catch(e){ return 'tracks'; } })();    // zapamiętywana zakładka
+  let libraryView = (function(){ try { var v = localStorage.getItem('playerLibView'); return (v === 'albums' || v === 'net' || v === 'recommendations' || v === 'history' || v === 'tracks') ? v : 'tracks'; } catch(e){ return 'tracks'; } })();    // zapamiętywana zakładka
   function setLibView(v){ libraryView = v; try { localStorage.setItem('playerLibView', v); } catch(e){} }
   let openAlbumId = null;        // podgląd szczegółów albumu
   let selectionMode = false;     // zaznaczanie wielu utworów
@@ -5053,16 +5179,19 @@
     const showTracks = !openAlbumId && libraryView === 'tracks';
     const showAlbums = !openAlbumId && libraryView === 'albums';
     const showRecommendations = !openAlbumId && libraryView === 'recommendations';
+    const showHistory = !openAlbumId && libraryView === 'history';
     trackListEl.hidden = !showTracks;
     albumGridWrap.hidden = !showAlbums;
     const recommendationsViewEl = document.getElementById('recommendationsView');
     if (recommendationsViewEl) recommendationsViewEl.hidden = !showRecommendations;
+    const listeningViewEl = document.getElementById('listeningView');
+    if (listeningViewEl) listeningViewEl.hidden = !showHistory;
     const libSubEl = document.getElementById('libSubhead');
     if (libSubEl) libSubEl.hidden = !showTracks || !tracks.length;
     const netViewEl = document.getElementById('netView');
     if (netViewEl) netViewEl.hidden = Boolean(openAlbumId) || libraryView !== 'net';
     albumDetail.hidden = !openAlbumId;
-    libraryToolbar.hidden = Boolean(openAlbumId) || libraryView === 'net' || showRecommendations;
+    libraryToolbar.hidden = Boolean(openAlbumId) || libraryView === 'net' || showRecommendations || showHistory;
     addingHint.hidden = !addingToAlbumId;
     selectToggleBtn.classList.toggle('on', selectionMode);
     selectToggleBtn.textContent = selectionMode ? t('Anuluj zaznaczanie') : t('Zaznacz utwory');
@@ -5076,6 +5205,7 @@
     if (showTracks) renderTracksView();
     if (showAlbums) renderAlbumGrid();
     if (showRecommendations) renderRecommendationsView();
+    if (showHistory) renderListeningHistoryView();
     if (openAlbumId) renderAlbumDetail();
     updateSelectionBar();
   }
@@ -8525,6 +8655,7 @@
     const track = tracks[idx];
     if (autoDjOn && repeatMode !== 2){ djNotePlayed(); djHistory.push(currentIndex); }
     currentIndex = idx;
+    startListeningSession(track,audioXF);
     recordRecommendationListen(track);
     if (!queue.length || queue.indexOf(currentIndex) === -1) rebuildQueue();
     updateTitleArtist(txArtist(track.artist), track.title);
@@ -8882,6 +9013,101 @@
     }
     smShowPane(smCurrentPane());
   }
+  let discordPresenceEnabled=false,discordApplicationId='';
+  try{discordPresenceEnabled=localStorage.getItem('pulsarDiscordPresenceEnabled')==='1';discordApplicationId=localStorage.getItem('pulsarDiscordApplicationId')||'1571647035168530442';}catch(e){}
+  const discordPresenceToggleEl=document.getElementById('smDiscordPresenceToggle');
+  const discordStatusEl=document.getElementById('smDiscordStatus');
+  if(discordPresenceEnabled&&!/^\d{17,20}$/.test(discordApplicationId)){discordPresenceEnabled=false;try{localStorage.setItem('pulsarDiscordPresenceEnabled','0');}catch(e){}}
+  let discordPresenceTimer=0,discordPresenceRefreshTimer=0,discordPresenceInFlight=false,discordPresenceQueued=false,discordConnected=false;
+  function discordStatus(text,ok){if(discordStatusEl){discordStatusEl.textContent=text;discordStatusEl.dataset.ok=ok?'1':'0';}}
+  function discordDesktop(){return window.__pulsarDesktop&&window.__pulsarDesktop.discordPresence||null;}
+  function clearDiscordActivity(){const api=discordDesktop();if(api&&api.clear)api.clear(discordApplicationId).catch(function(){});}
+  function updateDiscordActivity(){
+    if(!discordPresenceEnabled)return;
+    const api=discordDesktop();
+    if(!api||!api.update){discordPresenceRefreshTimer=setTimeout(updateDiscordActivity,1000);return;}
+    if(discordPresenceInFlight){discordPresenceQueued=true;return;}
+    discordPresenceInFlight=true;
+    const player=window.__pulsarHost&&window.__pulsarHost.nowPlaying?window.__pulsarHost.nowPlaying():null;
+    const command=(!player||!player.hasTrack)
+      ? api.clear(discordApplicationId)
+      : api.update({appId:discordApplicationId,title:player.title,artist:player.artist,playing:player.playing,position:player.pos,duration:player.dur});
+    command.catch(function(error){
+      discordPresenceInFlight=false;
+      if(player&&player.hasTrack)discordStatus(String(error&&error.message||error||'Discord RPC error'),false);
+      if(discordPresenceQueued&&discordPresenceEnabled){discordPresenceQueued=false;updateDiscordActivity();}
+    });
+  }
+  function scheduleDiscordActivity(){clearTimeout(discordPresenceRefreshTimer);discordPresenceRefreshTimer=setTimeout(updateDiscordActivity,250);}
+  function onDiscordPlayerState(event){
+    if(event&&event.detail&&event.detail.reason==='track'){
+      // Track selection is already authoritative here; don't debounce it behind
+      // the periodic refresh or the asynchronous media pipeline.
+      clearTimeout(discordPresenceRefreshTimer);
+      updateDiscordActivity();
+      return;
+    }
+    scheduleDiscordActivity();
+  }
+  function startDiscordPolling(){
+    if(discordPresenceTimer)return;
+    updateDiscordActivity();
+    discordPresenceTimer=setInterval(function(){if(!discordConnected)updateDiscordActivity();},15000);
+  }
+  function stopDiscordPolling(){
+    if(discordPresenceTimer){clearInterval(discordPresenceTimer);discordPresenceTimer=0;}
+    if(discordPresenceRefreshTimer){clearTimeout(discordPresenceRefreshTimer);discordPresenceRefreshTimer=0;}
+    discordPresenceQueued=false;
+  }
+  if(discordPresenceToggleEl){
+    discordPresenceToggleEl.checked=discordPresenceEnabled;
+    discordPresenceToggleEl.addEventListener('change',function(){
+      if(discordPresenceToggleEl.checked&&!/^\d{17,20}$/.test(discordApplicationId)){
+        discordPresenceToggleEl.checked=false;discordStatus(t('Wpisz prawidłowy Discord Application ID.'),false);return;
+      }
+      discordPresenceEnabled=!!discordPresenceToggleEl.checked;
+      try{localStorage.setItem('pulsarDiscordPresenceEnabled',discordPresenceEnabled?'1':'0');}catch(e){}
+      if(discordPresenceEnabled){startDiscordPolling();discordStatus(t('Discord Rich Presence włączone.'),true);}
+      else{stopDiscordPolling();clearDiscordActivity();discordStatus(t('Discord Rich Presence wyłączone.'),true);}
+    });
+  }
+  document.addEventListener('pulsar:discord-status',function(event){
+    const detail=event&&event.detail||{};let message=String(detail.message||'');
+    if(message==='Connected to Discord')discordConnected=true;
+    else if(!detail.ok)discordConnected=false;
+    if(discordPresenceInFlight){
+      discordPresenceInFlight=false;
+      if(discordPresenceQueued&&discordPresenceEnabled){discordPresenceQueued=false;updateDiscordActivity();}
+    }
+    if(message==='Connected to Discord')message=t('Połączono z Discordem');
+    else if(message==='Discord desktop IPC not found; open the Discord desktop app')message=t('Nie znaleziono Discorda — uruchom aplikację desktopową.');
+    else if(message==='Discord Rich Presence cleared')message=t('Discord Rich Presence wyłączone.');
+    discordStatus(message,!!detail.ok);
+  });
+  document.addEventListener('pulsar:state',onDiscordPlayerState);
+  ['play','playing','pause','seeked','loadedmetadata','durationchange'].forEach(function(eventName){
+    audio.addEventListener(eventName,scheduleDiscordActivity);
+    audioXF.addEventListener(eventName,scheduleDiscordActivity);
+  });
+  if(discordPresenceEnabled&&/^\d{17,20}$/.test(discordApplicationId))startDiscordPolling();
+  window.addEventListener('pagehide',function(){stopDiscordPolling();const api=discordDesktop();if(api&&api.stop)api.stop();else clearDiscordActivity();});
+  const listeningHistoryToggleEl=document.getElementById('smListeningHistoryToggle');
+  if(listeningHistoryToggleEl){
+    listeningHistoryToggleEl.checked=listeningHistoryEnabled;
+    listeningHistoryToggleEl.addEventListener('change',function(){
+      listeningHistoryEnabled=!!listeningHistoryToggleEl.checked;
+      try{localStorage.setItem('pulsarListeningHistoryEnabled',listeningHistoryEnabled?'1':'0');}catch(e){}
+      if(listeningHistoryEnabled){startListeningSession(activeOnlineTrack||(currentIndex>-1?tracks[currentIndex]:null),audio);showToast(t('Historia odsłuchów włączona — zapisywane są tylko odtworzenia lokalne.'));}
+      else{finishListeningSession();showToast(t('Historia odsłuchów wyłączona.'));}
+      renderListeningHistoryView();
+    });
+  }
+  const listeningHistoryClearBtn=document.getElementById('smListeningHistoryClearBtn');
+  if(listeningHistoryClearBtn)listeningHistoryClearBtn.addEventListener('click',function(){
+    listeningHistory=[];listeningSession=null;
+    try{localStorage.removeItem('pulsarListeningHistoryV1');}catch(e){}
+    renderListeningHistoryView();showToast(t('Historia odsłuchów usunięta.'));
+  });
   const recommendationsToggleEl=document.getElementById('smRecommendationsToggle');
   if(recommendationsToggleEl){
     recommendationsToggleEl.checked=recommendationsEnabled;
@@ -9330,6 +9556,8 @@
 
   audio.addEventListener('play', () => {
     if (!onlinePlaybackLoading){
+      const listeningTrack=activeOnlineTrack||(currentIndex>-1?tracks[currentIndex]:null);
+      startListeningSession(listeningTrack,audio);
       if (activeOnlineTrack) recordRecommendationListen(activeOnlineTrack);
       else if (currentIndex > -1) recordRecommendationListen(tracks[currentIndex]);
     }
@@ -9339,6 +9567,12 @@
     document.body.classList.add('playing');
     if ('mediaSession' in navigator) try{ navigator.mediaSession.playbackState = 'playing'; } catch(e){}
   });
+  audio.addEventListener('timeupdate', () => tickListeningSession(audio));
+  audio.addEventListener('pause', () => pauseListeningSession(audio));
+  audio.addEventListener('ended', () => finishListeningSession(audio));
+  audioXF.addEventListener('timeupdate', () => tickListeningSession(audioXF));
+  audioXF.addEventListener('pause', () => pauseListeningSession(audioXF));
+  audioXF.addEventListener('ended', () => finishListeningSession(audioXF));
   audio.addEventListener('pause', () => {
     if (typeof netRenderPlayStates === 'function') netRenderPlayStates();
     setPlayIcon(false); showBarPersistent();
@@ -9798,6 +10032,7 @@
     renderLibrary();
     if (btn.dataset.view === 'net'){ renderNetGenres(); renderNetBrowseState(); }
     if (btn.dataset.view === 'recommendations') refreshRecommendations(false);
+    if (btn.dataset.view === 'history') renderListeningHistoryView();
   });
   selectToggleBtn.addEventListener('click', () => {
     if (addingToAlbumId){ finishAddingToAlbum(false); return; }
@@ -10612,6 +10847,8 @@
   }
   audio.addEventListener('play', function(){ emitHostState('play'); });
   audio.addEventListener('pause', function(){ emitHostState('pause'); });
+  audio.addEventListener('seeked', function(){ emitHostState('seek'); });
+  audio.addEventListener('ended', function(){ emitHostState('ended'); });
 
   // ---- Widok mini (kompaktowe okno) ----
   const mv = {
@@ -10929,12 +11166,12 @@
       return {
         title: tr ? (tr.title || '') : '',
         artist: tr ? txArtist(tr.artist || '') : '',
-        playing: !audio.paused,
+        playing: !audio.paused || !audioXF.paused,
         hasTracks: tracks.length > 0 || !!activeOnlineTrack,
         hasTrack: !!tr,
         cover: (cu && cu !== DEFAULT_COVER) ? cu : '',
-        pos: audio.currentTime || 0,
-        dur: isFinite(audio.duration) ? audio.duration : 0,
+        pos: (!audioXF.paused ? audioXF.currentTime : audio.currentTime) || 0,
+        dur: (!audioXF.paused && isFinite(audioXF.duration) ? audioXF.duration : (isFinite(audio.duration) ? audio.duration : 0)),
         accent: accent
       };
     },

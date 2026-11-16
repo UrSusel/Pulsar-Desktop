@@ -30,6 +30,63 @@
   let focused = true;
   let quitting = false;
   let refreshTimer = 0;
+  const discordRpc = { proc: null, buffer: '', starting: null };
+
+  function discordStatus(ok, message){
+    try { document.dispatchEvent(new CustomEvent('pulsar:discord-status', { detail: { ok: !!ok, message: String(message || '') } })); } catch (e){}
+  }
+  function onDiscordProcessEvent(evt){
+    const d = evt && evt.detail;
+    if (!d || !discordRpc.proc || d.id !== discordRpc.proc.id) return;
+    if (d.action === 'stdOut'){
+      discordRpc.buffer += String(d.data || '');
+      let i;
+      while ((i = discordRpc.buffer.indexOf('\n')) >= 0){
+        const line = discordRpc.buffer.slice(0, i).replace(/\r$/, ''); discordRpc.buffer = discordRpc.buffer.slice(i + 1);
+        try { const status = JSON.parse(line); if (status && status.type === 'status') discordStatus(status.ok, status.message); } catch (e){}
+      }
+    } else if (d.action === 'exit'){
+      discordRpc.proc = null; discordRpc.buffer = '';
+      if (!quitting) discordStatus(false, tr('Discord RPC zakończył działanie.'));
+    }
+  }
+  async function startDiscordRpc(){
+    if (discordRpc.proc) return discordRpc.proc;
+    if (discordRpc.starting) return discordRpc.starting;
+    discordRpc.starting = (async function(){
+      const dir = await getTmp(), script = joinPath(dir, 'pulsar-discord-rpc.py');
+      const response = await fetch('/discord-rpc.py', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Discord RPC helper unavailable');
+      await Neutralino.filesystem.writeFile(script, await response.text());
+      const proc = await Neutralino.os.spawnProcess('python3 -u ' + shellQuote(script), { cwd: dir });
+      if (!proc || proc.id == null) throw new Error('Could not start Discord RPC helper. Python 3 may be missing.');
+      discordRpc.proc = proc; discordRpc.buffer = '';
+      return proc;
+    })();
+    try { return await discordRpc.starting; }
+    finally { discordRpc.starting = null; }
+  }
+  async function writeDiscordRpc(message){
+    const proc = await startDiscordRpc();
+    return Neutralino.os.updateSpawnedProcess(proc.id, 'stdIn', JSON.stringify(message) + '\n');
+  }
+  async function updateDiscordPresence(message){
+    const appId = String(message && message.appId || '').trim();
+    if (!/^\d{17,20}$/.test(appId)) throw new Error(tr('Wpisz prawidłowy Discord Application ID.'));
+    await writeDiscordRpc(Object.assign({}, message, { cmd: 'update', appId: appId }));
+    return true;
+  }
+  async function clearDiscordPresence(appId){
+    const proc = discordRpc.proc;
+    if (!proc) return true;
+    try { await Neutralino.os.updateSpawnedProcess(proc.id, 'stdIn', JSON.stringify({ cmd: 'clear', appId: String(appId || '') }) + '\n'); } catch (e){}
+    return true;
+  }
+  function stopDiscordPresence(){
+    const proc=discordRpc.proc;if(!proc)return Promise.resolve(true);
+    try{Neutralino.os.updateSpawnedProcess(proc.id,'stdIn',JSON.stringify({cmd:'exit'})+'\n');}catch(e){}
+    discordRpc.proc=null;discordRpc.buffer='';return Promise.resolve(true);
+  }
 
   function getBool(key, fallback) {
     try { const v = localStorage.getItem(key); return v === null ? fallback : v === '1'; } catch (e) { return fallback; }
@@ -422,7 +479,16 @@
   function toggleOnTop() { onTop = !onTop; setBool(K.onTop, onTop); safe(function () { return W.setAlwaysOnTop(mini ? getBool('pulsarLinuxMiniOnTop', true) : onTop); }); syncSettings(); refreshTray(); }
   function showWindow() { hidden = false; return safe(function () { return W.show(); }); }
   function hideWindow() { hidden = true; return safe(function () { return W.hide(); }); }
-  function quit() { quitting = true; return safe(function () { return Neutralino.app.exit(); }); }
+  function quit() {
+    quitting = true;
+    const proc = discordRpc.proc;
+    if (proc){
+      try { Neutralino.os.updateSpawnedProcess(proc.id, 'stdIn', JSON.stringify({ cmd: 'exit' }) + '\n'); } catch (e){}
+      setTimeout(function(){ safe(function () { return Neutralino.app.exit(); }); }, 120);
+      return Promise.resolve();
+    }
+    return safe(function () { return Neutralino.app.exit(); });
+  }
   function nowPlaying() { try { return getHost() && getHost().nowPlaying ? getHost().nowPlaying() : null; } catch (e) { return null; } }
   function refreshTray() {
     if (!trayReady) return;
@@ -526,7 +592,9 @@
   function init() {
     document.documentElement.classList.add('nl-desktop', 'nl-linux');
     initTray();
-    window.__pulsarDesktop = { setMini: setMini, isMini: function () { return mini; }, toggleOnTop: toggleOnTop, isOnTop: function () { return mini ? getBool('pulsarLinuxMiniOnTop', true) : onTop; }, show: showWindow, hide: hideWindow, quit: quit, linux: true };
+    window.__pulsarDesktop = { setMini: setMini, isMini: function () { return mini; }, toggleOnTop: toggleOnTop, isOnTop: function () { return mini ? getBool('pulsarLinuxMiniOnTop', true) : onTop; }, show: showWindow, hide: hideWindow, quit: quit, linux: true,
+      discordPresence: { update: updateDiscordPresence, clear: clearDiscordPresence, stop: stopDiscordPresence },
+      openUrl: function(url){ return Neutralino.os.open(String(url || '')); } };
     window.__pulsarDesktop.obs = { enabled: function () { return false; }, set: function () { toast(tr('OBS audio bridge jest dostępny w wersji Windows; overlay może działać jako Browser Source.')); }, files: function () { return true; }, help: function () { toast(tr('Dodaj plik obs/pulsar-obs.html jako Browser Source w OBS.')); } };
     const miniButton = document.getElementById('smMiniBtn'); if (miniButton) miniButton.addEventListener('click', function () { const menu = document.getElementById('settingsMenu'); if (menu) menu.hidden = true; setMini(true); });
     const top = document.getElementById('smOnTop'); if (top) top.addEventListener('change', function () { onTop = top.checked; setBool(K.onTop, onTop); safe(function () { return W.setAlwaysOnTop(onTop); }); refreshTray(); });
@@ -535,6 +603,7 @@
     initWatcher(); syncSettings();
     document.addEventListener('pulsar:state', function () { clearTimeout(refreshTimer); refreshTimer = setTimeout(refreshTray, 100); });
     document.addEventListener('pulsar:lang', function () { syncSettings(); refreshTray(); updateWatcherUi(); });
+    try { Neutralino.events.on('spawnedProcess', onDiscordProcessEvent); } catch (e){}
     try { Neutralino.events.on('windowClose', function () { if (!quitting && closeToTray && trayReady) hideWindow(); else quit(); }); } catch (e) {}
     try { Neutralino.events.on('trayMenuItemClicked', onTray); } catch (e) {}
     safe(function () { return W.setAlwaysOnTop(onTop); });

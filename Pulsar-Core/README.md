@@ -7,6 +7,7 @@ This directory contains the original, readable runtime sources for the Pulsar de
 - `resources/desktop.js` contains the Windows native integration; Linux has its corresponding adapter.
 - `resources/tags.js`, `obs/`, icons, and tray sources are the remaining application resources. The player can import per-track `.lrc`/`.txt` lyrics and reads embedded cover art from ID3, MP4/M4A, FLAC/Vorbis comments, APEv2, ASF/WMA, and Matroska/WebM attachments.
 - `resources/neutralino.js` is the third-party Neutralino client and retains its upstream license.
+- `resources/discord-rpc.py` and `resources/discord-rpc.ps1` implement opt-in Discord Rich Presence over the local IPC socket/pipe; the shared public Discord Application ID is preconfigured in `resources/index.html`, and no bot token or web API is used.
 
 The source baseline also contains the synchronization hooks. The full build overlays the current `Pulsar-Sync`, `Pulsar-Editor`, and `Pulsar-Extras` modules so every layer has one canonical readable source.
 

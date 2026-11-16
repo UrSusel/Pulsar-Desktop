@@ -143,7 +143,8 @@ def run(platform: str, archive: Path, check_only: bool, from_source: bool = Fals
                 raise ValueError(f"brak kompletnych źródeł rdzenia w {source_root}")
             files = {
                 source.relative_to(source_root).as_posix(): source.read_bytes()
-                for source in sorted(source_root.rglob("*")) if source.is_file()
+                for source in sorted(source_root.rglob("*"))
+                if source.is_file() and "__pycache__" not in source.parts
             }
         else:
             data, header, base = neu.read_archive(str(archive))

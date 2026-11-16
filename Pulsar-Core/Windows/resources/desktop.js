@@ -818,6 +818,55 @@
     function toast(s){ const h = host(); try { if (h && h.toast) h.toast(s); } catch (e){} }
     function safe(fn){ try { return Promise.resolve(fn()).catch(function (){ return null; }); } catch (e){ return Promise.resolve(null); } }
     function sleep(ms){ return new Promise(function (r){ setTimeout(r, ms); }); }
+    const discordRpc = { proc: null, buffer: '', starting: null };
+    function discordStatus(ok, message){ try { document.dispatchEvent(new CustomEvent('pulsar:discord-status', { detail: { ok: !!ok, message: String(message || '') } })); } catch (e){} }
+    function onDiscordEvent(d){
+      if (!d || !discordRpc.proc || d.id !== discordRpc.proc.id) return false;
+      if (d.action === 'stdOut'){
+        discordRpc.buffer += String(d.data || ''); let i;
+        while ((i = discordRpc.buffer.indexOf('\n')) >= 0){
+          const line = discordRpc.buffer.slice(0, i).replace(/\r$/, ''); discordRpc.buffer = discordRpc.buffer.slice(i + 1);
+          try { const status = JSON.parse(line); if (status && status.type === 'status') discordStatus(status.ok, status.message); } catch (e){}
+        }
+      } else if (d.action === 'exit'){
+        discordRpc.proc = null; discordRpc.buffer = '';
+        if (!quitting) discordStatus(false, tr('Discord RPC zakończył działanie.'));
+      }
+      return true;
+    }
+    async function startDiscordRpc(){
+      if (discordRpc.proc) return discordRpc.proc;
+      if (discordRpc.starting) return discordRpc.starting;
+      discordRpc.starting = (async function(){
+        const dir = await getTmp(), script = joinPath(dir, 'pulsar-discord-rpc.ps1');
+        const response = await fetch('/discord-rpc.ps1', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Discord RPC helper unavailable');
+        await Neutralino.filesystem.writeFile(script, await response.text());
+        const command = 'powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -InputFormat None -WindowStyle Hidden -File "' + script + '"';
+        const proc = await Neutralino.os.spawnProcess(command, { cwd: dir });
+        if (!proc || proc.id == null) throw new Error('Could not start Discord RPC helper');
+        discordRpc.proc = proc; discordRpc.buffer = '';
+        return proc;
+      })();
+      try { return await discordRpc.starting; } finally { discordRpc.starting = null; }
+    }
+    async function updateDiscordPresence(message){
+      const appId = String(message && message.appId || '').trim();
+      if (!/^\d{17,20}$/.test(appId)) throw new Error(tr('Wpisz prawidłowy Discord Application ID.'));
+      const proc = await startDiscordRpc();
+      await Neutralino.os.updateSpawnedProcess(proc.id, 'stdIn', JSON.stringify(Object.assign({}, message, { cmd: 'update', appId: appId })) + '\n');
+      return true;
+    }
+    async function clearDiscordPresence(appId){
+      const proc = discordRpc.proc; if (!proc) return true;
+      try { await Neutralino.os.updateSpawnedProcess(proc.id, 'stdIn', JSON.stringify({ cmd: 'clear', appId: String(appId || '') }) + '\n'); } catch (e){}
+      return true;
+    }
+    function stopDiscordPresence(){
+      const proc=discordRpc.proc;if(!proc)return Promise.resolve(true);
+      try{Neutralino.os.updateSpawnedProcess(proc.id,'stdIn',JSON.stringify({cmd:'exit'})+'\n');}catch(e){}
+      discordRpc.proc=null;discordRpc.buffer='';return Promise.resolve(true);
+    }
     function onDom(fn){ if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', fn, { once: true }); else fn(); }
     function clip(s, n){ s = String(s || ''); return s.length > n ? s.slice(0, n - 1) + '…' : s; }
     function menuText(s){ return String(s).replace(/&/g, '&&'); } // w menu Windows „&” to mnemonik
@@ -947,6 +996,7 @@
     }
     function onHelperEvent(evt){
       const d = evt && evt.detail;
+      if (onDiscordEvent(d)) return;
       if (!d || !helper.proc || d.id !== helper.proc.id) return;
       if (d.action === 'stdOut'){
         helper.buf += String(d.data || '');
@@ -1045,7 +1095,9 @@
       quitting = true;
       try { const h = host(); if (h && h.saveState) h.saveState(); } catch (e){}
       const exit = function (){ try { Neutralino.app.exit(); } catch (e){} };
+      if (discordRpc.proc){ try { Neutralino.os.updateSpawnedProcess(discordRpc.proc.id, 'stdIn', JSON.stringify({ cmd: 'exit' }) + '\n'); } catch (e){} }
       if (helper.proc){ Promise.race([helperWrite('quit'), sleep(400)]).then(exit, exit); }
+      else if (discordRpc.proc) setTimeout(exit, 120);
       else exit();
     }
 
@@ -1176,7 +1228,9 @@
             show: showWindow,
             hide: hideWindow,
             quit: quit,
-            trayHelper: function (){ return { ready: helper.ready, failed: helper.failed, running: !!helper.proc, last: helper.last }; }
+            trayHelper: function (){ return { ready: helper.ready, failed: helper.failed, running: !!helper.proc, last: helper.last }; },
+            discordPresence: { update: updateDiscordPresence, clear: clearDiscordPresence, stop: stopDiscordPresence },
+            openUrl: function(url){ return Neutralino.os.open(String(url || '')); }
           };
           const bt = await safe(function (){ return W.getTitle(); });
           if (bt) baseTitle = bt;
